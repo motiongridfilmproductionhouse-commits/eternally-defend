@@ -31,6 +31,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NewsroomIndexRouteImport } from './routes/newsroom.index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
 import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom.impersonation-response-guide'
 import { Route as NewsroomExecutiveFirstHourPlaybookRouteImport } from './routes/newsroom.executive-first-hour-playbook'
@@ -213,6 +214,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const NewsroomIndexRoute = NewsroomIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NewsroomRoute,
 } as any)
 const VerifySlugRoute = VerifySlugRouteImport.update({
   id: '/verify/$slug',
@@ -663,6 +669,7 @@ export interface FileRoutesByFullPath {
   '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/newsroom/': typeof NewsroomIndexRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
@@ -722,7 +729,6 @@ export interface FileRoutesByTo {
   '/cookies': typeof CookiesRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/methodology': typeof MethodologyRoute
-  '/newsroom': typeof NewsroomRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
@@ -757,6 +763,7 @@ export interface FileRoutesByTo {
   '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/newsroom': typeof NewsroomIndexRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
@@ -855,6 +862,7 @@ export interface FileRoutesById {
   '/newsroom/executive-first-hour-playbook': typeof NewsroomExecutiveFirstHourPlaybookRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/newsroom/': typeof NewsroomIndexRoute
   '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/_app/admin/identity-review': typeof AppAdminIdentityReviewRoute
@@ -952,6 +960,7 @@ export interface FileRouteTypes {
     | '/newsroom/executive-first-hour-playbook'
     | '/newsroom/impersonation-response-guide'
     | '/verify/$slug'
+    | '/newsroom/'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
     | '/admin/identity-review'
@@ -1011,7 +1020,6 @@ export interface FileRouteTypes {
     | '/cookies'
     | '/identity-response-observatory'
     | '/methodology'
-    | '/newsroom'
     | '/onboarding'
     | '/partner-apply'
     | '/partner-status'
@@ -1046,6 +1054,7 @@ export interface FileRouteTypes {
     | '/newsroom/executive-first-hour-playbook'
     | '/newsroom/impersonation-response-guide'
     | '/verify/$slug'
+    | '/newsroom'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
     | '/admin/identity-review'
@@ -1143,6 +1152,7 @@ export interface FileRouteTypes {
     | '/newsroom/executive-first-hour-playbook'
     | '/newsroom/impersonation-response-guide'
     | '/verify/$slug'
+    | '/newsroom/'
     | '/_app/admin/approved-sources-review'
     | '/_app/admin/diagnostics'
     | '/_app/admin/identity-review'
@@ -1395,6 +1405,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/newsroom/': {
+      id: '/newsroom/'
+      path: '/'
+      fullPath: '/newsroom/'
+      preLoaderRoute: typeof NewsroomIndexRouteImport
+      parentRoute: typeof NewsroomRoute
     }
     '/verify/$slug': {
       id: '/verify/$slug'
@@ -2043,6 +2060,7 @@ interface NewsroomRouteChildren {
   NewsroomDeepfakeVerificationGuideRoute: typeof NewsroomDeepfakeVerificationGuideRoute
   NewsroomExecutiveFirstHourPlaybookRoute: typeof NewsroomExecutiveFirstHourPlaybookRoute
   NewsroomImpersonationResponseGuideRoute: typeof NewsroomImpersonationResponseGuideRoute
+  NewsroomIndexRoute: typeof NewsroomIndexRoute
 }
 
 const NewsroomRouteChildren: NewsroomRouteChildren = {
@@ -2052,6 +2070,7 @@ const NewsroomRouteChildren: NewsroomRouteChildren = {
     NewsroomExecutiveFirstHourPlaybookRoute,
   NewsroomImpersonationResponseGuideRoute:
     NewsroomImpersonationResponseGuideRoute,
+  NewsroomIndexRoute: NewsroomIndexRoute,
 }
 
 const NewsroomRouteWithChildren = NewsroomRoute._addFileChildren(
@@ -2122,12 +2141,3 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
