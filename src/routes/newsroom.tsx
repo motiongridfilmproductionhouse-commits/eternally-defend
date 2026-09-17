@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowRight,
   BookOpen,
   ClipboardCheck,
@@ -124,6 +125,15 @@ const guides = [
     title: "Detection Is Not Prevention",
     summary:
       "Monitoring and takedown work after an image has already been misused. Why prevention has to start earlier.",
+    image: undefined,
+    imageAlt: undefined,
+  },
+  {
+    icon: AlertTriangle,
+    to: "/newsroom/someone-made-a-deepfake-of-me" as const,
+    title: "Someone Made a Deepfake of Me — What Should I Do?",
+    summary:
+      "A direct, 10-step framework for what to do right now if you've discovered a deepfake of yourself.",
     image: undefined,
     imageAlt: undefined,
   },

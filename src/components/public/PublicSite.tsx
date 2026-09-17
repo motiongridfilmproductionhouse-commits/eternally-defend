@@ -136,6 +136,12 @@ export function PublicFooter() {
       links: [
         { label: "Protection", href: "/#solutions" },
         { label: "Image Immunization (EIP)", to: "/image-immunization" as const },
+        { label: "Deepfake Protection", to: "/deepfake-protection" as const },
+        {
+          label: "Online Reputation Protection",
+          to: "/online-reputation-protection" as const,
+        },
+        { label: "AI Impersonation", to: "/ai-impersonation" as const },
         { label: "How It Works", href: "/#how-it-works" },
         { label: "Case Studies", to: "/case-studies" as const },
         { label: "Identity Response Observatory", to: "/identity-response-observatory" as const },
