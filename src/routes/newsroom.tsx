@@ -1,5 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, FileText, ScanFace, Users } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  ClipboardCheck,
+  FileText,
+  Layers,
+  Megaphone,
+  ScanFace,
+  Users,
+} from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom";
@@ -54,6 +63,44 @@ const guides = [
     image: "/images/newsroom/deepfake-verification-guide.png",
     imageAlt: "Desk with a checklist, clock, documents, and response workspace",
   },
+  {
+    icon: Megaphone,
+    to: "/newsroom/eterna-introduces-image-immunization" as const,
+    title: "Eterna Introduces Image Immunization",
+    summary:
+      "Eterna's proprietary pre-publication image protection technology, developed through internal R&D and currently under validation.",
+    image: "/images/newsroom/image-immunization-hero.png",
+    imageAlt: "A glass-pane before-and-after portrait representing Eterna Image Immunization",
+  },
+  {
+    icon: BookOpen,
+    to: "/newsroom/what-is-image-immunization" as const,
+    title: "What Is Image Immunization?",
+    summary:
+      "A plain-language introduction to what Image Immunization is and how it's designed to work.",
+    image: "/images/newsroom/image-immunization-audiences.png",
+    imageAlt:
+      "A photographer and a group of people, representing who Image Immunization is designed for",
+  },
+  {
+    icon: Layers,
+    to: "/newsroom/inside-eterna-image-immunization" as const,
+    title: "Inside Eterna Image Immunization",
+    summary:
+      "A technically grounded, public-safe look at how Image Immunization approaches pre-publication protection.",
+    image: "/images/newsroom/image-immunization-identity-signal.png",
+    imageAlt:
+      "A duplicated ID-style portrait with a network visualization, representing Eterna Image Immunization",
+  },
+  {
+    icon: ClipboardCheck,
+    to: "/newsroom/how-eterna-validates-image-immunization-responsibly" as const,
+    title: "How Eterna Validates Image Immunization Responsibly",
+    summary:
+      "How Eterna validates Image Immunization responsibly, including what's still in progress.",
+    image: undefined,
+    imageAlt: undefined,
+  },
 ] as const;
 
 function NewsroomPage() {
@@ -72,19 +119,25 @@ function NewsroomPage() {
                 to={to}
                 className="landing-feature-card group flex flex-col bg-landing transition-colors hover:bg-landing-soft"
               >
-                <div className="aspect-video w-full overflow-hidden border-b border-landing-line bg-landing-soft">
-                  <img
-                    src={image}
-                    alt={imageAlt}
-                    width={1344}
-                    height={752}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                  />
-                </div>
+                {image && (
+                  <div className="aspect-video w-full overflow-hidden border-b border-landing-line bg-landing-soft">
+                    <img
+                      src={image}
+                      alt={imageAlt}
+                      width={1344}
+                      height={752}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                )}
                 <div className="flex flex-1 flex-col p-8">
                   <Icon className="size-5 text-landing-accent" />
-                  <h2 className="mt-14 text-lg font-semibold">{title}</h2>
+                  <h2
+                    className={image ? "mt-14 text-lg font-semibold" : "mt-2 text-lg font-semibold"}
+                  >
+                    {title}
+                  </h2>
                   <p className="mt-3 text-sm leading-6 text-landing-muted">{summary}</p>
                   <span className="mt-6 inline-flex items-center gap-1 text-xs font-semibold text-landing-ink">
                     Read the guide <ArrowRight className="size-3.5" />
