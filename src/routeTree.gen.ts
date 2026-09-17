@@ -20,6 +20,7 @@ import { Route as NewsroomRouteImport } from './routes/newsroom'
 import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
 import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
+import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CaseStudiesRouteImport } from './routes/case-studies'
@@ -167,6 +168,11 @@ const IdentityResponseObservatoryRoute =
     path: '/identity-response-observatory',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DeepfakeProtectionRoute = DeepfakeProtectionRouteImport.update({
+  id: '/deepfake-protection',
+  path: '/deepfake-protection',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
@@ -666,6 +672,7 @@ export interface FileRoutesByFullPath {
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
@@ -767,6 +774,7 @@ export interface FileRoutesByTo {
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
@@ -870,6 +878,7 @@ export interface FileRoutesById {
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
@@ -973,6 +982,7 @@ export interface FileRouteTypes {
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/deepfake-protection'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
@@ -1074,6 +1084,7 @@ export interface FileRouteTypes {
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/deepfake-protection'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
@@ -1176,6 +1187,7 @@ export interface FileRouteTypes {
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/deepfake-protection'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
@@ -1280,6 +1292,7 @@ export interface RootRouteChildren {
   CaseStudiesRoute: typeof CaseStudiesRoute
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
+  DeepfakeProtectionRoute: typeof DeepfakeProtectionRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
   ImageImmunizationRoute: typeof ImageImmunizationRoute
   MethodologyRoute: typeof MethodologyRoute
@@ -1403,6 +1416,13 @@ declare module '@tanstack/react-router' {
       path: '/identity-response-observatory'
       fullPath: '/identity-response-observatory'
       preLoaderRoute: typeof IdentityResponseObservatoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/deepfake-protection': {
+      id: '/deepfake-protection'
+      path: '/deepfake-protection'
+      fullPath: '/deepfake-protection'
+      preLoaderRoute: typeof DeepfakeProtectionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cookies': {
@@ -2180,6 +2200,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaseStudiesRoute: CaseStudiesRoute,
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
+  DeepfakeProtectionRoute: DeepfakeProtectionRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
   ImageImmunizationRoute: ImageImmunizationRoute,
   MethodologyRoute: MethodologyRoute,
