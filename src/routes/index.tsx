@@ -148,7 +148,6 @@ const eipProtectionSteps = [
   {
     step: "03",
     title: "Designed to reduce unauthorized AI identity reuse",
-    detail: "A layer of protective friction, not a guarantee.",
   },
 ] as const;
 
@@ -703,7 +702,7 @@ function LandingPage() {
 }
 
 type EipFlow = "standard" | "eip";
-type EipStep = { step: string; title: string; detail: string };
+type EipStep = { step: string; title: string; detail?: string };
 
 function EipLifecycleRow({
   flow,
@@ -760,7 +759,9 @@ function EipLifecycleRow({
                 {item.step}
               </span>
               <h3 className="mt-3 text-sm font-semibold leading-5">{item.title}</h3>
-              <p className="mt-2 text-xs leading-5 text-landing-muted">{item.detail}</p>
+              {item.detail && (
+                <p className="mt-2 text-xs leading-5 text-landing-muted">{item.detail}</p>
+              )}
             </article>
           );
         })}
