@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Archive,
@@ -173,8 +173,36 @@ function LandingPage() {
 
 function LandingPageContent() {
   const { openEnquiryModal } = useEnquiryModal();
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("enquiry") !== "protection") return;
+
+    const source = params.get("source");
+    const safeSource =
+      source && source.length <= 80 && /^[a-zA-Z0-9._-]+$/.test(source) ? source : null;
+    openEnquiryModal({
+      sourcePage: "legacy-waitinglist",
+      sourceCta: safeSource ? `legacy-${safeSource}` : "legacy-request-protection",
+      department: "protection",
+    });
+    void navigate({
+      to: "/",
+      search: {
+        enquiry: undefined,
+        source: undefined,
+        utm_source: undefined,
+        utm_medium: undefined,
+        utm_campaign: undefined,
+        utm_term: undefined,
+        utm_content: undefined,
+        referral: undefined,
+      },
+      replace: true,
+    });
+  }, [navigate, openEnquiryModal]);
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
