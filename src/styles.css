@@ -1524,12 +1524,20 @@
   transform: translateY(0);
 }
 
-.landing-stagger.is-visible > :nth-child(2) { transition-delay: 80ms; }
-.landing-stagger.is-visible > :nth-child(3) { transition-delay: 160ms; }
-.landing-stagger.is-visible > :nth-child(4) { transition-delay: 240ms; }
+.landing-stagger.is-visible > :nth-child(2) {
+  transition-delay: 80ms;
+}
+.landing-stagger.is-visible > :nth-child(3) {
+  transition-delay: 160ms;
+}
+.landing-stagger.is-visible > :nth-child(4) {
+  transition-delay: 240ms;
+}
 
 .landing-final-cta video {
-  transition: transform 1.1s cubic-bezier(0.22, 1, 0.36, 1), filter 1.1s ease;
+  transition:
+    transform 1.1s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 1.1s ease;
 }
 
 .landing-final-cta:hover video {
@@ -1538,13 +1546,25 @@
 }
 
 @keyframes landing-hero-arrive {
-  from { opacity: 0; transform: scale(1.09); }
-  to { opacity: 1; transform: scale(1.025); }
+  from {
+    opacity: 0;
+    transform: scale(1.09);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.025);
+  }
 }
 
 @keyframes landing-content-arrive {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .landing-cta-overlay {
@@ -1858,12 +1878,24 @@
    left), replayed by React's `key={stepKey}` remount rather than an
    imperative animation library. */
 @keyframes eterna-enquiry-step-in-forward {
-  from { opacity: 0; transform: translateX(10px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 @keyframes eterna-enquiry-step-in-back {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 .eterna-enquiry-step--forward {
   animation: eterna-enquiry-step-in-forward 220ms cubic-bezier(0.16, 1, 0.3, 1);
