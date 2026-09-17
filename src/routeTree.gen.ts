@@ -15,6 +15,7 @@ import { Route as SecurityRouteImport } from './routes/security'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PartnerStatusRouteImport } from './routes/partner-status'
 import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
+import { Route as OnlineReputationProtectionRouteImport } from './routes/online-reputation-protection'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NewsroomRouteImport } from './routes/newsroom'
 import { Route as MethodologyRouteImport } from './routes/methodology'
@@ -142,6 +143,12 @@ const PartnerApplyRoute = PartnerApplyRouteImport.update({
   path: '/partner-apply',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnlineReputationProtectionRoute =
+  OnlineReputationProtectionRouteImport.update({
+    id: '/online-reputation-protection',
+    path: '/online-reputation-protection',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -678,6 +685,7 @@ export interface FileRoutesByFullPath {
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
+  '/online-reputation-protection': typeof OnlineReputationProtectionRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -780,6 +788,7 @@ export interface FileRoutesByTo {
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
+  '/online-reputation-protection': typeof OnlineReputationProtectionRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -884,6 +893,7 @@ export interface FileRoutesById {
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
+  '/online-reputation-protection': typeof OnlineReputationProtectionRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -988,6 +998,7 @@ export interface FileRouteTypes {
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
+    | '/online-reputation-protection'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
@@ -1090,6 +1101,7 @@ export interface FileRouteTypes {
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
+    | '/online-reputation-protection'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
@@ -1193,6 +1205,7 @@ export interface FileRouteTypes {
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
+    | '/online-reputation-protection'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
@@ -1298,6 +1311,7 @@ export interface RootRouteChildren {
   MethodologyRoute: typeof MethodologyRoute
   NewsroomRoute: typeof NewsroomRoute
   OnboardingRoute: typeof OnboardingRoute
+  OnlineReputationProtectionRoute: typeof OnlineReputationProtectionRoute
   PartnerApplyRoute: typeof PartnerApplyRoute
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -1381,6 +1395,13 @@ declare module '@tanstack/react-router' {
       path: '/partner-apply'
       fullPath: '/partner-apply'
       preLoaderRoute: typeof PartnerApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/online-reputation-protection': {
+      id: '/online-reputation-protection'
+      path: '/online-reputation-protection'
+      fullPath: '/online-reputation-protection'
+      preLoaderRoute: typeof OnlineReputationProtectionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -2206,6 +2227,7 @@ const rootRouteChildren: RootRouteChildren = {
   MethodologyRoute: MethodologyRoute,
   NewsroomRoute: NewsroomRoute,
   OnboardingRoute: OnboardingRoute,
+  OnlineReputationProtectionRoute: OnlineReputationProtectionRoute,
   PartnerApplyRoute: PartnerApplyRoute,
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
