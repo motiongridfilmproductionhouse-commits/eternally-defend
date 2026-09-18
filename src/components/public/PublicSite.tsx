@@ -33,6 +33,11 @@ export function EternaLogo({
       <img src={src} alt={alt} className="h-full w-auto" width={1712} height={480} />
       <span
         aria-hidden="true"
+        className="landing-logo-fluid"
+        style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }}
+      />
+      <span
+        aria-hidden="true"
         className="landing-logo-shine"
         style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }}
       />
