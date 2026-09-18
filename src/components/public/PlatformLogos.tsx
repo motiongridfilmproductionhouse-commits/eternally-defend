@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+import { Facebook, Globe, Instagram, MessageCircle, Music2, Twitter, Youtube } from "lucide-react";
 
-const platforms = ["YouTube", "Instagram", "Facebook", "X", "Reddit", "TikTok", "Web"];
+const platforms = [
+  { name: "YouTube", Icon: Youtube },
+  { name: "Instagram", Icon: Instagram },
+  { name: "Facebook", Icon: Facebook },
+  { name: "X", Icon: Twitter },
+  { name: "Reddit", Icon: MessageCircle },
+  { name: "TikTok", Icon: Music2 },
+  { name: "Web", Icon: Globe },
+];
 const transitionDuration = 400;
 
 export function PlatformLogos() {
@@ -36,19 +45,24 @@ export function PlatformLogos() {
       return;
     }
 
+    let transitionTimer: number | undefined;
     const interval = window.setInterval(() => {
       setIsTransitioning(true);
-      window.setTimeout(() => {
+      transitionTimer = window.setTimeout(() => {
         setActivePlatform((current) => (current + 1) % platforms.length);
         setIsTransitioning(false);
       }, transitionDuration / 2);
     }, 2000);
 
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      if (transitionTimer) window.clearTimeout(transitionTimer);
+    };
   }, [isVisible, prefersReducedMotion]);
 
   const platformClassName =
-    "border border-landing-line px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-landing-muted transition-[opacity,transform,border-color,color] duration-[400ms] hover:border-landing-ink hover:text-landing-ink";
+    "flex size-12 items-center justify-center border border-landing-line text-landing-muted transition-[opacity,transform,border-color,color] duration-[400ms] hover:border-landing-ink hover:text-landing-ink";
+  const { name: activePlatformName, Icon: ActivePlatformIcon } = platforms[activePlatform];
 
   return (
     <div
@@ -61,9 +75,10 @@ export function PlatformLogos() {
       </p>
       {prefersReducedMotion ? (
         <div className="flex flex-wrap gap-2" aria-hidden="true">
-          {platforms.map((platform) => (
-            <span key={platform} className={platformClassName}>
-              {platform}
+          {platforms.map(({ name, Icon }) => (
+            <span key={name} className={platformClassName}>
+              <Icon className="size-6" strokeWidth={1.5} aria-hidden="true" />
+              <span className="sr-only">{name}</span>
             </span>
           ))}
         </div>
@@ -74,7 +89,8 @@ export function PlatformLogos() {
               isTransitioning ? "-translate-y-1 opacity-0" : "translate-y-0 opacity-100"
             }`}
           >
-            {platforms[activePlatform]}
+            <ActivePlatformIcon className="size-7" strokeWidth={1.5} aria-hidden="true" />
+            <span className="sr-only">{activePlatformName}</span>
           </span>
         </div>
       )}
