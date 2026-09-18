@@ -28,6 +28,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { CountUpMetric } from "@/components/public/CountUpMetric";
+import { PlatformLogos } from "@/components/public/PlatformLogos";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import {
   EnquiryModalProvider,
@@ -338,23 +340,16 @@ function LandingPageContent() {
               <p className="text-xs text-landing-muted">VERIFIED OPERATIONAL DATA</p>
             </div>
             <div className="grid gap-px bg-landing-line sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                ["13,800+", "Signals detected"],
-                ["2,700+", "Specialist findings"],
-                ["24/7", "Continuous monitoring"],
-                ["MULTI-PLATFORM", "Digital threat coverage"],
-              ].map(([value, label]) => (
-                <div key={label} className="bg-landing py-8 sm:px-6">
-                  <p className="text-4xl font-medium">{value}</p>
-                  <p className="mt-2 text-xs text-landing-muted">{label}</p>
-                  {label === "Digital threat coverage" && (
-                    <p className="mt-3 text-[10px] uppercase tracking-wide text-landing-muted">
-                      YouTube · Instagram · Facebook · X · Reddit · TikTok · Web
-                    </p>
-                  )}
-                </div>
-              ))}
+              <CountUpMetric value={13800} suffix="+" label="Signals detected" />
+              <CountUpMetric value={2700} suffix="+" label="Specialist findings" />
+              <CountUpMetric displayValue="24/7" label="Continuous monitoring" />
+              <CountUpMetric
+                displayValue="MULTI-PLATFORM"
+                label="Digital threat coverage"
+                detail="Verified coverage"
+              />
             </div>
+            <PlatformLogos />
             <p className="mt-4 text-[11px] leading-5 text-landing-muted">
               Activity figures reflect verified records processed within the Eterna platform.
               Monitoring and investigation volumes are continuously updated. They do not represent
