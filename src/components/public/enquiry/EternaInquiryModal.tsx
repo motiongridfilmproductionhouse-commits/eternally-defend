@@ -32,6 +32,7 @@ import {
   ProtectionTopicStep,
   SecurityTopicStep,
 } from "./EnquirySteps";
+import { EnquiryVideoPanel } from "./EnquiryVideoPanel";
 
 function labelFor<T extends string>(options: Array<{ value: T; title: string }>, value: T | null) {
   if (!value) return null;
@@ -290,73 +291,66 @@ export function EternaInquiryModal({
           </div>
 
           {/* Body */}
-          <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 py-6 sm:px-8 sm:py-8">
-            {success ? (
-              <SuccessView
-                enquiryId={success.enquiryId}
-                summaryLines={summaryLines}
-                onClose={() => onOpenChange(false)}
-                onSubmitAnother={handleSubmitAnother}
-              />
-            ) : (
-              <div
-                key={stepKey}
-                className={cn("eterna-enquiry-step", `eterna-enquiry-step--${direction}`)}
-              >
-                {stepKey === "enquiry" ? (
-                  <EnquiryStep value={state.department} onChange={(v) => update("department", v)} />
-                ) : null}
-                {stepKey === "topic" && state.department === "protection" ? (
-                  <ProtectionTopicStep
-                    value={state.protectionService}
-                    onChange={(v) => update("protectionService", v)}
+          <div ref={bodyRef} className="flex-1 overflow-y-auto">
+            <div className="lg:grid lg:min-h-full lg:grid-cols-[minmax(250px,0.38fr)_minmax(0,0.62fr)]">
+              <EnquiryVideoPanel />
+              <div className="px-5 py-6 sm:px-8 sm:py-8">
+                {success ? (
+                  <SuccessView
+                    enquiryId={success.enquiryId}
+                    summaryLines={summaryLines}
+                    onClose={() => onOpenChange(false)}
+                    onSubmitAnother={handleSubmitAnother}
                   />
-                ) : null}
-                {stepKey === "topic" && state.department === "security" ? (
-                  <SecurityTopicStep
-                    value={state.securityTopic}
-                    onChange={(v) => update("securityTopic", v)}
-                  />
-                ) : null}
-                {stepKey === "topic" && state.department === "privacy" ? (
-                  <PrivacyTopicStep
-                    value={state.privacyTopic}
-                    onChange={(v) => update("privacyTopic", v)}
-                  />
-                ) : null}
-                {stepKey === "topic" && state.department === "partnership" ? (
-                  <PartnershipTopicStep
-                    value={state.partnershipType}
-                    onChange={(v) => update("partnershipType", v)}
-                  />
-                ) : null}
-                {stepKey === "topic" && state.department === "media" ? (
-                  <MediaTopicStep
-                    value={state.mediaType}
-                    onChange={(v) => update("mediaType", v)}
-                  />
-                ) : null}
-                {stepKey === "profile" ? (
-                  <ProfileStep
-                    value={state.profileType}
-                    onChange={(v) => update("profileType", v)}
-                    profileName={state.profileName}
-                    onProfileNameChange={(v) => update("profileName", v)}
-                    roleTitle={state.roleTitle}
-                    onRoleTitleChange={(v) => update("roleTitle", v)}
-                    organization={state.organization}
-                    onOrganizationChange={(v) => update("organization", v)}
-                  />
-                ) : null}
-                {stepKey === "details" ? <DetailsStep state={state} update={update} /> : null}
-              </div>
-            )}
+                ) : (
+                  <div
+                    key={stepKey}
+                    className={cn("eterna-enquiry-step", `eterna-enquiry-step--${direction}`)}
+                  >
+                    {stepKey === "enquiry" ? (
+                      <EnquiryStep value={state.department} onChange={(v) => update("department", v)} />
+                    ) : null}
+                    {stepKey === "topic" && state.department === "protection" ? (
+                      <ProtectionTopicStep
+                        value={state.protectionService}
+                        onChange={(v) => update("protectionService", v)}
+                      />
+                    ) : null}
+                    {stepKey === "topic" && state.department === "security" ? (
+                      <SecurityTopicStep value={state.securityTopic} onChange={(v) => update("securityTopic", v)} />
+                    ) : null}
+                    {stepKey === "topic" && state.department === "privacy" ? (
+                      <PrivacyTopicStep value={state.privacyTopic} onChange={(v) => update("privacyTopic", v)} />
+                    ) : null}
+                    {stepKey === "topic" && state.department === "partnership" ? (
+                      <PartnershipTopicStep value={state.partnershipType} onChange={(v) => update("partnershipType", v)} />
+                    ) : null}
+                    {stepKey === "topic" && state.department === "media" ? (
+                      <MediaTopicStep value={state.mediaType} onChange={(v) => update("mediaType", v)} />
+                    ) : null}
+                    {stepKey === "profile" ? (
+                      <ProfileStep
+                        value={state.profileType}
+                        onChange={(v) => update("profileType", v)}
+                        profileName={state.profileName}
+                        onProfileNameChange={(v) => update("profileName", v)}
+                        roleTitle={state.roleTitle}
+                        onRoleTitleChange={(v) => update("roleTitle", v)}
+                        organization={state.organization}
+                        onOrganizationChange={(v) => update("organization", v)}
+                      />
+                    ) : null}
+                    {stepKey === "details" ? <DetailsStep state={state} update={update} /> : null}
+                  </div>
+                )}
 
-            {submitError ? (
-              <p role="alert" className="mt-4 text-sm font-medium text-red-600">
-                {submitError}
-              </p>
-            ) : null}
+                {submitError ? (
+                  <p role="alert" className="mt-4 text-sm font-medium text-red-600">
+                    {submitError}
+                  </p>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           {/* Footer */}
