@@ -9806,19 +9806,33 @@ export type Database = {
           created_at: string
           email: string
           email_normalized: string
+          enquiry_department: string | null
           full_name: string
           id: string
           invite_email_error: string | null
           invite_id: string | null
           invite_sent_at: string | null
+          media_type: string | null
+          message: string | null
           organization: string | null
+          partnership_type: string | null
           persona: string
           phone: string
           phone_normalized: string
+          platforms: string[] | null
+          privacy_topic: string | null
+          profile_name: string | null
+          profile_type: string | null
+          protection_service: string | null
           referrer: string | null
+          relevant_url: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          role_title: string | null
+          security_topic: string | null
           source: string | null
+          source_cta: string | null
+          source_page: string | null
           status: string
           updated_at: string
           utm_campaign: string | null
@@ -9831,19 +9845,33 @@ export type Database = {
           created_at?: string
           email: string
           email_normalized: string
+          enquiry_department?: string | null
           full_name: string
           id?: string
           invite_email_error?: string | null
           invite_id?: string | null
           invite_sent_at?: string | null
+          media_type?: string | null
+          message?: string | null
           organization?: string | null
+          partnership_type?: string | null
           persona: string
           phone: string
           phone_normalized: string
+          platforms?: string[] | null
+          privacy_topic?: string | null
+          profile_name?: string | null
+          profile_type?: string | null
+          protection_service?: string | null
           referrer?: string | null
+          relevant_url?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          role_title?: string | null
+          security_topic?: string | null
           source?: string | null
+          source_cta?: string | null
+          source_page?: string | null
           status?: string
           updated_at?: string
           utm_campaign?: string | null
@@ -9856,19 +9884,33 @@ export type Database = {
           created_at?: string
           email?: string
           email_normalized?: string
+          enquiry_department?: string | null
           full_name?: string
           id?: string
           invite_email_error?: string | null
           invite_id?: string | null
           invite_sent_at?: string | null
+          media_type?: string | null
+          message?: string | null
           organization?: string | null
+          partnership_type?: string | null
           persona?: string
           phone?: string
           phone_normalized?: string
+          platforms?: string[] | null
+          privacy_topic?: string | null
+          profile_name?: string | null
+          profile_type?: string | null
+          protection_service?: string | null
           referrer?: string | null
+          relevant_url?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          role_title?: string | null
+          security_topic?: string | null
           source?: string | null
+          source_cta?: string | null
+          source_page?: string | null
           status?: string
           updated_at?: string
           utm_campaign?: string | null
@@ -10426,13 +10468,28 @@ export type Database = {
         Args: {
           p_email: string
           p_email_normalized: string
+          p_enquiry_department?: string
           p_full_name: string
+          p_id_prefix?: string
+          p_media_type?: string
+          p_message?: string
           p_organization?: string
+          p_partnership_type?: string
           p_persona: string
           p_phone: string
           p_phone_normalized: string
+          p_platforms?: string[]
+          p_privacy_topic?: string
+          p_profile_name?: string
+          p_profile_type?: string
+          p_protection_service?: string
           p_referrer?: string
+          p_relevant_url?: string
+          p_role_title?: string
+          p_security_topic?: string
           p_source?: string
+          p_source_cta?: string
+          p_source_page?: string
           p_utm_campaign?: string
           p_utm_medium?: string
           p_utm_source?: string
