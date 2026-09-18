@@ -2,7 +2,6 @@ import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
-import { EnquiryVideoPanel } from "./EnquiryVideoPanel";
 import {
   DEPARTMENT_OPTIONS,
   MEDIA_TYPE_OPTIONS,
@@ -601,9 +600,6 @@ export function DetailsStep({
         </div>
       ) : null}
 
-      <div className="mt-8">
-        <EnquiryVideoPanel />
-      </div>
     </div>
   );
 }
