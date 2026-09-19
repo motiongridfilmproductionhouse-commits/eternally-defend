@@ -17,6 +17,7 @@ import {
   EnquiryModalProvider,
   useEnquiryModal,
 } from "@/components/public/enquiry/enquiry-modal-context";
+import { ArticleHeroPlaceholder } from "@/components/public/ArticleHeroPlaceholder";
 
 export function EternaLogo({
   inverse = false,
@@ -745,17 +746,35 @@ export function PublicFooter() {
   );
 }
 
+type ArticleBreadcrumbItem = {
+  label: string;
+  to?: ComponentProps<typeof Link>["to"];
+};
+
 export function PublicPage({
   eyebrow,
   title,
   intro,
   image,
+  heroPlaceholder,
+  breadcrumb,
+  category,
+  publishedDate,
+  readTime,
   children,
 }: {
   eyebrow: string;
   title: string;
   intro: string;
   image?: { src: string; alt: string };
+  heroPlaceholder?: {
+    icon: ComponentProps<typeof ArticleHeroPlaceholder>["icon"];
+    concept: string;
+  };
+  breadcrumb?: ArticleBreadcrumbItem[];
+  category?: string;
+  publishedDate?: string;
+  readTime?: string;
   children: ReactNode;
 }) {
   return (
@@ -766,10 +785,40 @@ export function PublicPage({
           <section className="border-y border-landing-line">
             <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
               <p className="landing-kicker">{eyebrow}</p>
+              {breadcrumb && breadcrumb.length > 0 ? (
+                <nav
+                  aria-label="Breadcrumb"
+                  className="mt-5 flex flex-wrap items-center gap-2 text-[11px] text-landing-muted"
+                >
+                  {breadcrumb.map((item, index) => (
+                    <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+                      {item.to ? (
+                        <Link to={item.to} className="landing-link">
+                          {item.label}
+                        </Link>
+                      ) : (
+                        <span className="text-landing-ink">{item.label}</span>
+                      )}
+                      {index < breadcrumb.length - 1 ? (
+                        <span aria-hidden="true" className="text-landing-muted">
+                          /
+                        </span>
+                      ) : null}
+                    </div>
+                  ))}
+                </nav>
+              ) : null}
               <h1 className="mt-5 max-w-4xl text-balance text-5xl font-medium leading-[1.02] md:text-7xl">
                 {title}
               </h1>
               <p className="mt-7 max-w-2xl text-base leading-7 text-landing-muted">{intro}</p>
+              {(category || publishedDate || readTime) && (
+                <div className="mt-6 flex flex-wrap items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-landing-muted">
+                  {category ? <span>{category}</span> : null}
+                  {publishedDate ? <span>{publishedDate}</span> : null}
+                  {readTime ? <span>{readTime}</span> : null}
+                </div>
+              )}
             </div>
           </section>
           {image && (
@@ -783,6 +832,18 @@ export function PublicPage({
                     height={752}
                     loading="eager"
                     className="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+          {!image && heroPlaceholder && (
+            <section className="border-b border-landing-line bg-landing-soft">
+              <div className="mx-auto max-w-3xl px-6 py-10 md:py-12">
+                <div className="aspect-video w-full overflow-hidden rounded-sm border border-landing-line bg-landing">
+                  <ArticleHeroPlaceholder
+                    icon={heroPlaceholder.icon}
+                    concept={heroPlaceholder.concept}
                   />
                 </div>
               </div>
