@@ -6,6 +6,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { PublicPage } from "@/components/public/PublicSite";
+import {
+  EipIdentityProtectionSection,
+  EipImageLifecycleSection,
+} from "@/components/public/EipInteractiveSections";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 const CANONICAL = "https://protectbyeterna.com/image-immunization";
@@ -148,59 +152,9 @@ function ImageImmunizationPage() {
         </div>
       </section>
 
-      <section className="border-t border-landing-line bg-landing-soft py-16 md:py-20">
-        <div className="mx-auto max-w-3xl px-6">
-          <h2 className="landing-kicker">Who EIP is designed for</h2>
-          <p className="mt-4 text-sm leading-7 text-landing-muted">
-            EIP is designed for anyone who shares images that could be reused without their consent:
-            people with a public profile, and the organizations responsible for the images of the
-            people they represent.
-          </p>
+      <EipIdentityProtectionSection />
 
-          <div className="mt-10 grid gap-px overflow-hidden border border-landing-line bg-landing-line sm:grid-cols-2">
-            <div className="landing-feature-card bg-landing p-8">
-              <h3 className="text-sm font-semibold text-landing-ink">Public figures</h3>
-              <p className="mt-3 text-sm leading-6 text-landing-muted">
-                A public role brings a wider surface for impersonation and reputational harm. EIP is
-                designed to give public figures a way to prepare an image before it's shared
-                publicly.
-              </p>
-            </div>
-            <div className="landing-feature-card bg-landing p-8">
-              <h3 className="text-sm font-semibold text-landing-ink">Executives and founders</h3>
-              <p className="mt-3 text-sm leading-6 text-landing-muted">
-                Executive and founder images circulate widely, in press coverage, investor materials
-                and company channels. EIP is designed to protect those images at the point they're
-                prepared for release.
-              </p>
-            </div>
-            <div className="landing-feature-card bg-landing p-8">
-              <h3 className="text-sm font-semibold text-landing-ink">Creators</h3>
-              <p className="mt-3 text-sm leading-6 text-landing-muted">
-                Creators share images constantly, often across platforms with limited control over
-                how they're reused. EIP is designed to let creators authorize an image for its
-                intended use while reducing its value as raw material for unauthorized AI reuse.
-              </p>
-            </div>
-            <div className="landing-feature-card bg-landing p-8">
-              <h3 className="text-sm font-semibold text-landing-ink">Students and families</h3>
-              <p className="mt-3 text-sm leading-6 text-landing-muted">
-                Image sharing has become part of everyday life for students and families, often
-                faster than most people think about what happens to an image afterward. EIP is
-                designed for that everyday case, not only high-profile incidents.
-              </p>
-            </div>
-            <div className="landing-feature-card bg-landing p-8 sm:col-span-2">
-              <h3 className="text-sm font-semibold text-landing-ink">Organizations</h3>
-              <p className="mt-3 text-sm leading-6 text-landing-muted">
-                Colleges, companies and organizations that publish images of the people they
-                represent, students, staff, members, carry a responsibility for those images. EIP is
-                designed to be applied at the point those images are prepared for publication.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <EipImageLifecycleSection />
 
       <section className="border-t border-landing-line py-16 md:py-20">
         <div className="mx-auto max-w-5xl px-6">
