@@ -76,6 +76,7 @@ const organizationSchema = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Eterna Sentinel",
+  alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
   url: CANONICAL,
   description:
     "Digital identity protection for people and organizations in the public eye, with evidence-led investigation and human review.",
@@ -667,6 +668,14 @@ function LandingPageContent() {
               <p className="mt-5 max-w-md text-sm leading-6 text-landing-muted">
                 Eterna Sentinel combines software-supported discovery with human investigation,
                 evidence handling and case coordination.
+              </p>
+              <p className="mt-3 max-w-md text-sm leading-6 text-landing-muted">
+                This capability, spanning deepfake defense, AI impersonation response and Eterna
+                Image Immunization, operates as{" "}
+                <Link to="/eterna-ai" className="landing-link text-landing-ink">
+                  Eterna AI
+                </Link>
+                .
               </p>
             </div>
             <dl className="grid gap-px bg-landing-line sm:grid-cols-2">

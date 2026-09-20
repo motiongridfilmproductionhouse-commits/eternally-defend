@@ -172,7 +172,13 @@ function ImageImmunizationPage() {
             <div className="md:[direction:ltr]">
               <h2 className="landing-kicker">How EIP fits into Eterna protection</h2>
               <p className="mt-4 text-sm leading-7 text-landing-muted">
-                EIP is an additional layer of digital identity defense, applied before an image is
+                EIP is one of the defensive identity-protection research initiatives developed
+                under{" "}
+                <Link to="/eterna-ai" className="landing-link text-landing-ink">
+                  Eterna AI
+                </Link>
+                , Eterna Sentinel's artificial intelligence protection and research capability. EIP
+                is an additional layer of digital identity defense, applied before an image is
                 published. It works alongside Eterna's{" "}
                 <Link to="/security" className="landing-link text-landing-ink">
                   detection, monitoring and response services
