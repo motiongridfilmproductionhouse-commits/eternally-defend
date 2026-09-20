@@ -21,6 +21,7 @@ import { Route as NewsroomRouteImport } from './routes/newsroom'
 import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
 import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
+import { Route as EternaAiRouteImport } from './routes/eterna-ai'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CaseStudiesRouteImport } from './routes/case-studies'
@@ -189,6 +190,11 @@ const IdentityResponseObservatoryRoute =
     path: '/identity-response-observatory',
     getParentRoute: () => rootRouteImport,
   } as any)
+const EternaAiRoute = EternaAiRouteImport.update({
+  id: '/eterna-ai',
+  path: '/eterna-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
@@ -785,6 +791,7 @@ export interface FileRoutesByFullPath {
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/eterna-ai': typeof EternaAiRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
@@ -903,6 +910,7 @@ export interface FileRoutesByTo {
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/eterna-ai': typeof EternaAiRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
@@ -1023,6 +1031,7 @@ export interface FileRoutesById {
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/eterna-ai': typeof EternaAiRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
@@ -1143,6 +1152,7 @@ export interface FileRouteTypes {
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/eterna-ai'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
@@ -1261,6 +1271,7 @@ export interface FileRouteTypes {
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/eterna-ai'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
@@ -1380,6 +1391,7 @@ export interface FileRouteTypes {
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/eterna-ai'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
@@ -1501,6 +1513,7 @@ export interface RootRouteChildren {
   CaseStudiesRoute: typeof CaseStudiesRoute
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
+  EternaAiRoute: typeof EternaAiRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
   ImageImmunizationRoute: typeof ImageImmunizationRoute
   MethodologyRoute: typeof MethodologyRoute
@@ -1648,6 +1661,13 @@ declare module '@tanstack/react-router' {
       path: '/identity-response-observatory'
       fullPath: '/identity-response-observatory'
       preLoaderRoute: typeof IdentityResponseObservatoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eterna-ai': {
+      id: '/eterna-ai'
+      path: '/eterna-ai'
+      fullPath: '/eterna-ai'
+      preLoaderRoute: typeof EternaAiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cookies': {
@@ -2537,6 +2557,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaseStudiesRoute: CaseStudiesRoute,
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
+  EternaAiRoute: EternaAiRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
   ImageImmunizationRoute: ImageImmunizationRoute,
   MethodologyRoute: MethodologyRoute,

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BrainCircuit, Scale, ShieldCheck, Users } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
@@ -103,6 +103,14 @@ function AboutPage() {
             <p>
               The aim is not indiscriminate removal. It is to help authorized clients understand
               what happened, preserve what matters and choose an appropriate, supportable response.
+            </p>
+            <p>
+              This work, including deepfake defense, AI impersonation response and Eterna Image
+              Immunization, operates under{" "}
+              <Link to="/eterna-ai" className="landing-link text-landing-ink">
+                Eterna AI
+              </Link>
+              , Eterna Sentinel's artificial intelligence protection and research capability.
             </p>
           </div>
         </div>
