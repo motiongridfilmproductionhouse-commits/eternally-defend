@@ -172,8 +172,7 @@ function ImageImmunizationPage() {
             <div className="md:[direction:ltr]">
               <h2 className="landing-kicker">How EIP fits into Eterna protection</h2>
               <p className="mt-4 text-sm leading-7 text-landing-muted">
-                EIP is one of the defensive identity-protection research initiatives developed
-                under{" "}
+                EIP is one of the defensive identity-protection research initiatives developed under{" "}
                 <Link to="/eterna-ai" className="landing-link text-landing-ink">
                   Eterna AI
                 </Link>

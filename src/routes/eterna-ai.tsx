@@ -367,10 +367,7 @@ function EternaAiPage() {
                 verification methodology
               </Link>{" "}
               and Eterna's{" "}
-              <Link
-                to="/identity-response-observatory"
-                className="landing-link text-landing-ink"
-              >
+              <Link to="/identity-response-observatory" className="landing-link text-landing-ink">
                 Identity Response Observatory
               </Link>
               , its public record of documented digital-identity incidents.
