@@ -16,15 +16,18 @@ import { Route as SecurityRouteImport } from './routes/security'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PartnerStatusRouteImport } from './routes/partner-status'
 import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
+import { Route as OnlineReputationProtectionRouteImport } from './routes/online-reputation-protection'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NewsroomRouteImport } from './routes/newsroom'
 import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
 import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
+import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CaseStudiesRouteImport } from './routes/case-studies'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AiImpersonationRouteImport } from './routes/ai-impersonation'
 import { Route as AgentAssessmentRouteImport } from './routes/agent-assessment'
 import { Route as AgentAdminRouteImport } from './routes/agent-admin'
 import { Route as AgentRouteImport } from './routes/agent'
@@ -44,7 +47,9 @@ import { Route as NewsroomOnlineReputationProblemsBusinessGrowthRouteImport } fr
 import { Route as NewsroomNegativeSearchResultsBrandReputationRouteImport } from './routes/newsroom_.negative-search-results-brand-reputation'
 import { Route as NewsroomInsideEternaImageImmunizationRouteImport } from './routes/newsroom_.inside-eterna-image-immunization'
 import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom_.impersonation-response-guide'
+import { Route as NewsroomHowToPreserveDeepfakeEvidenceRouteImport } from './routes/newsroom_.how-to-preserve-deepfake-evidence'
 import { Route as NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport } from './routes/newsroom_.how-eterna-validates-image-immunization-responsibly'
+import { Route as NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport } from './routes/newsroom_.how-colleges-respond-to-deepfake-abuse'
 import { Route as NewsroomFirst24HoursOnlineReputationCrisisRouteImport } from './routes/newsroom_.first-24-hours-online-reputation-crisis'
 import { Route as NewsroomFalseAllegationsOnlineWhatToDoRouteImport } from './routes/newsroom_.false-allegations-online-what-to-do'
 import { Route as NewsroomFakeAccountUsingMyNamePhotosRouteImport } from './routes/newsroom_.fake-account-using-my-name-photos'
@@ -163,6 +168,12 @@ const PartnerApplyRoute = PartnerApplyRouteImport.update({
   path: '/partner-apply',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnlineReputationProtectionRoute =
+  OnlineReputationProtectionRouteImport.update({
+    id: '/online-reputation-protection',
+    path: '/online-reputation-protection',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -189,6 +200,11 @@ const IdentityResponseObservatoryRoute =
     path: '/identity-response-observatory',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DeepfakeProtectionRoute = DeepfakeProtectionRouteImport.update({
+  id: '/deepfake-protection',
+  path: '/deepfake-protection',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
@@ -207,6 +223,11 @@ const CaseStudiesRoute = CaseStudiesRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiImpersonationRoute = AiImpersonationRouteImport.update({
+  id: '/ai-impersonation',
+  path: '/ai-impersonation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentAssessmentRoute = AgentAssessmentRouteImport.update({
@@ -311,10 +332,22 @@ const NewsroomImpersonationResponseGuideRoute =
     path: '/newsroom/impersonation-response-guide',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NewsroomHowToPreserveDeepfakeEvidenceRoute =
+  NewsroomHowToPreserveDeepfakeEvidenceRouteImport.update({
+    id: '/newsroom_/how-to-preserve-deepfake-evidence',
+    path: '/newsroom/how-to-preserve-deepfake-evidence',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute =
   NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport.update({
     id: '/newsroom_/how-eterna-validates-image-immunization-responsibly',
     path: '/newsroom/how-eterna-validates-image-immunization-responsibly',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomHowCollegesRespondToDeepfakeAbuseRoute =
+  NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport.update({
+    id: '/newsroom_/how-colleges-respond-to-deepfake-abuse',
+    path: '/newsroom/how-colleges-respond-to-deepfake-abuse',
     getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomFirst24HoursOnlineReputationCrisisRoute =
@@ -781,15 +814,18 @@ export interface FileRoutesByFullPath {
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
+  '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
+  '/online-reputation-protection': typeof OnlineReputationProtectionRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -834,7 +870,9 @@ export interface FileRoutesByFullPath {
   '/newsroom/fake-account-using-my-name-photos': typeof NewsroomFakeAccountUsingMyNamePhotosRoute
   '/newsroom/false-allegations-online-what-to-do': typeof NewsroomFalseAllegationsOnlineWhatToDoRoute
   '/newsroom/first-24-hours-online-reputation-crisis': typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
+  '/newsroom/how-colleges-respond-to-deepfake-abuse': typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  '/newsroom/how-to-preserve-deepfake-evidence': typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
   '/newsroom/negative-search-results-brand-reputation': typeof NewsroomNegativeSearchResultsBrandReputationRoute
@@ -899,15 +937,18 @@ export interface FileRoutesByTo {
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
+  '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
+  '/online-reputation-protection': typeof OnlineReputationProtectionRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -951,7 +992,9 @@ export interface FileRoutesByTo {
   '/newsroom/fake-account-using-my-name-photos': typeof NewsroomFakeAccountUsingMyNamePhotosRoute
   '/newsroom/false-allegations-online-what-to-do': typeof NewsroomFalseAllegationsOnlineWhatToDoRoute
   '/newsroom/first-24-hours-online-reputation-crisis': typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
+  '/newsroom/how-colleges-respond-to-deepfake-abuse': typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  '/newsroom/how-to-preserve-deepfake-evidence': typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
   '/newsroom/negative-search-results-brand-reputation': typeof NewsroomNegativeSearchResultsBrandReputationRoute
@@ -1019,15 +1062,18 @@ export interface FileRoutesById {
   '/agent': typeof AgentRoute
   '/agent-admin': typeof AgentAdminRoute
   '/agent-assessment': typeof AgentAssessmentRoute
+  '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
   '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
+  '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
+  '/online-reputation-protection': typeof OnlineReputationProtectionRoute
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
@@ -1072,7 +1118,9 @@ export interface FileRoutesById {
   '/newsroom_/fake-account-using-my-name-photos': typeof NewsroomFakeAccountUsingMyNamePhotosRoute
   '/newsroom_/false-allegations-online-what-to-do': typeof NewsroomFalseAllegationsOnlineWhatToDoRoute
   '/newsroom_/first-24-hours-online-reputation-crisis': typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
+  '/newsroom_/how-colleges-respond-to-deepfake-abuse': typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   '/newsroom_/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  '/newsroom_/how-to-preserve-deepfake-evidence': typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
   '/newsroom_/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom_/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
   '/newsroom_/negative-search-results-brand-reputation': typeof NewsroomNegativeSearchResultsBrandReputationRoute
@@ -1139,15 +1187,18 @@ export interface FileRouteTypes {
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
+    | '/ai-impersonation'
     | '/auth'
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/deepfake-protection'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
+    | '/online-reputation-protection'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
@@ -1192,7 +1243,9 @@ export interface FileRouteTypes {
     | '/newsroom/fake-account-using-my-name-photos'
     | '/newsroom/false-allegations-online-what-to-do'
     | '/newsroom/first-24-hours-online-reputation-crisis'
+    | '/newsroom/how-colleges-respond-to-deepfake-abuse'
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
+    | '/newsroom/how-to-preserve-deepfake-evidence'
     | '/newsroom/impersonation-response-guide'
     | '/newsroom/inside-eterna-image-immunization'
     | '/newsroom/negative-search-results-brand-reputation'
@@ -1257,15 +1310,18 @@ export interface FileRouteTypes {
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
+    | '/ai-impersonation'
     | '/auth'
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/deepfake-protection'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
+    | '/online-reputation-protection'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
@@ -1309,7 +1365,9 @@ export interface FileRouteTypes {
     | '/newsroom/fake-account-using-my-name-photos'
     | '/newsroom/false-allegations-online-what-to-do'
     | '/newsroom/first-24-hours-online-reputation-crisis'
+    | '/newsroom/how-colleges-respond-to-deepfake-abuse'
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
+    | '/newsroom/how-to-preserve-deepfake-evidence'
     | '/newsroom/impersonation-response-guide'
     | '/newsroom/inside-eterna-image-immunization'
     | '/newsroom/negative-search-results-brand-reputation'
@@ -1376,15 +1434,18 @@ export interface FileRouteTypes {
     | '/agent'
     | '/agent-admin'
     | '/agent-assessment'
+    | '/ai-impersonation'
     | '/auth'
     | '/case-studies'
     | '/contact'
     | '/cookies'
+    | '/deepfake-protection'
     | '/identity-response-observatory'
     | '/image-immunization'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
+    | '/online-reputation-protection'
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
@@ -1429,7 +1490,9 @@ export interface FileRouteTypes {
     | '/newsroom_/fake-account-using-my-name-photos'
     | '/newsroom_/false-allegations-online-what-to-do'
     | '/newsroom_/first-24-hours-online-reputation-crisis'
+    | '/newsroom_/how-colleges-respond-to-deepfake-abuse'
     | '/newsroom_/how-eterna-validates-image-immunization-responsibly'
+    | '/newsroom_/how-to-preserve-deepfake-evidence'
     | '/newsroom_/impersonation-response-guide'
     | '/newsroom_/inside-eterna-image-immunization'
     | '/newsroom_/negative-search-results-brand-reputation'
@@ -1497,15 +1560,18 @@ export interface RootRouteChildren {
   AgentRoute: typeof AgentRoute
   AgentAdminRoute: typeof AgentAdminRoute
   AgentAssessmentRoute: typeof AgentAssessmentRoute
+  AiImpersonationRoute: typeof AiImpersonationRoute
   AuthRoute: typeof AuthRoute
   CaseStudiesRoute: typeof CaseStudiesRoute
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
+  DeepfakeProtectionRoute: typeof DeepfakeProtectionRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
   ImageImmunizationRoute: typeof ImageImmunizationRoute
   MethodologyRoute: typeof MethodologyRoute
   NewsroomRoute: typeof NewsroomRoute
   OnboardingRoute: typeof OnboardingRoute
+  OnlineReputationProtectionRoute: typeof OnlineReputationProtectionRoute
   PartnerApplyRoute: typeof PartnerApplyRoute
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -1528,7 +1594,9 @@ export interface RootRouteChildren {
   NewsroomFakeAccountUsingMyNamePhotosRoute: typeof NewsroomFakeAccountUsingMyNamePhotosRoute
   NewsroomFalseAllegationsOnlineWhatToDoRoute: typeof NewsroomFalseAllegationsOnlineWhatToDoRoute
   NewsroomFirst24HoursOnlineReputationCrisisRoute: typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
+  NewsroomHowCollegesRespondToDeepfakeAbuseRoute: typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  NewsroomHowToPreserveDeepfakeEvidenceRoute: typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
   NewsroomImpersonationResponseGuideRoute: typeof NewsroomImpersonationResponseGuideRoute
   NewsroomInsideEternaImageImmunizationRoute: typeof NewsroomInsideEternaImageImmunizationRoute
   NewsroomNegativeSearchResultsBrandReputationRoute: typeof NewsroomNegativeSearchResultsBrandReputationRoute
@@ -1615,6 +1683,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartnerApplyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/online-reputation-protection': {
+      id: '/online-reputation-protection'
+      path: '/online-reputation-protection'
+      fullPath: '/online-reputation-protection'
+      preLoaderRoute: typeof OnlineReputationProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -1650,6 +1725,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdentityResponseObservatoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/deepfake-protection': {
+      id: '/deepfake-protection'
+      path: '/deepfake-protection'
+      fullPath: '/deepfake-protection'
+      preLoaderRoute: typeof DeepfakeProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cookies': {
       id: '/cookies'
       path: '/cookies'
@@ -1676,6 +1758,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-impersonation': {
+      id: '/ai-impersonation'
+      path: '/ai-impersonation'
+      fullPath: '/ai-impersonation'
+      preLoaderRoute: typeof AiImpersonationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agent-assessment': {
@@ -1811,11 +1900,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsroomImpersonationResponseGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsroom_/how-to-preserve-deepfake-evidence': {
+      id: '/newsroom_/how-to-preserve-deepfake-evidence'
+      path: '/newsroom/how-to-preserve-deepfake-evidence'
+      fullPath: '/newsroom/how-to-preserve-deepfake-evidence'
+      preLoaderRoute: typeof NewsroomHowToPreserveDeepfakeEvidenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/newsroom_/how-eterna-validates-image-immunization-responsibly': {
       id: '/newsroom_/how-eterna-validates-image-immunization-responsibly'
       path: '/newsroom/how-eterna-validates-image-immunization-responsibly'
       fullPath: '/newsroom/how-eterna-validates-image-immunization-responsibly'
       preLoaderRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/how-colleges-respond-to-deepfake-abuse': {
+      id: '/newsroom_/how-colleges-respond-to-deepfake-abuse'
+      path: '/newsroom/how-colleges-respond-to-deepfake-abuse'
+      fullPath: '/newsroom/how-colleges-respond-to-deepfake-abuse'
+      preLoaderRoute: typeof NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/newsroom_/first-24-hours-online-reputation-crisis': {
@@ -2533,15 +2636,18 @@ const rootRouteChildren: RootRouteChildren = {
   AgentRoute: AgentRoute,
   AgentAdminRoute: AgentAdminRoute,
   AgentAssessmentRoute: AgentAssessmentRoute,
+  AiImpersonationRoute: AiImpersonationRoute,
   AuthRoute: AuthRoute,
   CaseStudiesRoute: CaseStudiesRoute,
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
+  DeepfakeProtectionRoute: DeepfakeProtectionRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
   ImageImmunizationRoute: ImageImmunizationRoute,
   MethodologyRoute: MethodologyRoute,
   NewsroomRoute: NewsroomRoute,
   OnboardingRoute: OnboardingRoute,
+  OnlineReputationProtectionRoute: OnlineReputationProtectionRoute,
   PartnerApplyRoute: PartnerApplyRoute,
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
@@ -2575,8 +2681,12 @@ const rootRouteChildren: RootRouteChildren = {
     NewsroomFalseAllegationsOnlineWhatToDoRoute,
   NewsroomFirst24HoursOnlineReputationCrisisRoute:
     NewsroomFirst24HoursOnlineReputationCrisisRoute,
+  NewsroomHowCollegesRespondToDeepfakeAbuseRoute:
+    NewsroomHowCollegesRespondToDeepfakeAbuseRoute,
   NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute:
     NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute,
+  NewsroomHowToPreserveDeepfakeEvidenceRoute:
+    NewsroomHowToPreserveDeepfakeEvidenceRoute,
   NewsroomImpersonationResponseGuideRoute:
     NewsroomImpersonationResponseGuideRoute,
   NewsroomInsideEternaImageImmunizationRoute:
