@@ -230,10 +230,10 @@ function ReputationMonitoringPage() {
               after it has already spread across multiple platforms is harder to trace back to its
               origin and harder to fully document, as Eterna's{" "}
               <Link
-                to="/newsroom/how-to-preserve-deepfake-evidence"
+                to="/methodology"
                 className="landing-link text-landing-ink"
               >
-                evidence preservation guide
+                verification methodology
               </Link>{" "}
               explains.
             </li>
@@ -371,9 +371,9 @@ function ReputationMonitoringPage() {
                 description: "What to do once monitoring has surfaced an active incident.",
               },
               {
-                to: "/newsroom/how-to-preserve-deepfake-evidence",
-                title: "How to Preserve Evidence When You Discover a Deepfake",
-                description: "Why content documented earlier is easier to act on.",
+                to: "/methodology",
+                title: "Eterna's Verification Methodology",
+                description: "Why sourced, corroborated evidence is easier to act on.",
               },
               {
                 to: "/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery",

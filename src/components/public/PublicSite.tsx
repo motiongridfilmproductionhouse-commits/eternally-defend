@@ -91,17 +91,17 @@ const navigationCategories: NavCategory[] = [
       },
       {
         label: "Deepfake Protection",
-        to: "/deepfake-protection" as const,
+        to: "/eterna-ai" as const,
         description: "Detection, response and preventative protection.",
       },
       {
         label: "AI Impersonation",
-        to: "/ai-impersonation" as const,
+        to: "/newsroom/ai-impersonation-reputation-damage" as const,
         description: "Celebrity scams, executive fraud and cloned voices.",
       },
       {
         label: "Online Reputation Protection",
-        to: "/online-reputation-protection" as const,
+        to: "/newsroom/why-companies-need-reputation-monitoring" as const,
         description: "Evidence-led response to defamatory content.",
       },
     ],

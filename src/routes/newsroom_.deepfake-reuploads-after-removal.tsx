@@ -271,9 +271,9 @@ function DeepfakeReuploadsPage() {
           <RelatedReading
             items={[
               {
-                to: "/newsroom/how-to-preserve-deepfake-evidence",
-                title: "How to Preserve Evidence When You Discover a Deepfake",
-                description: "Why a clear record from the first incident speeds up every reupload.",
+                to: "/methodology",
+                title: "Eterna's Verification Methodology",
+                description: "Why a clear evidence record from the first incident matters.",
               },
               {
                 to: "/newsroom/ai-impersonation-reputation-damage",

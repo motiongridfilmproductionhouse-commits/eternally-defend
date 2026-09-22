@@ -232,10 +232,10 @@ function CollegeStudentDeepfakesPage() {
           <p>
             If you're a parent, faculty member or administrator,{" "}
             <Link
-              to="/newsroom/how-colleges-respond-to-deepfake-abuse"
+              to="/student-digital-safety"
               className="landing-link text-landing-ink"
             >
-              How Colleges Can Respond to Deepfake and Synthetic Media Abuse
+              A Digital Safety Guide for Students in the Age of Generative AI
             </Link>{" "}
             is written specifically for that role.
           </p>
@@ -337,9 +337,9 @@ function CollegeStudentDeepfakesPage() {
                 description: "The pillar guide this article is part of.",
               },
               {
-                to: "/newsroom/how-colleges-respond-to-deepfake-abuse",
-                title: "How Colleges Can Respond to Deepfake and Synthetic Media Abuse",
-                description: "A practical framework for the institutional side of this issue.",
+                to: "/student-digital-safety",
+                title: "A Digital Safety Guide for Students in the Age of Generative AI",
+                description: "The pillar guide this article is part of.",
               },
               {
                 to: "/newsroom/someone-made-a-deepfake-of-me",
