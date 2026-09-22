@@ -123,6 +123,7 @@ import { Route as ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport } from 
 import { Route as ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport } from './routes/api/public/hooks/deepfake-google-images-worker'
 import { Route as ApiPublicHooksCopyrightScanExecuteRouteImport } from './routes/api/public/hooks/copyright-scan-execute'
 import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
+import { Route as ApiPublicHooksAutomationStatusCheckRouteImport } from './routes/api/public/hooks/automation-status-check'
 import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
 import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/public/hooks/automation-fetch'
 import { Route as ApiPublicHooksApprovedSourcesPollRouteImport } from './routes/api/public/hooks/approved-sources-poll'
@@ -749,6 +750,12 @@ const ApiPublicHooksChannelWatchPollRoute =
     path: '/api/public/hooks/channel-watch-poll',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksAutomationStatusCheckRoute =
+  ApiPublicHooksAutomationStatusCheckRouteImport.update({
+    id: '/api/public/hooks/automation-status-check',
+    path: '/api/public/hooks/automation-status-check',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAutomationStatusRoute =
   ApiPublicHooksAutomationStatusRouteImport.update({
     id: '/api/public/hooks/automation-status',
@@ -883,6 +890,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
+  '/api/public/hooks/automation-status-check': typeof ApiPublicHooksAutomationStatusCheckRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
   '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
@@ -1001,6 +1009,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
+  '/api/public/hooks/automation-status-check': typeof ApiPublicHooksAutomationStatusCheckRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
   '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
@@ -1123,6 +1132,7 @@ export interface FileRoutesById {
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
   '/api/public/hooks/automation-fetch': typeof ApiPublicHooksAutomationFetchRoute
   '/api/public/hooks/automation-status': typeof ApiPublicHooksAutomationStatusRoute
+  '/api/public/hooks/automation-status-check': typeof ApiPublicHooksAutomationStatusCheckRoute
   '/api/public/hooks/channel-watch-poll': typeof ApiPublicHooksChannelWatchPollRoute
   '/api/public/hooks/copyright-scan-execute': typeof ApiPublicHooksCopyrightScanExecuteRoute
   '/api/public/hooks/deepfake-google-images-worker': typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
@@ -1244,6 +1254,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
+    | '/api/public/hooks/automation-status-check'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
     | '/api/public/hooks/deepfake-google-images-worker'
@@ -1362,6 +1373,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
+    | '/api/public/hooks/automation-status-check'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
     | '/api/public/hooks/deepfake-google-images-worker'
@@ -1483,6 +1495,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/approved-sources-poll'
     | '/api/public/hooks/automation-fetch'
     | '/api/public/hooks/automation-status'
+    | '/api/public/hooks/automation-status-check'
     | '/api/public/hooks/channel-watch-poll'
     | '/api/public/hooks/copyright-scan-execute'
     | '/api/public/hooks/deepfake-google-images-worker'
@@ -1561,6 +1574,7 @@ export interface RootRouteChildren {
   ApiPublicHooksApprovedSourcesPollRoute: typeof ApiPublicHooksApprovedSourcesPollRoute
   ApiPublicHooksAutomationFetchRoute: typeof ApiPublicHooksAutomationFetchRoute
   ApiPublicHooksAutomationStatusRoute: typeof ApiPublicHooksAutomationStatusRoute
+  ApiPublicHooksAutomationStatusCheckRoute: typeof ApiPublicHooksAutomationStatusCheckRoute
   ApiPublicHooksChannelWatchPollRoute: typeof ApiPublicHooksChannelWatchPollRoute
   ApiPublicHooksCopyrightScanExecuteRoute: typeof ApiPublicHooksCopyrightScanExecuteRoute
   ApiPublicHooksDeepfakeGoogleImagesWorkerRoute: typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRoute
@@ -2377,6 +2391,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksChannelWatchPollRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/automation-status-check': {
+      id: '/api/public/hooks/automation-status-check'
+      path: '/api/public/hooks/automation-status-check'
+      fullPath: '/api/public/hooks/automation-status-check'
+      preLoaderRoute: typeof ApiPublicHooksAutomationStatusCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/automation-status': {
       id: '/api/public/hooks/automation-status'
       path: '/api/public/hooks/automation-status'
@@ -2626,6 +2647,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksApprovedSourcesPollRoute,
   ApiPublicHooksAutomationFetchRoute: ApiPublicHooksAutomationFetchRoute,
   ApiPublicHooksAutomationStatusRoute: ApiPublicHooksAutomationStatusRoute,
+  ApiPublicHooksAutomationStatusCheckRoute:
+    ApiPublicHooksAutomationStatusCheckRoute,
   ApiPublicHooksChannelWatchPollRoute: ApiPublicHooksChannelWatchPollRoute,
   ApiPublicHooksCopyrightScanExecuteRoute:
     ApiPublicHooksCopyrightScanExecuteRoute,
@@ -2654,12 +2677,3 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

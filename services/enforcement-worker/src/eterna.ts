@@ -48,9 +48,18 @@ export interface FetchedJob {
   } | null;
 }
 
+export interface JobStatusCheck {
+  job_id: string;
+  status: "queued" | "running" | "review_ready" | "submitted" | "failed" | "cancelled";
+}
+
 export const eterna = {
   fetchJob: (jobId: string) =>
     post<FetchedJob>("/api/public/hooks/automation-fetch", { job_id: jobId }),
+
+  /** Read-only poll used to detect cancellation mid-job. See cancellation.ts. */
+  checkStatus: (jobId: string) =>
+    post<JobStatusCheck>("/api/public/hooks/automation-status-check", { job_id: jobId }),
 
   event: (evt: {
     job_id: string;

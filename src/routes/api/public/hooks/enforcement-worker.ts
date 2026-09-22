@@ -25,12 +25,21 @@ export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { EnforcementWorkerRunner } = await import("@/lib/enforcement/worker");
           const { AutoEnforcementOrchestrator } = await import("@/lib/enforcement/orchestrator");
+          const { recoverStaleAutomationJobs } =
+            await import("@/lib/automation/job-recovery.server");
 
           // Self-heal QUEUED cases whose dispatch job was never created. All
           // send-time gates are still evaluated by the worker below.
           const repaired = await AutoEnforcementOrchestrator.requeueMissingJobs(
             supabaseAdmin as never,
           );
+
+          // Self-heal automation_jobs stuck "running" (worker crash/restart
+          // with no terminal callback) beyond the documented TTL. Idempotent
+          // and safe under overlapping cron ticks — see job-recovery.server.ts.
+          const recoveredStaleAutomationJobs = await recoverStaleAutomationJobs({
+            supabase: supabaseAdmin,
+          });
 
           let totalProcessed = 0;
           let hasMore = true;
@@ -51,6 +60,7 @@ export const Route = createFileRoute("/api/public/hooks/enforcement-worker")({
             JSON.stringify({
               ok: true,
               repairedQueueJobs: repaired,
+              recoveredStaleAutomationJobs,
               processedCount: totalProcessed,
               timestamp: new Date().toISOString(),
             }),

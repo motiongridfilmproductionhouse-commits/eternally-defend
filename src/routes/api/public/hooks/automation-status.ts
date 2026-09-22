@@ -50,61 +50,11 @@ export const Route = createFileRoute("/api/public/hooks/automation-status")({
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { applyAutomationStatusCallback } =
+          await import("@/lib/automation/status-callback.server");
 
-        const { data: job, error: jobErr } = await supabaseAdmin
-          .from("automation_jobs")
-          .select("id,user_id,platform,enforcement_request_id")
-          .eq("id", parsed.job_id)
-          .maybeSingle();
-        if (jobErr) return new Response(jobErr.message, { status: 500 });
-        if (!job) return new Response("Job not found", { status: 404 });
-
-        // Update job row when relevant fields are present.
-        const patch: Record<string, unknown> = {};
-        if (parsed.status) patch.status = parsed.status;
-        if (parsed.status === "running" && parsed.event === "browser_started")
-          patch.started_at = new Date().toISOString();
-        if (
-          parsed.status === "review_ready" ||
-          parsed.status === "submitted" ||
-          parsed.status === "failed" ||
-          parsed.status === "cancelled"
-        ) {
-          patch.completed_at = new Date().toISOString();
-        }
-        if (parsed.review_summary) patch.review_summary_json = parsed.review_summary;
-        if (parsed.review_bundle_path) patch.review_bundle_path = parsed.review_bundle_path;
-        if (parsed.cdp_ws_url) patch.cdp_ws_url = parsed.cdp_ws_url;
-        if (parsed.cdp_expires_at) patch.cdp_expires_at = parsed.cdp_expires_at;
-        if (parsed.error) patch.error_json = parsed.error;
-        if (parsed.screenshot_path) patch.last_screenshot_path = parsed.screenshot_path;
-        if (parsed.worker_id) patch.worker_id = parsed.worker_id;
-
-        if (Object.keys(patch).length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await supabaseAdmin
-            .from("automation_jobs")
-            .update(patch as any)
-            .eq("id", job.id);
-          if (parsed.status) {
-            await supabaseAdmin
-              .from("enforcement_requests")
-              .update({ automation_status: parsed.status })
-              .eq("id", job.enforcement_request_id);
-          }
-        }
-
-        await supabaseAdmin.from("automation_events").insert({
-          user_id: job.user_id,
-          job_id: job.id,
-          event: parsed.event,
-          platform: job.platform,
-          duration_ms: parsed.duration_ms ?? null,
-          result: parsed.result ?? null,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          payload_json: (parsed.payload ?? {}) as any,
-          screenshot_path: parsed.screenshot_path ?? null,
-        });
+        const result = await applyAutomationStatusCallback(supabaseAdmin, parsed);
+        if (!result.ok) return new Response(result.message, { status: result.status });
 
         return Response.json({ ok: true });
       },
