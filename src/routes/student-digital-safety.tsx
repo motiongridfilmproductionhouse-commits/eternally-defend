@@ -292,10 +292,10 @@ function StudentDigitalSafetyPage() {
                 screenshots, URLs, usernames, timestamps — before content potentially disappears,
                 and before you block or delete anything.{" "}
                 <Link
-                  to="/newsroom/how-to-preserve-deepfake-evidence"
+                  to="/methodology"
                   className="landing-link text-landing-ink"
                 >
-                  How to Preserve Evidence When You Discover a Deepfake
+                  Eterna's Verification Methodology
                 </Link>{" "}
                 goes deeper on documentation.
               </li>
@@ -331,10 +331,10 @@ function StudentDigitalSafetyPage() {
             who feels heard and supported, rather than managed, tends to engage with the response
             process more openly. If you're faculty or administration,{" "}
             <Link
-              to="/newsroom/how-colleges-respond-to-deepfake-abuse"
+              to="/newsroom/college-student-deepfakes"
               className="landing-link text-landing-ink"
             >
-              How Colleges Can Respond to Deepfake and Synthetic Media Abuse
+              Deepfakes Are Becoming a New Digital Safety Problem for College Students
             </Link>{" "}
             lays out a practical institutional framework: prevention, reporting, evidence
             preservation, student support, platform response, escalation and continuous education.
@@ -443,9 +443,9 @@ function StudentDigitalSafetyPage() {
                   "Steps for the pre-publication moment, while intervention still helps.",
               },
               {
-                to: "/newsroom/how-colleges-respond-to-deepfake-abuse",
-                title: "How Colleges Can Respond to Deepfake and Synthetic Media Abuse",
-                description: "A seven-stage institutional framework.",
+                to: "/methodology",
+                title: "Eterna's Verification Methodology",
+                description: "How evidence, review and authorization shape response decisions.",
               },
               {
                 to: "/newsroom/impersonation-response-guide",

@@ -206,10 +206,10 @@ function First24HoursPage() {
               full-page screenshots with visible URLs and timestamps, save original files, and log
               what you've found and when. Eterna's{" "}
               <Link
-                to="/newsroom/how-to-preserve-deepfake-evidence"
+                to="/methodology"
                 className="landing-link text-landing-ink"
               >
-                evidence preservation guide
+                verification methodology
               </Link>{" "}
               covers this in more depth for deepfake-specific cases, and the same principles apply
               to any online crisis: document before content can be edited, deleted, or reposted
@@ -420,9 +420,9 @@ function First24HoursPage() {
                   "The narrower, condensed version of this guide for the first 60 minutes.",
               },
               {
-                to: "/newsroom/how-to-preserve-deepfake-evidence",
-                title: "How to Preserve Evidence When You Discover a Deepfake",
-                description: "The evidence-preservation standard referenced in Hour 1–4.",
+                to: "/methodology",
+                title: "Eterna's Verification Methodology",
+                description: "The evidence and verification standard referenced in Hour 1–4.",
               },
               {
                 to: "/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery",

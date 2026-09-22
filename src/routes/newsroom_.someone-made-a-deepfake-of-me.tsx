@@ -208,10 +208,10 @@ function DeepfakeOfMePage() {
             "hash") of the image on your own device — the image itself is never uploaded or seen by
             anyone — which participating platforms then use to detect and remove matching content.{" "}
             <Link
-              to="/newsroom/how-to-preserve-deepfake-evidence"
+              to="/methodology"
               className="landing-link text-landing-ink"
             >
-              How to Preserve Evidence When You Discover a Deepfake
+              Eterna's Verification Methodology
             </Link>{" "}
             covers documentation in more depth if you need it for a platform report or beyond.
           </p>
@@ -322,9 +322,9 @@ function DeepfakeOfMePage() {
                 description: "What to do, in order, right after discovering impersonation.",
               },
               {
-                to: "/newsroom/how-to-preserve-deepfake-evidence",
-                title: "How to Preserve Evidence When You Discover a Deepfake",
-                description: "Why a cropped screenshot often isn't enough on its own.",
+                to: "/methodology",
+                title: "Eterna's Verification Methodology",
+                description: "Why source context and corroboration matter before action.",
               },
               {
                 to: "/newsroom/what-is-a-deepfake",
