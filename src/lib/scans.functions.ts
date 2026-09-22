@@ -175,8 +175,25 @@ export type PersistScanInput = z.infer<typeof PersistInput>;
  * results for a given userId using the service-role client, with no live
  * user session required.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function persistScanCore(supabase: any, userId: string, rawData: unknown) {
+export interface PersistScanCoreOptions {
+  /**
+   * Skip the best-effort AWS Rekognition face-analysis step below (step 6).
+   * Default false — every existing caller (the per-user cron tick, the
+   * user-scoped persistScan wrapper) keeps running face analysis exactly as
+   * before. Set true only by callers that must guarantee no face/identity
+   * module executes as a side effect of persisting web-discovery results
+   * (the admin bulk web-discovery audit).
+   */
+  skipFaceAnalysis?: boolean;
+}
+
+export async function persistScanCore(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  rawData: unknown,
+  opts: PersistScanCoreOptions = {},
+) {
   const data = PersistInput.parse(rawData);
   {
     // 1) Look up the previous most recent scan for this user+query to compute "new since last"
@@ -391,29 +408,33 @@ export async function persistScanCore(supabase: any, userId: string, rawData: un
 
     // 6) Best-effort AWS Rekognition face analysis for hits with images.
     // Never blocks or throws — runs in-line for the current request.
-    try {
-      const { data: recent } = await supabase
-        .from("scan_hits")
-        .select("id,thumbnail_url,permalink,canonical_url,source")
-        .eq("scan_id", scan.id)
-        .limit(20);
-      if (recent && recent.length > 0) {
-        const { analyzeHitForFaces, pickScanImageUrl } = await import("./face-scan.server");
-        for (const h of recent) {
-          const pick = pickScanImageUrl(h);
-          if (!pick) continue;
+    // Skipped entirely when the caller requests skipFaceAnalysis (the admin
+    // bulk web-discovery audit's explicit "do not run face scan" requirement).
+    if (!opts.skipFaceAnalysis) {
+      try {
+        const { data: recent } = await supabase
+          .from("scan_hits")
+          .select("id,thumbnail_url,permalink,canonical_url,source")
+          .eq("scan_id", scan.id)
+          .limit(20);
+        if (recent && recent.length > 0) {
+          const { analyzeHitForFaces, pickScanImageUrl } = await import("./face-scan.server");
+          for (const h of recent) {
+            const pick = pickScanImageUrl(h);
+            if (!pick) continue;
 
-          await analyzeHitForFaces({
-            supabase: supabase as any,
-            userId,
-            scanHitId: h.id,
-            imageUrl: pick.url,
-            sourceType: pick.type,
-          });
+            await analyzeHitForFaces({
+              supabase: supabase as any,
+              userId,
+              scanHitId: h.id,
+              imageUrl: pick.url,
+              sourceType: pick.type,
+            });
+          }
         }
+      } catch (e) {
+        console.warn("[scans] face analysis skipped", (e as Error).message);
       }
-    } catch (e) {
-      console.warn("[scans] face analysis skipped", (e as Error).message);
     }
 
     return {
