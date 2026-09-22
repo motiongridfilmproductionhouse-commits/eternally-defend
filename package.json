@@ -17,6 +17,7 @@
     "test:scan-source-filter": "node --import tsx --test src/lib/scan/source-type.test.ts src/lib/scan/source-type-migration.test.ts",
     "test:hikerapi": "node --import tsx --test src/lib/scan/discovery/hikerapi.test.ts",
     "test:automation-jobs": "node --import tsx --test src/lib/automation/automation-jobs.test.ts",
+    "test:admin-bulk-web-scan": "node --import tsx --test src/lib/protection/admin-bulk-web-scan.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:agent": "node --import tsx --test src/lib/agent/assessment.test.ts src/lib/agent/database.test.ts src/lib/agent/portrait.test.ts src/lib/agent/scan-portrait.test.ts src/lib/agent/elite.test.ts src/lib/scan/discovery/ddg-provider.test.ts"
