@@ -63,12 +63,15 @@ export function stableHash(value: string): string {
 }
 
 function normalizeForFingerprint(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/https?:\/\/\S+/g, " ")
-    .replace(/[^a-z0-9\u0D00-\u0D7F ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    value
+      .toLowerCase()
+      .replace(/https?:\/\/\S+/g, " ")
+      // eslint-disable-next-line no-misleading-character-class
+      .replace(/[^a-z0-9\u0D00-\u0D7F ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 /**
@@ -105,21 +108,39 @@ export function dedupeKey(input: {
   };
 }
 
-/** Group raw provider hits into one entry per underlying content item. */
-export function groupObservations<T extends { url: string; title?: string | null; text?: string | null }>(
-  hits: T[],
-): Array<{ key: DedupeKey; primary: T; observations: T[] }> {
+/**
+ * Group raw provider hits into one entry per underlying page.
+ *
+ * Grouping is by canonical URL ONLY. Providers describe the same page with
+ * different titles and snippets (Google's title is not Brave's title), so a
+ * snippet-derived fingerprint must never split one page into two items. The
+ * content fingerprint is computed later from the retrieved page itself and is
+ * used to collapse *different* URLs that carry identical content.
+ */
+export function groupObservations<
+  T extends { url: string; title?: string | null; text?: string | null },
+>(hits: T[]): Array<{ key: DedupeKey; primary: T; observations: T[] }> {
   const groups = new Map<string, { key: DedupeKey; primary: T; observations: T[] }>();
   for (const hit of hits) {
     if (!hit.url) continue;
-    const key = dedupeKey(hit);
-    const id = `${key.canonicalUrl}::${key.fingerprint}`;
-    const existing = groups.get(id);
+    const canonicalUrl = canonicalizeUrl(hit.url);
+    const existing = groups.get(canonicalUrl);
     if (existing) {
       existing.observations.push(hit);
     } else {
-      groups.set(id, { key, primary: hit, observations: [hit] });
+      groups.set(canonicalUrl, { key: dedupeKey(hit), primary: hit, observations: [hit] });
     }
   }
   return Array.from(groups.values());
+}
+
+/**
+ * Primary-total identity of a stored discovery: identical retrieved content at
+ * two URLs counts once; otherwise the canonical URL is the item.
+ */
+export function contentItemKey(row: {
+  canonical_url: string;
+  content_fingerprint?: string | null;
+}): string {
+  return row.content_fingerprint ? row.content_fingerprint : `url:${row.canonical_url}`;
 }
