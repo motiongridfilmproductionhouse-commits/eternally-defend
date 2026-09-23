@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  AlertTriangle,
   Archive,
   ArrowRight,
   Building2,
@@ -9,6 +10,7 @@ import {
   Eye,
   FileBarChart2,
   FileCheck2,
+  FileSearch,
   Fingerprint,
   Mic2,
   Radar,
@@ -32,6 +34,7 @@ import { CountUpMetric } from "@/components/public/CountUpMetric";
 import { PlatformLogos } from "@/components/public/PlatformLogos";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import {
+  EnquiryButton,
   EnquiryModalProvider,
   useEnquiryModal,
 } from "@/components/public/enquiry/enquiry-modal-context";
@@ -164,6 +167,107 @@ const engagementCapabilityStrip = [
   "Synthetic Media Review",
   "Evidence Preservation",
   "Human-Reviewed Response",
+] as const;
+
+const whyEternaPillars = [
+  {
+    icon: Fingerprint,
+    title: "Prevent",
+    description: "Protect authorized images before publication through EIP.",
+  },
+  {
+    icon: Radar,
+    title: "Detect",
+    description: "Monitor public digital surfaces for identity and reputation exposure.",
+  },
+  {
+    icon: FileSearch,
+    title: "Investigate",
+    description: "Human specialists distinguish real risk from ordinary appearances.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Respond",
+    description: "Preserve evidence and coordinate eligible, authorized enforcement.",
+  },
+] as const;
+
+const protectionPrograms = [
+  {
+    icon: Mic2,
+    name: "Public Figure Protection",
+    audience: "For actors, creators, athletes and public personalities.",
+    services: [
+      "Deepfake monitoring",
+      "Impersonation monitoring",
+      "Content protection",
+      "Reputation intelligence",
+      "Incident response",
+    ],
+  },
+  {
+    icon: UserCheck,
+    name: "Executive Protection",
+    audience: "For founders and senior leadership.",
+    services: [
+      "Executive impersonation",
+      "Voice and face misuse",
+      "Scam detection",
+      "Reputation monitoring",
+      "Evidence-led response",
+    ],
+  },
+  {
+    icon: Building2,
+    name: "Enterprise Protection",
+    audience: "For organizations and institutional teams.",
+    services: [
+      "Brand monitoring",
+      "Executive coverage",
+      "Threat investigation",
+      "Evidence management",
+      "Multi-platform response",
+    ],
+  },
+  {
+    icon: AlertTriangle,
+    name: "Incident Response",
+    audience: "For an active problem already spreading.",
+    services: [
+      "Rapid assessment",
+      "Evidence preservation",
+      "Eligibility review",
+      "Platform coordination",
+      "Recurrence monitoring",
+    ],
+  },
+  {
+    icon: ScanFace,
+    name: "Image Immunization",
+    audience: "For images before publication.",
+    services: [
+      "EIP preprocessing",
+      "Protected asset management",
+      "Validation reporting",
+      "Ongoing protection monitoring",
+    ],
+  },
+] as const;
+
+const onboardingSteps = [
+  { step: "01", title: "Request", detail: "Tell Eterna what needs protection." },
+  {
+    step: "02",
+    title: "Verify",
+    detail: "Identity, representation and protected assets are established.",
+  },
+  {
+    step: "03",
+    title: "Assess",
+    detail: "Existing exposure and relevant public surfaces are reviewed.",
+  },
+  { step: "04", title: "Define", detail: "Protection scope and operating coverage are agreed." },
+  { step: "05", title: "Activate", detail: "Monitoring and protection workflows begin." },
 ] as const;
 
 function LandingPage() {
@@ -428,6 +532,36 @@ function LandingPageContent() {
           </div>
         </section>
 
+        <section id="why-eterna" className="py-20 md:py-28">
+          <div className="mx-auto max-w-6xl px-6">
+            <div data-landing-reveal>
+              <p className="landing-kicker">Why Eterna</p>
+              <h2 className="mt-4 max-w-3xl text-4xl font-medium md:text-6xl">
+                Protection across the entire identity lifecycle.
+              </h2>
+            </div>
+            <div
+              data-landing-reveal
+              className="landing-stagger mt-14 grid gap-px overflow-hidden border border-landing-line bg-landing-line sm:grid-cols-2 lg:grid-cols-4"
+            >
+              {whyEternaPillars.map(({ icon: Icon, title, description }) => (
+                <article key={title} className="landing-highlight min-h-52 bg-landing p-6">
+                  <Icon className="size-5 text-landing-accent" />
+                  <h3 className="mt-12 text-sm font-semibold">{title}</h3>
+                  <p className="mt-3 text-xs leading-5 text-landing-muted">{description}</p>
+                </article>
+              ))}
+            </div>
+            <p
+              data-landing-reveal
+              className="mt-10 max-w-2xl border-t border-landing-line pt-6 text-sm leading-6 text-landing-muted"
+            >
+              From prevention to monitoring, investigation and response, Eterna brings digital
+              identity protection into one governed system.
+            </p>
+          </div>
+        </section>
+
         <section id="solutions" className="bg-landing-soft py-20 md:py-28">
           <div className="mx-auto max-w-6xl px-6">
             <div data-landing-reveal>
@@ -501,6 +635,53 @@ function LandingPageContent() {
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section id="programs" className="bg-landing-soft py-20 md:py-28">
+          <div className="mx-auto max-w-6xl px-6">
+            <div data-landing-reveal>
+              <p className="landing-kicker">Protection Programs</p>
+              <h2 className="mt-4 max-w-3xl text-4xl font-medium md:text-6xl">
+                Protection built around exposure.
+              </h2>
+            </div>
+            <div
+              data-landing-reveal
+              className="landing-stagger mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+            >
+              {protectionPrograms.map(({ icon: Icon, name, audience, services }) => (
+                <article
+                  key={name}
+                  className="landing-audience-card rounded-md border border-landing-line bg-landing p-7"
+                >
+                  <Icon className="size-5 text-landing-accent" />
+                  <h3 className="mt-8 text-lg font-semibold">{name}</h3>
+                  <p className="mt-3 text-sm leading-6 text-landing-muted">{audience}</p>
+                  <ul className="mt-5 space-y-2 border-t border-landing-line pt-4">
+                    {services.map((service) => (
+                      <li
+                        key={service}
+                        className="flex items-center gap-2 text-xs text-landing-muted"
+                      >
+                        <Check className="size-3.5 shrink-0 text-landing-accent" />
+                        {service}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+            <EnquiryButton
+              className="landing-accent-fill mt-10 text-landing-accent-foreground"
+              prefill={{
+                sourcePage: "protection-programs",
+                sourceCta: "Request Private Assessment",
+                department: "protection",
+              }}
+            >
+              Request Private Assessment <ArrowRight />
+            </EnquiryButton>
           </div>
         </section>
 
@@ -617,6 +798,45 @@ function LandingPageContent() {
           </div>
         </section>
 
+        <section id="onboarding" className="bg-landing-soft py-20 md:py-28">
+          <div className="mx-auto max-w-6xl px-6">
+            <div
+              data-landing-reveal
+              className="grid gap-8 md:grid-cols-[1.05fr_0.95fr] md:items-end"
+            >
+              <div>
+                <p className="landing-kicker">How onboarding works</p>
+                <h2 className="mt-4 max-w-2xl text-4xl font-medium md:text-6xl">
+                  Starting protection is confidential.
+                </h2>
+              </div>
+              <EnquiryButton
+                className="landing-accent-fill justify-self-start text-landing-accent-foreground md:justify-self-end"
+                size="lg"
+                prefill={{
+                  sourcePage: "onboarding",
+                  sourceCta: "Start a confidential assessment",
+                  department: "protection",
+                }}
+              >
+                Start a confidential assessment <ArrowRight />
+              </EnquiryButton>
+            </div>
+            <div
+              data-landing-reveal
+              className="landing-stagger mt-14 grid gap-px overflow-hidden border border-landing-line bg-landing-line sm:grid-cols-2 lg:grid-cols-5"
+            >
+              {onboardingSteps.map(({ step, title, detail }) => (
+                <article key={step} className="bg-landing p-6">
+                  <p className="text-xs text-landing-accent">{step}</p>
+                  <h3 className="mt-10 text-sm font-semibold">{title}</h3>
+                  <p className="mt-3 text-xs leading-5 text-landing-muted">{detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="questions" className="border-y border-landing-line py-20 md:py-28">
           <div
             data-landing-reveal
@@ -670,10 +890,10 @@ function LandingPageContent() {
                 evidence handling and case coordination.
               </p>
               <p className="mt-3 max-w-md text-sm leading-6 text-landing-muted">
-                This capability, spanning deepfake defense, AI impersonation response and Eterna
-                Image Immunization, operates as{" "}
+                The Eterna platform brings deepfake defense, AI impersonation response and Eterna
+                Image Immunization together as one governed system.{" "}
                 <Link to="/eterna-ai" className="landing-link text-landing-ink">
-                  Eterna AI
+                  See how the technology works
                 </Link>
                 .
               </p>
@@ -862,13 +1082,130 @@ function EipLifecycleVisual() {
   );
 }
 
+type PlatformTabId =
+  "threat-overview" | "investigations" | "evidence" | "enforcement" | "monitoring";
+
+const platformTabs: readonly { id: PlatformTabId; label: string }[] = [
+  { id: "threat-overview", label: "Threat Overview" },
+  { id: "investigations", label: "Investigations" },
+  { id: "evidence", label: "Evidence" },
+  { id: "enforcement", label: "Enforcement" },
+  { id: "monitoring", label: "Monitoring" },
+];
+
+const threatOverviewColumns = [
+  "Detected link",
+  "Source platform",
+  "Identity match",
+  "Status",
+  "Risk",
+] as const;
+const threatOverviewRows = [
+  ["██████████████", "Social platform", "Match", "Reviewed", "Low"],
+  ["██████████████", "Video platform", "Possible match", "Active", "Medium"],
+  ["██████████████", "Forum", "Match", "Escalated", "High"],
+] as const;
+
+const evidenceColumns = [
+  "URL",
+  "Timestamp",
+  "Screenshots",
+  "Evidence integrity",
+  "Source status",
+] as const;
+const evidenceRows = [
+  ["██████████████", "Captured", "Preserved", "Verified", "Live"],
+  ["██████████████", "Captured", "Preserved", "Verified", "Removed"],
+  ["██████████████", "Captured", "Preserved", "Pending review", "Live"],
+] as const;
+
+const investigationStages = ["New", "Reviewing", "Verified", "Dismissed", "Escalated"] as const;
+const enforcementStages = [
+  "Submitted",
+  "Under review",
+  "Removed",
+  "Rejected",
+  "Escalated",
+] as const;
+
+const monitoringMetrics = [
+  { label: "Recurrence", value: "Tracked" },
+  { label: "New sources", value: "Monitored" },
+  { label: "Reuploads", value: "Flagged" },
+  { label: "Active alerts", value: "Live" },
+] as const;
+
+function ConsoleTable({
+  columns,
+  rows,
+}: {
+  columns: readonly string[];
+  rows: readonly (readonly string[])[];
+}) {
+  return (
+    <div className="overflow-x-auto rounded-md border border-landing-console-line">
+      <table className="w-full min-w-[560px] border-collapse text-left text-xs">
+        <thead>
+          <tr className="border-b border-landing-console-line bg-landing-console-soft">
+            {columns.map((column) => (
+              <th
+                key={column}
+                className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-landing-console-muted"
+              >
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.join("|")}
+              className="border-b border-landing-console-line last:border-b-0"
+            >
+              {row.map((cell, cellIndex) => (
+                <td
+                  key={`${cell}-${cellIndex}`}
+                  className="px-4 py-3 text-landing-console-foreground"
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StageTracker({ stages }: { stages: readonly string[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {stages.map((stage, index) => (
+        <div key={stage} className="flex items-center gap-2">
+          <span className="rounded-full border border-landing-console-line bg-landing-console-soft px-3 py-1.5 text-[11px] font-medium">
+            {stage}
+          </span>
+          {index < stages.length - 1 && (
+            <ArrowRight className="size-3 shrink-0 text-landing-console-muted" aria-hidden="true" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PlatformInterface() {
+  const [activeTab, setActiveTab] = useState<PlatformTabId>("threat-overview");
+  const activeLabel = platformTabs.find((tab) => tab.id === activeTab)?.label ?? "";
+
   return (
     <div className="landing-console landing-console-interactive overflow-hidden rounded-lg border border-landing-console-line bg-landing-console text-landing-console-foreground">
       <div className="flex items-center justify-between border-b border-landing-console-line px-5 py-4">
         <span className="flex items-center gap-2 text-xs font-semibold">
           <i className="size-2 rounded-full bg-landing-accent" />
-          Threat overview
+          {activeLabel}
         </span>
         <span className="text-[10px] uppercase text-landing-console-muted">Redacted client</span>
       </div>
@@ -885,29 +1222,82 @@ function PlatformInterface() {
           </div>
         ))}
       </div>
-      <div className="grid gap-5 p-5 md:grid-cols-[1.3fr_0.7fr]">
-        <div className="relative h-56 overflow-hidden rounded-md border border-landing-console-line bg-landing-console-soft">
-          <SignalMap />
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-md border border-landing-console-line bg-landing-console/80 px-4 py-3 backdrop-blur">
-            <div>
-              <p className="text-xs font-medium">Monitoring history</p>
-              <p className="mt-1 text-[10px] text-landing-console-muted">
-                Signal → review → evidence
-              </p>
+
+      <div
+        role="tablist"
+        aria-label="Eterna platform views"
+        className="flex flex-wrap gap-1 border-b border-landing-console-line bg-landing-console-soft px-3 py-2"
+      >
+        {platformTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors",
+              activeTab === tab.id
+                ? "bg-landing-console text-landing-console-foreground"
+                : "text-landing-console-muted hover:text-landing-console-foreground",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-5">
+        {activeTab === "threat-overview" && (
+          <div className="space-y-5">
+            <div className="relative h-40 overflow-hidden rounded-md border border-landing-console-line bg-landing-console-soft">
+              <SignalMap />
+              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-md border border-landing-console-line bg-landing-console/80 px-4 py-2.5 backdrop-blur">
+                <div>
+                  <p className="text-xs font-medium">Monitoring history</p>
+                  <p className="mt-1 text-[10px] text-landing-console-muted">
+                    Signal → review → evidence
+                  </p>
+                </div>
+                <ShieldCheck className="size-5 text-landing-cyan" />
+              </div>
             </div>
-            <ShieldCheck className="size-5 text-landing-cyan" />
+            <ConsoleTable columns={threatOverviewColumns} rows={threatOverviewRows} />
           </div>
-        </div>
-        <div className="space-y-3">
-          {["Risk assessment", "Evidence status", "Enforcement status"].map((item, index) => (
-            <div key={item} className="border border-landing-console-line p-4">
-              <p className="text-[10px] uppercase text-landing-console-muted">{item}</p>
-              <p className="mt-4 text-xs">
-                {index === 0 ? "Context review" : index === 1 ? "Preserved" : "Human approval"}
-              </p>
-            </div>
-          ))}
-        </div>
+        )}
+
+        {activeTab === "investigations" && (
+          <div className="space-y-5">
+            <StageTracker stages={investigationStages} />
+            <p className="max-w-md text-xs leading-5 text-landing-console-muted">
+              Every surfaced case moves through a single reviewed pipeline. Nothing is treated as
+              confirmed before a specialist reaches a verified determination.
+            </p>
+          </div>
+        )}
+
+        {activeTab === "evidence" && <ConsoleTable columns={evidenceColumns} rows={evidenceRows} />}
+
+        {activeTab === "enforcement" && (
+          <div className="space-y-5">
+            <StageTracker stages={enforcementStages} />
+            <p className="max-w-md text-xs leading-5 text-landing-console-muted">
+              Only eligible, authorized cases are submitted. Status is tracked through to resolution
+              or escalation.
+            </p>
+          </div>
+        )}
+
+        {activeTab === "monitoring" && (
+          <div className="grid gap-px overflow-hidden rounded-md border border-landing-console-line bg-landing-console-line sm:grid-cols-2 lg:grid-cols-4">
+            {monitoringMetrics.map(({ label, value }) => (
+              <div key={label} className="bg-landing-console p-5">
+                <p className="text-[10px] uppercase text-landing-console-muted">{label}</p>
+                <p className="mt-6 text-sm font-medium">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

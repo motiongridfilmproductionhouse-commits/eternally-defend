@@ -45,38 +45,53 @@ function schema() {
 const studies = [
   {
     icon: Users,
-    type: "Impersonation review",
-    summary: "Potential identity misuse surfaced from monitored public sources.",
-    steps: [
-      "Identity context reviewed",
-      "Source records retained",
-      "Potential cases opened",
-      "Status monitored",
+    type: "Public figure impersonation",
+    summary:
+      "Several social accounts appeared using a protected individual's name, imagery and identity characteristics across more than one platform.",
+    fields: [
+      {
+        label: "Eterna detected",
+        value: "Related public sources identified across multiple platforms.",
+      },
+      { label: "Review", value: "Identity context and source relationships examined." },
+      {
+        label: "Evidence",
+        value: "URLs, publication state, screenshots and timestamps preserved.",
+      },
+      { label: "Action", value: "Eligible sources routed for authorized platform review." },
+      { label: "Ongoing", value: "New appearances monitored for recurrence." },
     ],
     outcome: "Activity recorded for review. No removal outcome is claimed.",
   },
   {
     icon: ScanFace,
-    type: "Synthetic-media review",
-    summary: "Potential manipulated-media signals assessed against protected identity references.",
-    steps: [
-      "Similarity signals assessed",
-      "Source context preserved",
-      "Human review boundary applied",
-      "Repeat findings monitored",
+    type: "Synthetic-media exposure",
+    summary:
+      "Manipulated media referencing a protected individual's likeness was flagged by monitoring across public surfaces.",
+    fields: [
+      { label: "Eterna detected", value: "Signals matched against protected identity references." },
+      {
+        label: "Review",
+        value: "Similarity, context and source credibility assessed by a specialist.",
+      },
+      { label: "Evidence", value: "Source, hosting context and capture state preserved." },
+      { label: "Action", value: "Confirmed cases routed for authorized response." },
+      { label: "Ongoing", value: "Related uploads and reappearances tracked over time." },
     ],
     outcome:
       "Specialist findings retained for investigation. A signal alone is not treated as proof.",
   },
   {
     icon: FileSearch,
-    type: "Unauthorized-content review",
-    summary: "Potential reuse of protected material discovered across public digital sources.",
-    steps: [
-      "Ownership context checked",
-      "Evidence references preserved",
-      "Eligibility assessed",
-      "Appropriate route considered",
+    type: "Unauthorized content reuse",
+    summary:
+      "Protected material appeared reused without authorization across public digital surfaces.",
+    fields: [
+      { label: "Eterna detected", value: "Instances of reuse identified across public sources." },
+      { label: "Review", value: "Ownership, authorization and eligibility context checked." },
+      { label: "Evidence", value: "Source URLs, publication dates and context preserved." },
+      { label: "Action", value: "Eligible instances routed through the appropriate platform." },
+      { label: "Ongoing", value: "Recurrence and new instances monitored." },
     ],
     outcome:
       "Cases progress only when authorization, evidence and route requirements are satisfied.",
@@ -94,7 +109,7 @@ function CaseStudiesPage() {
 
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl space-y-6 px-6">
-          {studies.map(({ icon: Icon, type, summary, steps, outcome }, index) => (
+          {studies.map(({ icon: Icon, type, summary, fields, outcome }, index) => (
             <article
               key={type}
               className="grid gap-8 border border-landing-line p-7 md:grid-cols-[0.7fr_1.3fr] md:p-10"
@@ -109,14 +124,19 @@ function CaseStudiesPage() {
                 <p className="text-xs font-semibold uppercase text-landing-muted">
                   Eterna response
                 </p>
-                <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {steps.map((step) => (
-                    <li key={step} className="flex items-center gap-3 text-sm">
-                      <Check className="size-4 text-landing-accent" />
-                      {step}
-                    </li>
+                <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+                  {fields.map(({ label, value }) => (
+                    <div key={label} className="flex gap-3 text-sm">
+                      <Check className="mt-0.5 size-4 shrink-0 text-landing-accent" />
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-landing-muted">
+                          {label}
+                        </dt>
+                        <dd className="mt-1 leading-5">{value}</dd>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </dl>
                 <div className="mt-8 border-t border-landing-line pt-5">
                   <p className="text-xs font-semibold uppercase text-landing-muted">
                     Recorded position
