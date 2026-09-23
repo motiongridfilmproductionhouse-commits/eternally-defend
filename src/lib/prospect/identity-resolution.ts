@@ -298,7 +298,7 @@ export function resolveIdentity(
   let bucket: IdentityBucket;
   if (strongSignals.length >= 1 && (!ambiguous || strongSignals.length >= 1)) {
     // Ambiguous names need the strong signal to be a hard identifier.
-    const hardKeys = ["handle", "domain", "organization", "image"];
+    const hardKeys = ["handle", "domain", "organization", "image", "known_context"];
     const hasHard = factors.some((f) => f.strong && hardKeys.includes(f.key));
     if (ambiguous && !hasHard) {
       bucket = "NEEDS_IDENTITY_REVIEW";
