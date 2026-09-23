@@ -7197,6 +7197,850 @@ export type Database = {
           },
         ]
       }
+      prospect_cluster_members: {
+        Row: {
+          cluster_id: string
+          created_at: string
+          discovery_id: string
+          id: string
+          is_earliest_discovered: boolean
+          link_evidence: Json
+        }
+        Insert: {
+          cluster_id: string
+          created_at?: string
+          discovery_id: string
+          id?: string
+          is_earliest_discovered?: boolean
+          link_evidence?: Json
+        }
+        Update: {
+          cluster_id?: string
+          created_at?: string
+          discovery_id?: string
+          id?: string
+          is_earliest_discovered?: boolean
+          link_evidence?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_cluster_members_cluster_id_fkey"
+            columns: ["cluster_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_propagation_clusters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_cluster_members_discovery_id_fkey"
+            columns: ["discovery_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_discoveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_discoveries: {
+        Row: {
+          author: string | null
+          canonical_url: string
+          classification: string | null
+          classification_version: string | null
+          content_fingerprint: string
+          created_at: string
+          discovery_method: string
+          extraction_status: string | null
+          family_key: string
+          id: string
+          identity_approved_at: string | null
+          identity_approved_by: string | null
+          identity_bucket: Database["public"]["Enums"]["prospect_identity_bucket"]
+          identity_confidence: number
+          identity_explanation: string | null
+          identity_factors: Json
+          media_hash: string | null
+          original_url: string
+          page_excerpt: string | null
+          platform: string | null
+          prospect_id: string
+          published_at: string | null
+          retrieved_at: string
+          scan_id: string
+          snippet: string | null
+          title: string | null
+        }
+        Insert: {
+          author?: string | null
+          canonical_url: string
+          classification?: string | null
+          classification_version?: string | null
+          content_fingerprint?: string
+          created_at?: string
+          discovery_method: string
+          extraction_status?: string | null
+          family_key: string
+          id?: string
+          identity_approved_at?: string | null
+          identity_approved_by?: string | null
+          identity_bucket?: Database["public"]["Enums"]["prospect_identity_bucket"]
+          identity_confidence?: number
+          identity_explanation?: string | null
+          identity_factors?: Json
+          media_hash?: string | null
+          original_url: string
+          page_excerpt?: string | null
+          platform?: string | null
+          prospect_id: string
+          published_at?: string | null
+          retrieved_at?: string
+          scan_id: string
+          snippet?: string | null
+          title?: string | null
+        }
+        Update: {
+          author?: string | null
+          canonical_url?: string
+          classification?: string | null
+          classification_version?: string | null
+          content_fingerprint?: string
+          created_at?: string
+          discovery_method?: string
+          extraction_status?: string | null
+          family_key?: string
+          id?: string
+          identity_approved_at?: string | null
+          identity_approved_by?: string | null
+          identity_bucket?: Database["public"]["Enums"]["prospect_identity_bucket"]
+          identity_confidence?: number
+          identity_explanation?: string | null
+          identity_factors?: Json
+          media_hash?: string | null
+          original_url?: string
+          page_excerpt?: string | null
+          platform?: string | null
+          prospect_id?: string
+          published_at?: string | null
+          retrieved_at?: string
+          scan_id?: string
+          snippet?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_discoveries_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_identities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_discoveries_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_discovery_observations: {
+        Row: {
+          created_at: string
+          discovery_id: string
+          family_key: string
+          id: string
+          provider: string
+          provider_result_id: string | null
+          query_used: string | null
+          raw_excerpt: string | null
+          raw_url: string
+          result_rank: number | null
+          retrieved_at: string
+          scan_id: string
+        }
+        Insert: {
+          created_at?: string
+          discovery_id: string
+          family_key: string
+          id?: string
+          provider: string
+          provider_result_id?: string | null
+          query_used?: string | null
+          raw_excerpt?: string | null
+          raw_url: string
+          result_rank?: number | null
+          retrieved_at?: string
+          scan_id: string
+        }
+        Update: {
+          created_at?: string
+          discovery_id?: string
+          family_key?: string
+          id?: string
+          provider?: string
+          provider_result_id?: string | null
+          query_used?: string | null
+          raw_excerpt?: string | null
+          raw_url?: string
+          result_rank?: number | null
+          retrieved_at?: string
+          scan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_discovery_observations_discovery_id_fkey"
+            columns: ["discovery_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_discoveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_discovery_observations_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_enrollment_transfers: {
+        Row: {
+          created_at: string
+          finding_id: string | null
+          id: string
+          prospect_id: string
+          scan_id: string
+          target_id: string | null
+          target_table: string
+          target_user_id: string | null
+          transferred_by: string
+        }
+        Insert: {
+          created_at?: string
+          finding_id?: string | null
+          id?: string
+          prospect_id: string
+          scan_id: string
+          target_id?: string | null
+          target_table: string
+          target_user_id?: string | null
+          transferred_by: string
+        }
+        Update: {
+          created_at?: string
+          finding_id?: string | null
+          id?: string
+          prospect_id?: string
+          scan_id?: string
+          target_id?: string | null
+          target_table?: string
+          target_user_id?: string | null
+          transferred_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_enrollment_transfers_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_enrollment_transfers_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_identities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_enrollment_transfers_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_finding_evidence: {
+        Row: {
+          capture_kind: string | null
+          capture_path: string | null
+          content_hash: string | null
+          created_at: string
+          extracted_text: string | null
+          finding_id: string
+          id: string
+          observed_at: string
+          provenance: Json
+          scan_id: string
+          source_url: string
+        }
+        Insert: {
+          capture_kind?: string | null
+          capture_path?: string | null
+          content_hash?: string | null
+          created_at?: string
+          extracted_text?: string | null
+          finding_id: string
+          id?: string
+          observed_at?: string
+          provenance?: Json
+          scan_id: string
+          source_url: string
+        }
+        Update: {
+          capture_kind?: string | null
+          capture_path?: string | null
+          content_hash?: string | null
+          created_at?: string
+          extracted_text?: string | null
+          finding_id?: string
+          id?: string
+          observed_at?: string
+          provenance?: Json
+          scan_id?: string
+          source_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_finding_evidence_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_finding_evidence_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_findings: {
+        Row: {
+          category: string
+          classification_version: string
+          confidence: number | null
+          created_at: string
+          detection_reason: string
+          discovery_id: string
+          id: string
+          prospect_id: string
+          scan_id: string
+          severity: string | null
+          staff_classification: string | null
+          stage_key: string
+          state: Database["public"]["Enums"]["prospect_finding_state"]
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          category: string
+          classification_version: string
+          confidence?: number | null
+          created_at?: string
+          detection_reason: string
+          discovery_id: string
+          id?: string
+          prospect_id: string
+          scan_id: string
+          severity?: string | null
+          staff_classification?: string | null
+          stage_key: string
+          state?: Database["public"]["Enums"]["prospect_finding_state"]
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          category?: string
+          classification_version?: string
+          confidence?: number | null
+          created_at?: string
+          detection_reason?: string
+          discovery_id?: string
+          id?: string
+          prospect_id?: string
+          scan_id?: string
+          severity?: string | null
+          staff_classification?: string | null
+          stage_key?: string
+          state?: Database["public"]["Enums"]["prospect_finding_state"]
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_findings_discovery_id_fkey"
+            columns: ["discovery_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_discoveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_findings_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_identities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_identities: {
+        Row: {
+          aliases: string[]
+          country_region: string | null
+          created_at: string
+          created_by: string
+          display_name: string
+          id: string
+          identity_type: string
+          known_handles: Json
+          known_profile_url: string | null
+          known_website: string | null
+          name_is_ambiguous: boolean
+          normalized_name: string
+          organization: string | null
+          profession: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          country_region?: string | null
+          created_at?: string
+          created_by: string
+          display_name: string
+          id?: string
+          identity_type?: string
+          known_handles?: Json
+          known_profile_url?: string | null
+          known_website?: string | null
+          name_is_ambiguous?: boolean
+          normalized_name: string
+          organization?: string | null
+          profession?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          country_region?: string | null
+          created_at?: string
+          created_by?: string
+          display_name?: string
+          id?: string
+          identity_type?: string
+          known_handles?: Json
+          known_profile_url?: string | null
+          known_website?: string | null
+          name_is_ambiguous?: boolean
+          normalized_name?: string
+          organization?: string | null
+          profession?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      prospect_propagation_clusters: {
+        Row: {
+          cluster_key: string
+          created_at: string
+          earliest_discovery_id: string | null
+          id: string
+          member_count: number
+          origin_established: boolean
+          scan_id: string
+          updated_at: string
+        }
+        Insert: {
+          cluster_key: string
+          created_at?: string
+          earliest_discovery_id?: string | null
+          id?: string
+          member_count?: number
+          origin_established?: boolean
+          scan_id: string
+          updated_at?: string
+        }
+        Update: {
+          cluster_key?: string
+          created_at?: string
+          earliest_discovery_id?: string | null
+          id?: string
+          member_count?: number
+          origin_established?: boolean
+          scan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_propagation_clusters_earliest_discovery_id_fkey"
+            columns: ["earliest_discovery_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_discoveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_propagation_clusters_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_risk_scores: {
+        Row: {
+          band: Database["public"]["Enums"]["prospect_risk_band"]
+          computed_by: string | null
+          coverage_state:
+            | Database["public"]["Enums"]["prospect_coverage_state"]
+            | null
+          created_at: string
+          factors: Json
+          findings_awaiting_verification: number
+          findings_considered: number
+          id: string
+          model_version: string
+          scan_id: string
+          score_kind: Database["public"]["Enums"]["prospect_score_kind"]
+          total_points: number
+        }
+        Insert: {
+          band: Database["public"]["Enums"]["prospect_risk_band"]
+          computed_by?: string | null
+          coverage_state?:
+            | Database["public"]["Enums"]["prospect_coverage_state"]
+            | null
+          created_at?: string
+          factors?: Json
+          findings_awaiting_verification?: number
+          findings_considered?: number
+          id?: string
+          model_version: string
+          scan_id: string
+          score_kind: Database["public"]["Enums"]["prospect_score_kind"]
+          total_points?: number
+        }
+        Update: {
+          band?: Database["public"]["Enums"]["prospect_risk_band"]
+          computed_by?: string | null
+          coverage_state?:
+            | Database["public"]["Enums"]["prospect_coverage_state"]
+            | null
+          created_at?: string
+          factors?: Json
+          findings_awaiting_verification?: number
+          findings_considered?: number
+          id?: string
+          model_version?: string
+          scan_id?: string
+          score_kind?: Database["public"]["Enums"]["prospect_score_kind"]
+          total_points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_risk_scores_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_scan_capabilities: {
+        Row: {
+          analysis_key: string
+          candidates_considered: number
+          created_at: string
+          id: string
+          reason: string | null
+          scan_id: string
+          status: Database["public"]["Enums"]["prospect_capability_status"]
+          updated_at: string
+        }
+        Insert: {
+          analysis_key: string
+          candidates_considered?: number
+          created_at?: string
+          id?: string
+          reason?: string | null
+          scan_id: string
+          status: Database["public"]["Enums"]["prospect_capability_status"]
+          updated_at?: string
+        }
+        Update: {
+          analysis_key?: string
+          candidates_considered?: number
+          created_at?: string
+          id?: string
+          reason?: string | null
+          scan_id?: string
+          status?: Database["public"]["Enums"]["prospect_capability_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_scan_capabilities_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_scan_events: {
+        Row: {
+          created_at: string
+          detail: Json | null
+          family_key: string | null
+          id: number
+          level: string
+          message: string
+          scan_id: string
+          stage: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json | null
+          family_key?: string | null
+          id?: number
+          level?: string
+          message: string
+          scan_id: string
+          stage?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: Json | null
+          family_key?: string | null
+          id?: number
+          level?: string
+          message?: string
+          scan_id?: string
+          stage?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_scan_events_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_scan_sources: {
+        Row: {
+          created_at: string
+          direct_access: boolean
+          failure_reason: string | null
+          family_key: string
+          family_label: string
+          id: string
+          providers: string[]
+          queries_issued: number
+          raw_results: number
+          scan_id: string
+          state: Database["public"]["Enums"]["prospect_source_state"]
+          unique_items: number
+          updated_at: string
+          weight_class: string
+        }
+        Insert: {
+          created_at?: string
+          direct_access?: boolean
+          failure_reason?: string | null
+          family_key: string
+          family_label: string
+          id?: string
+          providers?: string[]
+          queries_issued?: number
+          raw_results?: number
+          scan_id: string
+          state?: Database["public"]["Enums"]["prospect_source_state"]
+          unique_items?: number
+          updated_at?: string
+          weight_class?: string
+        }
+        Update: {
+          created_at?: string
+          direct_access?: boolean
+          failure_reason?: string | null
+          family_key?: string
+          family_label?: string
+          id?: string
+          providers?: string[]
+          queries_issued?: number
+          raw_results?: number
+          scan_id?: string
+          state?: Database["public"]["Enums"]["prospect_source_state"]
+          unique_items?: number
+          updated_at?: string
+          weight_class?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_scan_sources_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_scans: {
+        Row: {
+          aliases_used: string[]
+          classification_version: string
+          coverage_state:
+            | Database["public"]["Enums"]["prospect_coverage_state"]
+            | null
+          created_at: string
+          created_by: string
+          error_message: string | null
+          families_failed: number
+          families_intended: number
+          families_policy_disabled: number
+          families_queried_ok: number
+          families_unavailable: number
+          finished_at: string | null
+          id: string
+          prospect_id: string
+          query_terms: string[]
+          source_family_set_version: string
+          stage: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["prospect_scan_status"]
+          updated_at: string
+        }
+        Insert: {
+          aliases_used?: string[]
+          classification_version: string
+          coverage_state?:
+            | Database["public"]["Enums"]["prospect_coverage_state"]
+            | null
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          families_failed?: number
+          families_intended?: number
+          families_policy_disabled?: number
+          families_queried_ok?: number
+          families_unavailable?: number
+          finished_at?: string | null
+          id?: string
+          prospect_id: string
+          query_terms?: string[]
+          source_family_set_version: string
+          stage?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["prospect_scan_status"]
+          updated_at?: string
+        }
+        Update: {
+          aliases_used?: string[]
+          classification_version?: string
+          coverage_state?:
+            | Database["public"]["Enums"]["prospect_coverage_state"]
+            | null
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          families_failed?: number
+          families_intended?: number
+          families_policy_disabled?: number
+          families_queried_ok?: number
+          families_unavailable?: number
+          finished_at?: string | null
+          id?: string
+          prospect_id?: string
+          query_terms?: string[]
+          source_family_set_version?: string
+          stage?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["prospect_scan_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_scans_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_identities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_staff_decisions: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          discovery_id: string | null
+          finding_id: string | null
+          id: string
+          new_state: string | null
+          previous_state: string | null
+          reason: string | null
+          scan_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          discovery_id?: string | null
+          finding_id?: string | null
+          id?: string
+          new_state?: string | null
+          previous_state?: string | null
+          reason?: string | null
+          scan_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          discovery_id?: string | null
+          finding_id?: string | null
+          id?: string
+          new_state?: string | null
+          previous_state?: string | null
+          reason?: string | null
+          scan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_staff_decisions_discovery_id_fkey"
+            columns: ["discovery_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_discoveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_staff_decisions_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_staff_decisions_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       protected_asset_frames: {
         Row: {
           ahash: string | null
@@ -10464,6 +11308,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_prospect_staff: { Args: { _user_id: string }; Returns: boolean }
       join_waitlist: {
         Args: {
           p_email: string
@@ -10511,7 +11356,13 @@ export type Database = {
     }
     Enums: {
       account_type_enum: "personal" | "business"
-      app_role: "admin" | "analyst" | "user" | "super_admin" | "partner"
+      app_role:
+        | "admin"
+        | "analyst"
+        | "user"
+        | "super_admin"
+        | "partner"
+        | "staff"
       asset_kind_enum:
         | "name"
         | "brand"
@@ -10683,6 +11534,48 @@ export type Database = {
         | "REJECTED"
         | "COMPLETED"
       platform_credential_status: "active" | "expired" | "login_required"
+      prospect_capability_status: "ran" | "unavailable"
+      prospect_coverage_state:
+        | "COMPLETE"
+        | "PARTIAL"
+        | "LIMITED"
+        | "INSUFFICIENT"
+      prospect_finding_state:
+        | "DISCOVERED"
+        | "CLASSIFIED"
+        | "NEEDS_HUMAN_REVIEW"
+        | "VERIFIED"
+        | "REJECTED"
+        | "ESCALATED"
+      prospect_identity_bucket:
+        | "MATCHED"
+        | "POSSIBLE_MATCH"
+        | "NEEDS_IDENTITY_REVIEW"
+        | "UNRELATED"
+      prospect_risk_band:
+        | "INSUFFICIENT_DATA"
+        | "PENDING_VERIFICATION"
+        | "LOW"
+        | "MODERATE"
+        | "HIGH"
+        | "CRITICAL"
+      prospect_scan_status:
+        | "queued"
+        | "running"
+        | "completed"
+        | "partial"
+        | "failed"
+        | "cancelled"
+      prospect_score_kind: "PRELIMINARY_EXPOSURE" | "VERIFIED_RISK"
+      prospect_source_state:
+        | "not_scanned"
+        | "connecting"
+        | "scanning"
+        | "results_found"
+        | "no_results"
+        | "unavailable"
+        | "provider_error"
+        | "policy_disabled"
       signature_status:
         | "DRAFT"
         | "READY_FOR_REVIEW"
@@ -10828,7 +11721,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type_enum: ["personal", "business"],
-      app_role: ["admin", "analyst", "user", "super_admin", "partner"],
+      app_role: ["admin", "analyst", "user", "super_admin", "partner", "staff"],
       asset_kind_enum: [
         "name",
         "brand",
@@ -11021,6 +11914,54 @@ export const Constants = {
         "COMPLETED",
       ],
       platform_credential_status: ["active", "expired", "login_required"],
+      prospect_capability_status: ["ran", "unavailable"],
+      prospect_coverage_state: [
+        "COMPLETE",
+        "PARTIAL",
+        "LIMITED",
+        "INSUFFICIENT",
+      ],
+      prospect_finding_state: [
+        "DISCOVERED",
+        "CLASSIFIED",
+        "NEEDS_HUMAN_REVIEW",
+        "VERIFIED",
+        "REJECTED",
+        "ESCALATED",
+      ],
+      prospect_identity_bucket: [
+        "MATCHED",
+        "POSSIBLE_MATCH",
+        "NEEDS_IDENTITY_REVIEW",
+        "UNRELATED",
+      ],
+      prospect_risk_band: [
+        "INSUFFICIENT_DATA",
+        "PENDING_VERIFICATION",
+        "LOW",
+        "MODERATE",
+        "HIGH",
+        "CRITICAL",
+      ],
+      prospect_scan_status: [
+        "queued",
+        "running",
+        "completed",
+        "partial",
+        "failed",
+        "cancelled",
+      ],
+      prospect_score_kind: ["PRELIMINARY_EXPOSURE", "VERIFIED_RISK"],
+      prospect_source_state: [
+        "not_scanned",
+        "connecting",
+        "scanning",
+        "results_found",
+        "no_results",
+        "unavailable",
+        "provider_error",
+        "policy_disabled",
+      ],
       signature_status: [
         "DRAFT",
         "READY_FOR_REVIEW",
