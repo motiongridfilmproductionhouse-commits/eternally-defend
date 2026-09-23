@@ -30,6 +30,13 @@ export interface IdentityTargetProfile {
   knownProfileUrl?: string | null;
   /** Handles without the leading @, e.g. ["eterna.official"] */
   knownHandles?: Array<string | null | undefined>;
+  /**
+   * Staff-supplied or already-verified target-specific context: known works,
+   * titles, projects, productions. Generic vocabulary never counts as context.
+   */
+  knownWorks?: Array<string | null | undefined>;
+  /** Staff-supplied linked entities: co-occurring people, companies, labels. */
+  linkedEntities?: Array<string | null | undefined>;
   /** True when the name is common or several distinct entities share it. */
   nameIsAmbiguous?: boolean;
 }
@@ -181,15 +188,39 @@ export function resolveIdentity(
   const professionHit = Boolean(
     target.profession && combined.includes(normalizeText(target.profession)),
   );
-  const contextHit = /\b(interview|statement|arrest|allegation|case|complaint|film|album|company|ceo|founder|court|police)\b/.test(
-    combined,
-  );
+
+  // Target-specific context ONLY: staff-supplied known works and linked
+  // entities. Generic vocabulary ("film", "case", "interview", "company") is
+  // never treated as corroboration — it matches every same-name stranger.
+  const workHits = (target.knownWorks ?? [])
+    .map((w) => normalizeText(w))
+    .filter((w) => w.length >= 4)
+    .filter((w) => combined.includes(w));
+  const entityHits = (target.linkedEntities ?? [])
+    .map((e) => normalizeText(e))
+    .filter((e) => e.length >= 4)
+    .filter((e) => combined.includes(e));
+  const targetContextHit = workHits.length > 0 || entityHits.length > 0;
+
+  if (targetContextHit) {
+    factors.push({
+      key: "known_context",
+      label: workHits.length
+        ? "Known work/title referenced"
+        : "Linked entity referenced",
+      points: 24,
+      strong: true,
+    });
+  }
+
   if (professionHit) {
     factors.push({
       key: "profession",
-      label: contextHit ? "Profession plus matching context" : "Profession referenced",
-      points: contextHit ? 22 : 12,
-      strong: contextHit,
+      label: targetContextHit
+        ? "Profession plus target-specific context"
+        : "Profession referenced (generic, weak signal)",
+      points: targetContextHit ? 22 : 10,
+      strong: targetContextHit,
     });
   }
 
@@ -204,7 +235,9 @@ export function resolveIdentity(
     target.countryRegion && combined.includes(normalizeText(target.countryRegion)),
   );
   if (locationHit) {
-    const withContext = professionHit || orgHit || contextHit;
+    // "Known location plus another contextual signal" only counts when that
+    // other signal is itself target-specific.
+    const withContext = orgHit || targetContextHit;
     factors.push({
       key: "location",
       label: withContext ? "Known location plus contextual signal" : "Known location referenced",
@@ -212,6 +245,7 @@ export function resolveIdentity(
       strong: withContext,
     });
   }
+
 
   const similarity = typeof candidate.imageSimilarity === "number" ? candidate.imageSimilarity : null;
   if (similarity !== null && similarity >= 80) {
@@ -264,7 +298,7 @@ export function resolveIdentity(
   let bucket: IdentityBucket;
   if (strongSignals.length >= 1 && (!ambiguous || strongSignals.length >= 1)) {
     // Ambiguous names need the strong signal to be a hard identifier.
-    const hardKeys = ["handle", "domain", "organization", "image"];
+    const hardKeys = ["handle", "domain", "organization", "image", "known_context"];
     const hasHard = factors.some((f) => f.strong && hardKeys.includes(f.key));
     if (ambiguous && !hasHard) {
       bucket = "NEEDS_IDENTITY_REVIEW";
