@@ -9,7 +9,10 @@ import {
   type ImportSourceFinding,
 } from "./enrollment";
 
-vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: null }));
+// The consumer must never reach the service-role client.
+vi.mock("@/integrations/supabase/client.server", () => {
+  throw new Error("service-role client must not be imported by the prospect feature");
+});
 
 /* ------------------------------------------------------------------ */
 /* Minimal in-memory Supabase fake (only what the consumer uses).       */
@@ -21,7 +24,65 @@ const UNIQUE: Record<string, string[]> = {
 };
 let seq = 0;
 
-function fakeDb(tables: Tables) {
+/**
+ * `rpc` mirrors the SECURITY DEFINER functions of migration
+ * 20260924120000 for the calling user (`uid`), so the TypeScript
+ * orchestration is exercised end to end. The SQL itself is exercised against
+ * a real Postgres in the migration QA run.
+ */
+function fakeDb(tables: Tables, uid: string) {
+  const importFor = (pkg: Row): number => {
+    const findingIds = (tables.prospect_enrollment_transfers ?? [])
+      .filter((t) => t.scan_id === pkg.scan_id && t.target_table === "enrollment_finding")
+      .map((t) => t.finding_id as string);
+    const findings = (tables.prospect_findings ?? []).map((f) => ({
+      ...f,
+      discovery: (tables.prospect_discoveries ?? []).find((d) => d.id === f.discovery_id) ?? null,
+    })) as unknown as ImportSourceFinding[];
+    const rows = planFindingImports({
+      clientUserId: pkg.client_user_id as string,
+      packageId: pkg.id as string,
+      transferredFindingIds: findingIds,
+      findings,
+      evidence: (tables.prospect_finding_evidence ?? []) as never,
+      alreadyImported: tables.client_prospect_findings
+        .filter((r) => r.client_user_id === pkg.client_user_id)
+        .map((r) => r.prospect_finding_id as string),
+    });
+    for (const r of rows) tables.client_prospect_findings.push({ id: `cpf-${++seq}`, ...r });
+    pkg.findings_imported = tables.client_prospect_findings.filter(
+      (r) => r.package_id === pkg.id,
+    ).length;
+    return rows.length;
+  };
+  const rpc = async (fn: string, args: Record<string, unknown> = {}) => {
+    const pkgs = tables.prospect_enrollment_packages;
+    if (fn === "prospect_claim_my_packages") {
+      for (const p of pkgs) {
+        const redeemed = (tables.signup_invite_redemptions ?? []).some(
+          (r) => r.invite_id === p.invite_id && r.user_id === uid,
+        );
+        if (!p.client_user_id && p.invite_id && redeemed) {
+          p.client_user_id = uid;
+          p.status = "LINKED";
+        }
+      }
+      return { data: pkgs.filter((p) => p.client_user_id === uid), error: null };
+    }
+    if (fn === "prospect_mark_my_package_prefilled") {
+      const p = pkgs.find((x) => x.id === args._package_id && x.client_user_id === uid);
+      if (!p) return { data: false, error: null };
+      p.profile_prefilled_at ??= new Date().toISOString();
+      p.status = "APPLIED";
+      return { data: true, error: null };
+    }
+    if (fn === "prospect_import_my_findings") {
+      let n = 0;
+      for (const p of pkgs.filter((x) => x.client_user_id === uid)) n += importFor(p);
+      return { data: n, error: null };
+    }
+    return { data: null, error: { message: `unknown rpc ${fn}` } };
+  };
   const from = (table: string) => {
     tables[table] ??= [];
     let filters: Array<(r: Row) => boolean> = [];
@@ -126,7 +187,7 @@ function fakeDb(tables: Tables) {
     filters = [];
     return q;
   };
-  return { from };
+  return { from, rpc };
 }
 
 function seed(): Tables {
@@ -308,15 +369,15 @@ describe("enrollment consumption — pure planning", () => {
   });
 });
 
-describe("enrollment consumption — apply (idempotent)", () => {
+describe("enrollment consumption — apply (idempotent, client session only)", () => {
   it("delivers identity + findings once; a second trigger never duplicates", async () => {
-    const { applyPreEnrollmentPackagesForUser } = await import("./enrollment-consume.server");
+    const { applyMyPreEnrollmentPackages } = await import("./enrollment-consume.server");
     const tables = seed();
-    const db = fakeDb(tables);
+    const db = fakeDb(tables, "client1");
 
-    const first = await applyPreEnrollmentPackagesForUser("client1", db);
+    const first = await applyMyPreEnrollmentPackages(db, "client1");
     expect(first).toEqual({ packages: 1, profilePrefilled: 1, findingsImported: 2 });
-    const second = await applyPreEnrollmentPackagesForUser("client1", db);
+    const second = await applyMyPreEnrollmentPackages(db, "client1");
     expect(second).toEqual({ packages: 1, profilePrefilled: 0, findingsImported: 0 });
 
     expect(tables.client_prospect_findings).toHaveLength(2);
@@ -326,39 +387,58 @@ describe("enrollment consumption — apply (idempotent)", () => {
     for (const r of tables.client_prospect_findings) {
       expect(r.prospect_scan_id).toBe("scan1");
       expect(r.client_user_id).toBe("client1");
+      expect(Array.isArray(r.evidence_refs)).toBe(true);
     }
     const profile = tables.client_profiles[0];
     expect(profile.display_name).toBe("Asha (typed by client)");
     expect((profile.social_profiles as Row).pre_enrollment).toEqual(
       expect.objectContaining({ prospect_scan_id: "scan1", package_id: "pkg1" }),
     );
+    expect(tables.prospect_enrollment_packages[0].status).toBe("APPLIED");
+    expect(tables.prospect_enrollment_packages[0].findings_imported).toBe(2);
+  });
+
+  it("claims a package issued with an invitation the client redeemed", async () => {
+    const { applyMyPreEnrollmentPackages } = await import("./enrollment-consume.server");
+    const tables = seed();
     const pkg = tables.prospect_enrollment_packages[0];
-    expect(pkg.status).toBe("APPLIED");
-    expect(pkg.findings_imported).toBe(2);
-    expect(tables.prospect_enrollment_transfers.every((t) => t.target_user_id === "client1")).toBe(
-      true,
+    pkg.client_user_id = null;
+    pkg.invite_id = "inv1";
+    tables.client_profiles[0].user_id = "newclient";
+    tables.signup_invite_redemptions = [{ invite_id: "inv1", user_id: "newclient" }];
+
+    const stranger = await applyMyPreEnrollmentPackages(
+      fakeDb(tables, "someone-else"),
+      "someone-else",
     );
+    expect(stranger.packages).toBe(0);
+    expect(pkg.client_user_id).toBeNull();
+
+    const out = await applyMyPreEnrollmentPackages(fakeDb(tables, "newclient"), "newclient");
+    expect(out).toEqual({ packages: 1, profilePrefilled: 1, findingsImported: 2 });
+    expect(pkg.client_user_id).toBe("newclient");
   });
 
   it("waits for the onboarding profile row before pre-filling, then completes", async () => {
-    const { applyPreEnrollmentPackagesForUser } = await import("./enrollment-consume.server");
+    const { applyMyPreEnrollmentPackages } = await import("./enrollment-consume.server");
     const tables = seed();
     const profile = tables.client_profiles.pop()!;
-    const db = fakeDb(tables);
-    const early = await applyPreEnrollmentPackagesForUser("client1", db);
+    const db = fakeDb(tables, "client1");
+    const early = await applyMyPreEnrollmentPackages(db, "client1");
     expect(early.profilePrefilled).toBe(0);
+    expect(early.findingsImported).toBe(2);
     expect(tables.prospect_enrollment_packages[0].status).toBe("LINKED");
     tables.client_profiles.push(profile);
-    const later = await applyPreEnrollmentPackagesForUser("client1", db);
+    const later = await applyMyPreEnrollmentPackages(db, "client1");
     expect(later.profilePrefilled).toBe(1);
-    expect(later.findingsImported).toBe(0); // already imported on the first call
+    expect(later.findingsImported).toBe(0);
     expect(tables.prospect_enrollment_packages[0].status).toBe("APPLIED");
   });
 
   it("does nothing for a client with no linked package", async () => {
-    const { applyPreEnrollmentPackagesForUser } = await import("./enrollment-consume.server");
+    const { applyMyPreEnrollmentPackages } = await import("./enrollment-consume.server");
     const tables = seed();
-    const out = await applyPreEnrollmentPackagesForUser("someone-else", fakeDb(tables));
+    const out = await applyMyPreEnrollmentPackages(fakeDb(tables, "someone-else"), "someone-else");
     expect(out).toEqual({ packages: 0, profilePrefilled: 0, findingsImported: 0 });
     expect(tables.client_prospect_findings).toHaveLength(0);
   });

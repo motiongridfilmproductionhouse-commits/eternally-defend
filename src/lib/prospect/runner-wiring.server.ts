@@ -27,14 +27,17 @@ export interface AdvanceResult {
   unitsRun: number;
 }
 
+/**
+ * `db` is either the staff member's own RLS session (staff-initiated steps) or
+ * the worker client (publishable key + managed worker token header). No
+ * service-role credential is used anywhere in this feature.
+ */
 export async function advanceProspectScan(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
   scanId: string,
   budgetMs = 20_000,
 ): Promise<AdvanceResult> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabaseAdmin as any;
-
   const { data: scan, error } = await db
     .from("prospect_scans")
     .select("id, prospect_id, status")

@@ -57,18 +57,38 @@ Branch: `feature/staff-pre-enrollment-intelligence`
 ### 2. Scans continue on the server
 
 - **Three triggers** run the same bounded, lease-protected step:
-  1. the start/rescan request (first step, then it dispatches the worker);
+  1. the start/rescan request (first step, under the staff member's own session) plus an `AFTER INSERT` trigger on `prospect_scans`, which kicks the worker immediately through pg_net;
   2. `POST /api/public/hooks/prospect-scan-worker`, which responds 202 and then chains itself while work remains;
   3. pg_cron every minute (`eterna-prospect-scan-worker`), as a safety net.
-- **Authentication** uses the existing scheduler scheme: the managed token `prospect_scan_worker`, or `PROSPECT_SCAN_WORKER_SECRET` / `CRON_SECRET`.
+- **Authentication:** every caller sends the managed `prospect_scan_worker` token. The database verifies it; see "No service-role dependency" below.
 - **Closing, refreshing or reconnecting** has no effect on the scan. Reopening `/staff?scan=<id>` shows the stored progress of the same `scan_id`.
 - **Overlapping triggers are harmless**, because of the lease and because state is rebuilt from stored rows.
 - **Stuck scans.** A scan that runs longer than 2 hours with no live worker is marked failed, with the partial results kept, instead of retrying forever.
 - **The open popup** is now only a stall watchdog. It asks for one step if no new event has appeared for 45 seconds.
 
+### No service-role dependency
+
+The feature needs only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Nothing in `src/lib/prospect`, `src/components/staff`, the `/staff` routes or the worker hook imports `client.server` or `supabaseAdmin`, and nothing requires `SUPABASE_SERVICE_ROLE_KEY`. `no-service-role.test.ts` enforces this.
+
+| Path | How it reaches the database |
+| --- | --- |
+| Staff start, rescan, advance and decisions | The staff member's own RLS session, under the existing staff policies |
+| Background worker (hook, pg_cron, scan-insert trigger) | Publishable key plus header `x-prospect-worker-token: <managed token>`. The hook asks the database to check the token (`prospect_worker_token_valid`). RLS policies `TO anon USING (is_prospect_worker())` admit that header on the scan tables only. |
+| Client onboarding (claim, pre-fill, import) | The client's own session. `prospect_claim_my_packages`, `prospect_mark_my_package_prefilled` and `prospect_import_my_findings` are `SECURITY DEFINER` functions scoped to `auth.uid()`. Profile pre-fill uses the client's own profile RLS. |
+| Admin linking an existing client by email | `prospect_link_package_to_client_email`, which requires staff plus admin/super_admin. |
+
+The worker token lives only in `internal_cron_secrets`. No client role has a grant on that table, and the database compares tokens itself. It travels only server to server (pg_net → hook → chained hook) and never reaches a browser. Signup (`invites.functions.ts`) is back to its original code: a client's package is claimed from the invite they redeemed the first time they load onboarding.
+
+**Checked against a real Postgres 16 with Supabase-like roles.** All eight prospect migrations applied cleanly, and these behaviours were confirmed:
+- **Worker without the token:** sees and changes nothing.
+- **Worker with the token:** can claim a lease, write events, discoveries, sources and scores, and finalize a scan. It cannot fake a human verification, and cannot read the secrets, packages or staff decisions.
+- **Clients:** can claim only packages from their own redeemed invite. Import is idempotent. Clients cannot read prospect scans or insert findings.
+- **Staff linking:** non-admin staff cannot link by email, and a package cannot be re-pointed to another client.
+- **Scan insert:** kicks the worker with the token.
+
 ### Deploy checklist
 
-1. Apply the migrations in order: `20260923100000_prospect_runner_hardening.sql`, `20260924090000_prospect_enrollment_consumption.sql`, `20260924091000_prospect_scan_worker_schedule.sql`.
-2. Check the cron URL. It uses the same Lovable origin as the existing Eterna hooks. If the preview or production host differs, update the URL in the last migration (or re-schedule the job) and optionally set `PROSPECT_SCAN_WORKER_BASE_URL`.
-3. Check that the runtime has `SUPABASE_SERVICE_ROLE_KEY`; the worker hook returns 503 without it, like the other privileged hooks.
-4. Regenerate the Supabase types when convenient. The new tables are accessed through the codebase's existing untyped casts.
+1. Apply the migrations in order: `20260923100000_prospect_runner_hardening.sql`, `20260924090000_prospect_enrollment_consumption.sql`, `20260924091000_prospect_scan_worker_schedule.sql`, `20260924120000_prospect_without_service_role.sql`.
+2. Check the worker URL. The cron job and the scan-insert trigger use the same Lovable origin as the existing Eterna hooks. If the host differs, update both and optionally set `PROSPECT_SCAN_WORKER_BASE_URL`, which is used for chaining.
+3. Runtime configuration: only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Do **not** add `SUPABASE_SERVICE_ROLE_KEY` for this feature.
+4. Regenerate the Supabase types when convenient. The new tables and functions are accessed through the codebase's existing untyped casts.

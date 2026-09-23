@@ -127,14 +127,17 @@ describe("server-side scan continuation — chaining", () => {
     expect(resolveWorkerOrigin(null, {} as NodeJS.ProcessEnv)).toBeNull();
   });
 
-  it("the hook authenticates with the existing scheduler scheme and the cron job exists", () => {
+  it("the hook verifies the managed worker token in the database and the cron job exists", () => {
     const root = join(__dirname, "..", "..", "..");
     const hook = readFileSync(
       join(root, "src/routes/api/public/hooks/prospect-scan-worker.ts"),
       "utf8",
     );
-    expect(hook).toMatch(/requireTrustedRuntime\(\)/);
-    expect(hook).toMatch(/authorizeCronRequest\(request, \{\s*jobName: "prospect_scan_worker"/);
+    expect(hook).toMatch(/verifyWorkerToken\(token\)/);
+    expect(hook).toMatch(/createWorkerDb\(token\)/);
+    expect(hook).not.toMatch(
+      /requireTrustedRuntime|authorizeCronRequest|supabase\/client\.server|supabaseAdmin/,
+    );
     const sql = readFileSync(
       join(root, "supabase/migrations/20260924091000_prospect_scan_worker_schedule.sql"),
       "utf8",

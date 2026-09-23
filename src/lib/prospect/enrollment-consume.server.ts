@@ -1,42 +1,25 @@
 /**
  * Pre-Enrollment Intelligence — client onboarding consumes the hand-off package.
  *
- * Flow:
- *   1. Staff "Begin Client Enrollment" creates one package per prospect scan
- *      (identity snapshot + prospect_scan_id) and records the selected,
- *      human-verified findings in prospect_enrollment_transfers.
- *   2. The package is linked to the client account either when the client
- *      redeems the package's invitation, or directly by an admin when the
- *      client already has an account.
- *   3. Applying the package (idempotent, safe to call repeatedly):
- *        - pre-fills empty onboarding profile fields, merges aliases / handles /
- *          known profile into the same fields the client's form edits, and keeps
- *          prospect_scan_id, known works and linked entities;
- *        - imports the transferred findings into client_prospect_findings with
- *          evidence references. That table is review-only: no scanner, report
- *          or enforcement path reads it, so nothing is enforced from a
- *          pre-enrollment scan.
+ * No service-role credential. Every call runs under the caller's own RLS
+ * session; the few steps that cross the staff/client boundary are
+ * SECURITY DEFINER database functions that check auth.uid() themselves
+ * (see migration 20260924120000_prospect_without_service_role.sql):
  *
- * Every function here uses the service-role client and never throws into the
- * caller's user-facing flow unless explicitly awaited for a staff action.
+ *   staff  → ensurePackage (staff RLS insert), prospect_link_package_to_client_email
+ *            (admin staff), prospect_import_package_findings (staff)
+ *   client → prospect_claim_my_packages (links packages from an invitation the
+ *            caller redeemed), own client_profiles pre-fill (client RLS),
+ *            prospect_mark_my_package_prefilled, prospect_import_my_findings
+ *
+ * Imported findings land in the review-only client_prospect_findings table:
+ * no scanner, report or enforcement path reads it.
  */
 
-import {
-  identitySnapshotOf,
-  planFindingImports,
-  planProfilePrefill,
-  type IdentitySnapshot,
-  type ImportEvidence,
-  type ImportSourceFinding,
-} from "./enrollment";
+import { identitySnapshotOf, planProfilePrefill, type IdentitySnapshot } from "./enrollment";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any;
-
-async function adminDb(): Promise<Db> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin as Db;
-}
 
 export interface PackageRow {
   id: string;
@@ -48,7 +31,7 @@ export interface PackageRow {
   profile_prefilled_at: string | null;
 }
 
-/** Create (or return) the single package for a prospect scan. */
+/** Staff: create (or return) the single package for a prospect scan. */
 export async function ensurePackage(
   db: Db,
   input: { scanId: string; prospectId: string; accountType: string; createdBy: string },
@@ -82,59 +65,27 @@ export async function ensurePackage(
   return pkg as PackageRow;
 }
 
-/** Link a package to a client account (first link wins; never re-pointed). */
-export async function linkPackage(db: Db, packageId: string, userId: string): Promise<boolean> {
-  const { data } = await db
-    .from("prospect_enrollment_packages")
-    .update({ client_user_id: userId, status: "LINKED", linked_at: new Date().toISOString() })
-    .eq("id", packageId)
-    .is("client_user_id", null)
-    .select("id");
-  if (data?.length) return true;
-  const { data: existing } = await db
-    .from("prospect_enrollment_packages")
-    .select("client_user_id")
-    .eq("id", packageId)
-    .maybeSingle();
-  return existing?.client_user_id === userId;
-}
-
-/** Called after an invitation is redeemed: link any package issued with it. */
-export async function linkPackageForRedeemedInvite(inviteId: string, userId: string) {
-  try {
-    const db = await adminDb();
-    const { data: pkgs } = await db
-      .from("prospect_enrollment_packages")
-      .select("id")
-      .eq("invite_id", inviteId);
-    for (const p of pkgs ?? []) await linkPackage(db, p.id, userId);
-    if (pkgs?.length) await applyPreEnrollmentPackagesForUser(userId);
-  } catch (err) {
-    console.error("[pre-enrollment] invite link failed", err);
-  }
-}
-
-/**
- * Admin path for a client who already has an account: link by the email on
- * their onboarding profile. Returns the linked user id, or null when no
- * client account uses that email.
- */
+/** Staff admin: deliver to a client who already has an account (by profile email). */
 export async function linkPackageToExistingClient(
+  db: Db,
   packageId: string,
   email: string,
 ): Promise<string | null> {
-  const db = await adminDb();
-  const { data: profile } = await db
-    .from("client_profiles")
-    .select("user_id")
-    // Case-insensitive exact match: escape LIKE wildcards ("_" is common in emails).
-    .ilike("email", email.trim().replace(/[\\%_]/g, "\\$&"))
-    .maybeSingle();
-  if (!profile?.user_id) return null;
-  const linked = await linkPackage(db, packageId, profile.user_id);
-  if (!linked) throw new Error("This enrollment package is already linked to a different account.");
-  await applyPreEnrollmentPackagesForUser(profile.user_id, db);
-  return profile.user_id as string;
+  const { data, error } = await db.rpc("prospect_link_package_to_client_email", {
+    _package_id: packageId,
+    _email: email,
+  });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
+}
+
+/** Staff: push newly selected findings to an already-linked client. */
+export async function importPackageFindings(db: Db, packageId: string): Promise<number> {
+  const { data, error } = await db.rpc("prospect_import_package_findings", {
+    _package_id: packageId,
+  });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
 }
 
 export interface ApplyOutcome {
@@ -144,144 +95,60 @@ export interface ApplyOutcome {
 }
 
 /**
- * Apply every package linked to this client. Idempotent: profile fields are
- * only filled when empty, the profile step runs once per package, and findings
- * are upserted on (client_user_id, prospect_finding_id).
+ * Client: claim, pre-fill and import — idempotent, safe on every onboarding
+ * load. Profile fields are only filled when empty; findings are unique per
+ * (client, prospect finding).
  */
-export async function applyPreEnrollmentPackagesForUser(
-  userId: string,
-  dbOverride?: Db,
-): Promise<ApplyOutcome> {
-  const db = dbOverride ?? (await adminDb());
+export async function applyMyPreEnrollmentPackages(db: Db, userId: string): Promise<ApplyOutcome> {
   const outcome: ApplyOutcome = { packages: 0, profilePrefilled: 0, findingsImported: 0 };
-  const { data: pkgs } = await db
-    .from("prospect_enrollment_packages")
-    .select("*")
-    .eq("client_user_id", userId)
-    .order("created_at", { ascending: true });
-  for (const pkg of (pkgs ?? []) as PackageRow[]) {
-    outcome.packages++;
-    const now = new Date().toISOString();
+  const { data: pkgs, error } = await db.rpc("prospect_claim_my_packages");
+  if (error) throw new Error(error.message);
+  const packages = (pkgs ?? []) as Array<{
+    id: string;
+    scan_id: string;
+    identity_snapshot: IdentitySnapshot;
+    profile_prefilled_at: string | null;
+  }>;
+  outcome.packages = packages.length;
+  if (!packages.length) return outcome;
 
-    // 1. Onboarding profile pre-fill (only once the client's profile row exists).
-    if (!pkg.profile_prefilled_at) {
-      const { data: profile } = await db
-        .from("client_profiles")
-        .select(
-          "display_name, company_name, country, website, onboarding_account_type, social_profiles",
-        )
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (profile) {
-        const update = planProfilePrefill(profile, pkg.identity_snapshot, {
-          packageId: pkg.id,
-          prospectScanId: pkg.scan_id,
-        });
-        const { error } = await db.from("client_profiles").update(update).eq("user_id", userId);
-        if (!error) {
-          await db
-            .from("prospect_enrollment_packages")
-            .update({ profile_prefilled_at: now })
-            .eq("id", pkg.id)
-            .is("profile_prefilled_at", null);
-          outcome.profilePrefilled++;
-        }
-      }
-    }
-
-    // 2. Transferred, human-verified findings with evidence references.
-    const { data: transfers } = await db
-      .from("prospect_enrollment_transfers")
-      .select("finding_id, target_table")
-      .eq("scan_id", pkg.scan_id)
-      .eq("target_table", "enrollment_finding");
-    const findingIds = (transfers ?? [])
-      .map((t: { finding_id: string | null }) => t.finding_id)
-      .filter(Boolean) as string[];
-    if (findingIds.length) {
-      const [{ data: findings }, { data: evidence }, { data: imported }] = await Promise.all([
-        db
-          .from("prospect_findings")
-          .select(
-            "id, scan_id, state, stage_key, category, severity, detection_reason, confidence, verified_by, verified_at, discovery:prospect_discoveries(original_url, canonical_url, platform, title, discovery_method, identity_bucket, identity_confidence)",
-          )
-          .in("id", findingIds),
-        db
-          .from("prospect_finding_evidence")
-          .select(
-            "id, finding_id, source_url, capture_path, capture_kind, content_hash, observed_at",
-          )
-          .in("finding_id", findingIds),
-        db
-          .from("client_prospect_findings")
-          .select("prospect_finding_id")
-          .eq("client_user_id", userId)
-          .in("prospect_finding_id", findingIds),
-      ]);
-      const rows = planFindingImports({
-        clientUserId: userId,
-        packageId: pkg.id,
-        transferredFindingIds: findingIds,
-        findings: (findings ?? []) as ImportSourceFinding[],
-        evidence: (evidence ?? []) as ImportEvidence[],
-        alreadyImported: (imported ?? []).map(
-          (r: { prospect_finding_id: string }) => r.prospect_finding_id,
-        ),
-      });
-      if (rows.length) {
-        const { data: inserted, error } = await db
-          .from("client_prospect_findings")
-          .upsert(rows, {
-            onConflict: "client_user_id,prospect_finding_id",
-            ignoreDuplicates: true,
-          })
-          .select("id, prospect_finding_id");
-        if (error) throw new Error(`Could not import pre-enrollment findings: ${error.message}`);
-        outcome.findingsImported += inserted?.length ?? 0;
-        for (const r of inserted ?? []) {
-          await db
-            .from("prospect_enrollment_transfers")
-            .update({ target_id: r.id, target_user_id: userId })
-            .eq("scan_id", pkg.scan_id)
-            .eq("target_table", "enrollment_finding")
-            .eq("finding_id", r.prospect_finding_id);
-        }
-      }
-    }
-
-    // 3. Mark identity transfer + package state.
-    await db
-      .from("prospect_enrollment_transfers")
-      .update({ target_user_id: userId, target_id: pkg.id })
-      .eq("scan_id", pkg.scan_id)
-      .eq("target_table", "enrollment_identity")
-      .is("target_user_id", null);
-    const { count } = await db
-      .from("client_prospect_findings")
-      .select("id", { count: "exact", head: true })
-      .eq("package_id", pkg.id);
-    const { data: fresh } = await db
-      .from("prospect_enrollment_packages")
-      .select("profile_prefilled_at, applied_at")
-      .eq("id", pkg.id)
-      .single();
-    await db
-      .from("prospect_enrollment_packages")
-      .update({
-        findings_imported: count ?? 0,
-        status: fresh?.profile_prefilled_at ? "APPLIED" : "LINKED",
-        applied_at: fresh?.applied_at ?? (fresh?.profile_prefilled_at ? now : null),
-      })
-      .eq("id", pkg.id);
+  for (const pkg of packages) {
+    if (pkg.profile_prefilled_at) continue;
+    // Pre-fill happens once the client's onboarding profile row exists.
+    const { data: profile } = await db
+      .from("client_profiles")
+      .select(
+        "display_name, company_name, country, website, onboarding_account_type, social_profiles",
+      )
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!profile) continue;
+    const update = planProfilePrefill(profile, pkg.identity_snapshot, {
+      packageId: pkg.id,
+      prospectScanId: pkg.scan_id,
+    });
+    const { error: updateError } = await db
+      .from("client_profiles")
+      .update(update)
+      .eq("user_id", userId);
+    if (updateError) continue;
+    const { data: marked } = await db.rpc("prospect_mark_my_package_prefilled", {
+      _package_id: pkg.id,
+    });
+    if (marked) outcome.profilePrefilled++;
   }
+
+  const { data: imported, error: importError } = await db.rpc("prospect_import_my_findings");
+  if (importError) throw new Error(importError.message);
+  outcome.findingsImported = Number(imported ?? 0);
   return outcome;
 }
 
 /** Best-effort wrapper for onboarding hooks: never breaks the client's flow. */
-export async function applyPreEnrollmentPackagesSafely(userId: string): Promise<void> {
+export async function applyMyPreEnrollmentPackagesSafely(db: Db, userId: string): Promise<void> {
   try {
-    await applyPreEnrollmentPackagesForUser(userId);
+    await applyMyPreEnrollmentPackages(db, userId);
   } catch (err) {
-    console.error("[pre-enrollment] apply failed", err);
+    console.error("[pre-enrollment] apply failed", err instanceof Error ? err.message : err);
   }
 }

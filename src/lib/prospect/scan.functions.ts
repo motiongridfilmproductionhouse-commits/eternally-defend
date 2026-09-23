@@ -12,7 +12,6 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Json } from "@/integrations/supabase/types";
@@ -60,43 +59,26 @@ function handleFromUrl(url: string | null | undefined): string | null {
 }
 
 /**
- * Start a scan on the server. The first bounded step runs right after the
- * response (so the popup fills quickly), then the server-side worker takes
- * over and chains itself; pg_cron resumes anything left behind. Nothing here
- * depends on the staff browser staying open.
+ * Start a scan. The first bounded step runs right after the response with the
+ * staff member's own RLS session (so the popup fills quickly). Continuation is
+ * entirely server-side and needs no service-role credential: the AFTER INSERT
+ * trigger on prospect_scans kicks the worker hook immediately (pg_net, token
+ * read inside the database), the hook chains itself, and pg_cron resumes
+ * anything left behind every minute. Nothing depends on the browser.
  */
-function launchInBackground(scanId: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function launchInBackground(db: any, scanId: string) {
   return (async () => {
-    const requestUrl = (() => {
-      try {
-        return (getRequest() as Request).url;
-      } catch {
-        return null;
-      }
-    })();
     const work = (async () => {
       const { advanceProspectScan } = await import("./runner-wiring.server");
-      const { dispatchProspectWorker, resolveWorkerOrigin } = await import("./worker.server");
       try {
-        const first = await advanceProspectScan(scanId, 15_000);
-        if (first.done) return;
+        await advanceProspectScan(db, scanId, 15_000);
       } catch (error) {
         console.error(
-          "[prospect] first scan step failed",
+          "[prospect] first scan step failed; the worker will resume it",
           scanId,
           error instanceof Error ? error.message : error,
         );
-      }
-      const dispatch = await dispatchProspectWorker({
-        origin: resolveWorkerOrigin(requestUrl),
-        scanId,
-        hop: 0,
-      });
-      if (!dispatch.dispatched) {
-        console.warn("[prospect] worker dispatch not confirmed; cron will resume", {
-          scanId,
-          reason: dispatch.reason,
-        });
       }
     })();
     const { keepAlive } = await import("./worker.server");
@@ -198,7 +180,7 @@ export const startProspectScan = createServerFn({ method: "POST" })
     if (error) throw new Error(`Could not lock identity: ${error.message}`);
 
     const scanId = await createScanRow(db, context.userId, identity.id, identityRow);
-    await launchInBackground(scanId);
+    await launchInBackground(db, scanId);
     return { scanId, prospectId: identity.id as string };
   });
 
@@ -225,7 +207,7 @@ export const rescanProspect = createServerFn({ method: "POST" })
       .eq("id", prev.prospect_id)
       .single();
     const scanId = await createScanRow(db, context.userId, prev.prospect_id, identity);
-    await launchInBackground(scanId);
+    await launchInBackground(db, scanId);
     return { scanId };
   });
 
@@ -252,7 +234,7 @@ export const advanceScan = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!visible) throw new Error("Scan not found");
     const { advanceProspectScan } = await import("./runner-wiring.server");
-    return advanceProspectScan(data.scanId, 20_000);
+    return advanceProspectScan(db, data.scanId, 20_000);
   });
 
 /** Everything the scan popup renders — computed from stored rows only. */
@@ -541,7 +523,7 @@ export const beginClientEnrollment = createServerFn({ method: "POST" })
 
     // One enrollment package per prospect scan (identity snapshot + prospect_scan_id).
     // Onboarding consumes it once the client account is linked.
-    const { ensurePackage, linkPackageToExistingClient, applyPreEnrollmentPackagesForUser } =
+    const { ensurePackage, linkPackageToExistingClient, importPackageFindings } =
       await import("./enrollment-consume.server");
     const { accountTypeForIdentity } = await import("./enrollment");
     const { data: identityRow } = await db
@@ -573,12 +555,12 @@ export const beginClientEnrollment = createServerFn({ method: "POST" })
 
     if (pkg.client_user_id) {
       // Already linked (earlier hand-off): push any newly selected findings through.
-      await applyPreEnrollmentPackagesForUser(pkg.client_user_id);
+      await importPackageFindings(db, pkg.id);
       linkedExistingAccount = true;
       inviteNote =
         "Package is linked to the client account; newly selected findings were delivered.";
     } else if (email && canInvite) {
-      const existingUser = await linkPackageToExistingClient(pkg.id, email);
+      const existingUser = await linkPackageToExistingClient(db, pkg.id, email);
       if (existingUser) {
         linkedExistingAccount = true;
         inviteNote =
