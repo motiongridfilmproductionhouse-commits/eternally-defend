@@ -1082,13 +1082,130 @@ function EipLifecycleVisual() {
   );
 }
 
+type PlatformTabId =
+  "threat-overview" | "investigations" | "evidence" | "enforcement" | "monitoring";
+
+const platformTabs: readonly { id: PlatformTabId; label: string }[] = [
+  { id: "threat-overview", label: "Threat Overview" },
+  { id: "investigations", label: "Investigations" },
+  { id: "evidence", label: "Evidence" },
+  { id: "enforcement", label: "Enforcement" },
+  { id: "monitoring", label: "Monitoring" },
+];
+
+const threatOverviewColumns = [
+  "Detected link",
+  "Source platform",
+  "Identity match",
+  "Status",
+  "Risk",
+] as const;
+const threatOverviewRows = [
+  ["██████████████", "Social platform", "Match", "Reviewed", "Low"],
+  ["██████████████", "Video platform", "Possible match", "Active", "Medium"],
+  ["██████████████", "Forum", "Match", "Escalated", "High"],
+] as const;
+
+const evidenceColumns = [
+  "URL",
+  "Timestamp",
+  "Screenshots",
+  "Evidence integrity",
+  "Source status",
+] as const;
+const evidenceRows = [
+  ["██████████████", "Captured", "Preserved", "Verified", "Live"],
+  ["██████████████", "Captured", "Preserved", "Verified", "Removed"],
+  ["██████████████", "Captured", "Preserved", "Pending review", "Live"],
+] as const;
+
+const investigationStages = ["New", "Reviewing", "Verified", "Dismissed", "Escalated"] as const;
+const enforcementStages = [
+  "Submitted",
+  "Under review",
+  "Removed",
+  "Rejected",
+  "Escalated",
+] as const;
+
+const monitoringMetrics = [
+  { label: "Recurrence", value: "Tracked" },
+  { label: "New sources", value: "Monitored" },
+  { label: "Reuploads", value: "Flagged" },
+  { label: "Active alerts", value: "Live" },
+] as const;
+
+function ConsoleTable({
+  columns,
+  rows,
+}: {
+  columns: readonly string[];
+  rows: readonly (readonly string[])[];
+}) {
+  return (
+    <div className="overflow-x-auto rounded-md border border-landing-console-line">
+      <table className="w-full min-w-[560px] border-collapse text-left text-xs">
+        <thead>
+          <tr className="border-b border-landing-console-line bg-landing-console-soft">
+            {columns.map((column) => (
+              <th
+                key={column}
+                className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-landing-console-muted"
+              >
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.join("|")}
+              className="border-b border-landing-console-line last:border-b-0"
+            >
+              {row.map((cell, cellIndex) => (
+                <td
+                  key={`${cell}-${cellIndex}`}
+                  className="px-4 py-3 text-landing-console-foreground"
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StageTracker({ stages }: { stages: readonly string[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {stages.map((stage, index) => (
+        <div key={stage} className="flex items-center gap-2">
+          <span className="rounded-full border border-landing-console-line bg-landing-console-soft px-3 py-1.5 text-[11px] font-medium">
+            {stage}
+          </span>
+          {index < stages.length - 1 && (
+            <ArrowRight className="size-3 shrink-0 text-landing-console-muted" aria-hidden="true" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PlatformInterface() {
+  const [activeTab, setActiveTab] = useState<PlatformTabId>("threat-overview");
+  const activeLabel = platformTabs.find((tab) => tab.id === activeTab)?.label ?? "";
+
   return (
     <div className="landing-console landing-console-interactive overflow-hidden rounded-lg border border-landing-console-line bg-landing-console text-landing-console-foreground">
       <div className="flex items-center justify-between border-b border-landing-console-line px-5 py-4">
         <span className="flex items-center gap-2 text-xs font-semibold">
           <i className="size-2 rounded-full bg-landing-accent" />
-          Threat overview
+          {activeLabel}
         </span>
         <span className="text-[10px] uppercase text-landing-console-muted">Redacted client</span>
       </div>
@@ -1105,29 +1222,82 @@ function PlatformInterface() {
           </div>
         ))}
       </div>
-      <div className="grid gap-5 p-5 md:grid-cols-[1.3fr_0.7fr]">
-        <div className="relative h-56 overflow-hidden rounded-md border border-landing-console-line bg-landing-console-soft">
-          <SignalMap />
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-md border border-landing-console-line bg-landing-console/80 px-4 py-3 backdrop-blur">
-            <div>
-              <p className="text-xs font-medium">Monitoring history</p>
-              <p className="mt-1 text-[10px] text-landing-console-muted">
-                Signal → review → evidence
-              </p>
+
+      <div
+        role="tablist"
+        aria-label="Eterna platform views"
+        className="flex flex-wrap gap-1 border-b border-landing-console-line bg-landing-console-soft px-3 py-2"
+      >
+        {platformTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors",
+              activeTab === tab.id
+                ? "bg-landing-console text-landing-console-foreground"
+                : "text-landing-console-muted hover:text-landing-console-foreground",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-5">
+        {activeTab === "threat-overview" && (
+          <div className="space-y-5">
+            <div className="relative h-40 overflow-hidden rounded-md border border-landing-console-line bg-landing-console-soft">
+              <SignalMap />
+              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-md border border-landing-console-line bg-landing-console/80 px-4 py-2.5 backdrop-blur">
+                <div>
+                  <p className="text-xs font-medium">Monitoring history</p>
+                  <p className="mt-1 text-[10px] text-landing-console-muted">
+                    Signal → review → evidence
+                  </p>
+                </div>
+                <ShieldCheck className="size-5 text-landing-cyan" />
+              </div>
             </div>
-            <ShieldCheck className="size-5 text-landing-cyan" />
+            <ConsoleTable columns={threatOverviewColumns} rows={threatOverviewRows} />
           </div>
-        </div>
-        <div className="space-y-3">
-          {["Risk assessment", "Evidence status", "Enforcement status"].map((item, index) => (
-            <div key={item} className="border border-landing-console-line p-4">
-              <p className="text-[10px] uppercase text-landing-console-muted">{item}</p>
-              <p className="mt-4 text-xs">
-                {index === 0 ? "Context review" : index === 1 ? "Preserved" : "Human approval"}
-              </p>
-            </div>
-          ))}
-        </div>
+        )}
+
+        {activeTab === "investigations" && (
+          <div className="space-y-5">
+            <StageTracker stages={investigationStages} />
+            <p className="max-w-md text-xs leading-5 text-landing-console-muted">
+              Every surfaced case moves through a single reviewed pipeline. Nothing is treated as
+              confirmed before a specialist reaches a verified determination.
+            </p>
+          </div>
+        )}
+
+        {activeTab === "evidence" && <ConsoleTable columns={evidenceColumns} rows={evidenceRows} />}
+
+        {activeTab === "enforcement" && (
+          <div className="space-y-5">
+            <StageTracker stages={enforcementStages} />
+            <p className="max-w-md text-xs leading-5 text-landing-console-muted">
+              Only eligible, authorized cases are submitted. Status is tracked through to resolution
+              or escalation.
+            </p>
+          </div>
+        )}
+
+        {activeTab === "monitoring" && (
+          <div className="grid gap-px overflow-hidden rounded-md border border-landing-console-line bg-landing-console-line sm:grid-cols-2 lg:grid-cols-4">
+            {monitoringMetrics.map(({ label, value }) => (
+              <div key={label} className="bg-landing-console p-5">
+                <p className="text-[10px] uppercase text-landing-console-muted">{label}</p>
+                <p className="mt-6 text-sm font-medium">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
