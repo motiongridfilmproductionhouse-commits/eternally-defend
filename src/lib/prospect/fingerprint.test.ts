@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { canonicalizeUrl, contentFingerprint, dedupeKey, groupObservations } from "./fingerprint";
+import {
+  canonicalizeUrl,
+  contentFingerprint,
+  contentItemKey,
+  dedupeKey,
+  groupObservations,
+} from "./fingerprint";
 
 describe("canonicalizeUrl", () => {
   it("strips tracking parameters, www, hash and trailing slash", () => {
@@ -45,5 +51,34 @@ describe("dedupe", () => {
 
   it("returns an empty fingerprint when nothing was retrieved", () => {
     expect(contentFingerprint({})).toBe("");
+  });
+
+  it("counts one page once even when providers describe it with different titles", () => {
+    const groups = groupObservations([
+      { url: "https://news.example/a", title: "Headline — News Example", provider: "google" },
+      { url: "https://www.news.example/a?utm_source=brave", title: "Headline", provider: "brave" },
+      {
+        url: "http://news.example/a/",
+        title: "News Example: Headline story",
+        provider: "firecrawl",
+      },
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.observations).toHaveLength(3);
+  });
+
+  it("collapses identical retrieved content at different URLs in primary totals", () => {
+    const fp = contentFingerprint({
+      title: "Same story",
+      text: "Identical body text of the article",
+    });
+    const a = contentItemKey({ canonical_url: "https://a.example/x", content_fingerprint: fp });
+    const b = contentItemKey({
+      canonical_url: "https://mirror.example/y",
+      content_fingerprint: fp,
+    });
+    const c = contentItemKey({ canonical_url: "https://c.example/z", content_fingerprint: "" });
+    expect(a).toBe(b);
+    expect(c).toBe("url:https://c.example/z");
   });
 });

@@ -101,7 +101,18 @@ export const selectV2AccountType = createServerFn({ method: "POST" })
       { onConflict: "user_id" },
     );
     if (progressError) throw new Error(progressError.message);
-    return row;
+
+    // Pre-enrollment hand-off: now that the profile row exists, pre-fill empty
+    // fields from a linked staff enrollment package (idempotent, best effort).
+    const { applyPreEnrollmentPackagesSafely } =
+      await import("@/lib/prospect/enrollment-consume.server");
+    await applyPreEnrollmentPackagesSafely(userId);
+    const { data: refreshed } = await supabase
+      .from("client_profiles")
+      .select()
+      .eq("user_id", userId)
+      .maybeSingle();
+    return refreshed ?? row;
   });
 
 export const saveV2ClientProfile = createServerFn({ method: "POST" })
