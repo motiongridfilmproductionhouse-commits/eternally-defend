@@ -98,28 +98,47 @@ Mapped from the existing scorer, thresholds documented in code:
 
 | Bucket | Rule | Effect |
 |---|---|---|
-| MATCHED | full name/alias in page body, title or URL; confidence ≥ 80 | only bucket that contributes to risk totals |
-| POSSIBLE_MATCH | name in one strong field only, or distinctive-token match in extracted body; 60–79 | shown, never counted in verified totals automatically |
-| NEEDS_REVIEW | weak/partial signal, or page text not retrieved; 25–59 | "Needs Identity Verification" queue, excluded from totals |
+| MATCHED | name/alias match **plus at least one STRONG corroborating signal** | only bucket that contributes to totals and to either score |
+| POSSIBLE_MATCH | name/alias match with weak or no corroboration | shown, never counted in any total or score |
+| NEEDS_IDENTITY_REVIEW | ambiguous name, conflicting entities, or page text not retrieved | staff identity-review queue, excluded from totals |
 | UNRELATED | page text retrieved and contains no target signal | retained for audit, excluded everywhere |
 
-Same-name different people are never merged: disambiguation uses the supplied known profile/site, organisation, profession and location, and any conflict downgrades to NEEDS_REVIEW.
+A full-name match alone can never produce MATCHED. Signals scored: name/aliases, profession, organisation, geographic context, official website/domain, known social handles, profile URLs, linked entities, lawful public reference-image similarity, contextual co-occurrence. STRONG corroborating signals: official/known profile handle match; profession + context match; organisation/company association; confirmed website/domain association; strong public-image identity match where available; known location combined with another contextual signal.
+
+Ambiguity detection: when the name is common or multiple distinct entities are observed for the same name within a scan, the rule is applied strictly and weak corroboration resolves to NEEDS_IDENTITY_REVIEW rather than POSSIBLE_MATCH. Same-name different people are never merged.
+
+POSSIBLE_MATCH and NEEDS_IDENTITY_REVIEW items contribute to nothing until a staff member approves the identity through an audited decision, which moves the item to MATCHED.
+
+Every discovery stores its identity factor list, and the UI always shows the percentage together with its factors — e.g. "Identity confidence: 94% — Matched name + profession + official Instagram handle". A confidence number is never displayed without its factors.
+
 
 ## Deduplication
 
 Key = canonical URL (existing `canonicalizeUrl`) + content fingerprint (normalised title+text simhash, and perceptual hash for media). Same item from several providers → one `prospect_discoveries` row + N `prospect_discovery_observations` rows. Every displayed total counts parent rows only.
 
-## Risk model (`src/lib/prospect/risk-model.ts`, version `pre-enroll-v1`)
+## Two separate risk states (`src/lib/prospect/risk-model.ts`)
 
-Factors, each computed from stored rows, each with its own contribution recorded:
+Both are stored as separate rows in `prospect_risk_scores`, each with its own `score_kind`, model version and factor breakdown. History is never overwritten.
 
-Verified track (full weight): severity of verified findings (0–30), source authority (0–10), search visibility / rank position (0–10), platform spread (0–8), propagation/reupload count (0–10), recency (0–7), AI-manipulation confidence on verified media (0–10), identity confidence MATCHED only (0–5).
+**A) Preliminary Exposure Signal** (`preliminary-exposure-v1`) — LOW / MODERATE / HIGH / CRITICAL, computed from MATCHED discovered records including unverified findings (CLASSIFIED / NEEDS_HUMAN_REVIEW). Always labelled "Preliminary · Not yet human verified" and never described as a confirmed assessment. Coverage still governs: LIMITED/INSUFFICIENT coverage, or zero MATCHED relevant records, renders "Insufficient data" or "No relevant findings in scanned sources · Coverage: X" instead of LOW.
 
-Provisional track (capped): all unverified CLASSIFIED / NEEDS_HUMAN_REVIEW findings contribute at a 0.2 multiplier with a hard cap of 12 total points, and can never push the band above MODERATE on their own.
+**B) Verified Risk Assessment** (`verified-risk-v1`) — PENDING VERIFICATION / LOW / MODERATE / HIGH / CRITICAL, computed **only** from human-VERIFIED findings. No verified findings → "Pending verification". Unverified findings have zero influence. Recomputed and appended as a new row whenever staff verify, reject or reclassify.
 
-Bands: LOW 0–19, MODERATE 20–44, HIGH 45–69, CRITICAL 70+. Overridden to **Insufficient data** when coverage_state is LIMITED/INSUFFICIENT, when there are zero MATCHED findings, or when verified-track points are 0 and only provisional signals exist.
+Shared factors, each computed from stored rows and recorded with its numeric contribution: finding severity (0–30), source authority (0–10), search visibility / rank (0–10), platform spread (0–8), propagation/reupload count (0–10), recency (0–7), AI-manipulation confidence (0–10), identity confidence of MATCHED items (0–5).
 
-"Why this score?" reads the stored breakdown and renders two labelled groups (Verified contributions / Provisional signals) with numeric values. Unit tests include the required proof that five unverified allegations score strictly below five verified high-severity findings.
+Bands for both: LOW 0–19, MODERATE 20–44, HIGH 45–69, CRITICAL 70+.
+
+The meeting/summary screen and the Pre-Enrollment Report show both, with live counts:
+
+```text
+Preliminary Exposure Signal: HIGH — Preliminary · Not yet human verified
+Based on 26 real discovered signals · 19 awaiting verification
+Verified Risk Assessment: Pending verification
+Coverage: Partial — 7/12 source families queried
+```
+
+Two separate explainers, "Why this preliminary signal?" and "Why this verified assessment?", each listing actual factors and numeric contributions. Unit tests prove that unverified findings cannot affect the verified assessment, and that five unverified allegations score strictly below five verified high-severity findings in the verified track.
+
 
 ## Access and security
 
