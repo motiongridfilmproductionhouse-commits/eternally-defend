@@ -2,13 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
-  Archive,
   ArrowRight,
   Building2,
   Check,
   Copyright,
   Eye,
-  FileBarChart2,
   FileCheck2,
   FileSearch,
   Fingerprint,
@@ -20,7 +18,6 @@ import {
   Users,
   Volume2,
   VolumeX,
-  Youtube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,46 +84,44 @@ const organizationSchema = JSON.stringify({
 });
 
 const protections = [
-  [ScanFace, "Face & deepfake protection", "Assess synthetic and unauthorized identity use."],
-  [Users, "Impersonation monitoring", "Surface suspicious accounts and identity misuse."],
-  [Copyright, "Copyright intelligence", "Preserve evidence for human-reviewed action."],
-  [Eye, "Reputation monitoring", "Track emerging public-web risk and context."],
-  [Youtube, "Video monitoring", "Review channels and video platforms for misuse."],
-  [Archive, "Evidence preservation", "Retain source context for case review."],
-  [UserCheck, "Verified onboarding", "Establish who and what is protected."],
-  [FileBarChart2, "Risk assessments", "Structure exposure findings with clear context."],
+  [ScanFace, "Deepfake & synthetic media", "Assess synthetic and unauthorized identity use."],
+  [Users, "Impersonation", "Surface suspicious accounts and identity misuse."],
+  [Copyright, "Unauthorized content", "Review video and content platforms for unauthorized use."],
+  [Eye, "Reputation risk", "Track emerging public-web risk and context."],
 ] as const;
 
 const process = [
-  ["01", "Verify", "Establish identity, authority and protected assets."],
-  ["02", "Monitor", "Discover relevant signals across agreed public surfaces."],
-  ["03", "Investigate", "Separate ordinary appearances from genuine risk."],
-  ["04", "Preserve Evidence", "Retain source, timestamp and context for review."],
-  ["05", "Enforce", "Submit eligible, authorized and approved cases appropriately."],
-  ["06", "Monitor Again", "Track status, recurrence and emerging exposure."],
+  ["01", "Verify", "Confirm identity, authority and protected assets."],
+  ["02", "Monitor", "Scan agreed public surfaces for relevant signals."],
+  ["03", "Investigate", "Separate genuine risk from ordinary appearances."],
+  ["04", "Preserve Evidence", "Retain source, timestamp and context."],
+  ["05", "Enforce", "Act on eligible, authorized and approved cases."],
+  ["06", "Monitor Again", "Track status, recurrence and new exposure."],
 ] as const;
 
-const engagementCards = [
+const governanceChecks = [
+  "Verified authorization before enforcement",
+  "Eligibility and route checks before submission",
+  "Human approval for consequential actions",
+  "Auditable evidence and case history",
+] as const;
+
+const audiences = [
   {
     icon: Mic2,
-    category: "Public figures",
-    description:
-      "Film, media, entertainment and other individuals exposed to public identity misuse.",
-    services: ["Identity protection", "Synthetic media review", "Impersonation monitoring"],
+    title: "Public Figures",
+    description: "Individuals whose name, face and voice are publicly recognized.",
   },
   {
     icon: UserCheck,
-    category: "Executives & founders",
-    description:
-      "Protection for individuals whose name, face or reputation is closely connected to an organization.",
-    services: ["Executive monitoring", "Identity misuse review", "Evidence-led response"],
+    title: "Executives & Founders",
+    description: "Leaders whose identity is closely tied to an organization's reputation.",
   },
   {
     icon: Building2,
-    category: "Organizations",
+    title: "Organizations & Brands",
     description:
-      "Protection for businesses and institutions facing impersonation, synthetic media or reputation threats.",
-    services: ["Brand monitoring", "Executive protection", "Evidence preservation"],
+      "Businesses and institutions facing impersonation, synthetic media or reputation threats.",
   },
 ] as const;
 
@@ -161,34 +156,26 @@ const eipProtectionSteps = [
   },
 ] as const;
 
-const engagementCapabilityStrip = [
-  "Identity Protection",
-  "Impersonation Monitoring",
-  "Synthetic Media Review",
-  "Evidence Preservation",
-  "Human-Reviewed Response",
-] as const;
-
 const whyEternaPillars = [
   {
     icon: Fingerprint,
     title: "Prevent",
-    description: "Protect authorized images before publication through EIP.",
+    description: "Protection begins before publication.",
   },
   {
     icon: Radar,
     title: "Detect",
-    description: "Monitor public digital surfaces for identity and reputation exposure.",
+    description: "Continuous visibility across public digital surfaces.",
   },
   {
     icon: FileSearch,
     title: "Investigate",
-    description: "Human specialists distinguish real risk from ordinary appearances.",
+    description: "Human judgment, not automated verdicts.",
   },
   {
     icon: ShieldCheck,
     title: "Respond",
-    description: "Preserve evidence and coordinate eligible, authorized enforcement.",
+    description: "Governed, authorized action.",
   },
 ] as const;
 
@@ -463,36 +450,26 @@ function LandingPageContent() {
           </div>
         </section>
 
-        <section className="py-20 md:py-28" aria-label="Protected engagements">
+        <section className="py-20 md:py-28" aria-labelledby="problem-framing-heading">
           <div className="mx-auto max-w-6xl px-6">
             <div data-landing-reveal>
-              <p className="landing-kicker">Protected engagements</p>
+              <p className="landing-kicker">How EIP changes the image lifecycle</p>
               <div className="mt-4 grid gap-8 md:grid-cols-[1.05fr_0.95fr] md:items-end">
-                <h2 className="max-w-[740px] text-4xl font-medium md:text-5xl">
-                  Protection for identities that operate in public.
+                <h2
+                  id="problem-framing-heading"
+                  className="max-w-[740px] text-4xl font-medium md:text-5xl"
+                >
+                  Public images have become reusable.
                 </h2>
-                <div className="md:pb-1">
-                  <p className="text-sm leading-6 text-landing-muted">
-                    Eterna supports public figures, organizations and public-facing individuals
-                    through confidential, authorized protection engagements.
-                  </p>
-                  <p className="mt-3 text-xs leading-5 text-landing-muted">
-                    Client identities remain private unless explicit permission is provided for
-                    public disclosure.
-                  </p>
-                  <p className="mt-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-landing-muted">
-                    <i className="size-1.5 rounded-full bg-landing-accent" aria-hidden="true" />
-                    Confidential by design
-                  </p>
-                </div>
+                <p className="text-sm leading-6 text-landing-muted md:pb-1">
+                  Once published, an image can be collected and reused by AI systems. Eterna Image
+                  Immunization (EIP) prepares authorized images before publication, so protection
+                  starts before exposure.
+                </p>
               </div>
             </div>
 
-            <div data-landing-reveal className="mt-14">
-              <p className="landing-kicker">How EIP changes the image lifecycle</p>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-landing-muted">
-                From ordinary image exposure to pre-publication protection.
-              </p>
+            <div data-landing-reveal className="mt-8">
               <EipLifecycleVisual />
               <p className="mt-5 text-sm">
                 <Link
@@ -503,32 +480,6 @@ function LandingPageContent() {
                 </Link>
               </p>
             </div>
-
-            <div data-landing-reveal className="landing-stagger mt-16 grid gap-6 md:grid-cols-3">
-              {engagementCards.map(({ icon: Icon, category, description, services }, index) => (
-                <article
-                  key={category}
-                  className="landing-audience-card rounded-md border border-landing-line bg-landing p-7"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-landing-accent">0{index + 1}</span>
-                    <Icon className="size-5 text-landing-accent" />
-                  </div>
-                  <h3 className="mt-10 text-lg font-semibold">{category}</h3>
-                  <p className="mt-3 text-sm leading-6 text-landing-muted">{description}</p>
-                  <p className="mt-5 border-t border-landing-line pt-4 text-[11px] uppercase tracking-wide text-landing-muted">
-                    {services.join(" · ")}
-                  </p>
-                </article>
-              ))}
-            </div>
-
-            <p
-              data-landing-reveal
-              className="mt-10 border-t border-landing-line pt-6 text-[11px] uppercase tracking-wide text-landing-muted"
-            >
-              {engagementCapabilityStrip.join(" · ")}
-            </p>
           </div>
         </section>
 
@@ -556,8 +507,8 @@ function LandingPageContent() {
               data-landing-reveal
               className="mt-10 max-w-2xl border-t border-landing-line pt-6 text-sm leading-6 text-landing-muted"
             >
-              From prevention to monitoring, investigation and response, Eterna brings digital
-              identity protection into one governed system.
+              Eterna connects pre-publication protection with evidence-led monitoring, investigation
+              and response.
             </p>
           </div>
         </section>
@@ -597,6 +548,14 @@ function LandingPageContent() {
                   One operating view connects detected assets, investigations, preserved evidence,
                   enforcement status and monitoring history.
                 </p>
+                <p className="mt-5 text-sm">
+                  <Link
+                    to="/eterna-ai"
+                    className="landing-link inline-flex items-center gap-1 font-semibold text-landing-ink"
+                  >
+                    See how the technology works <ArrowRight className="size-3.5" />
+                  </Link>
+                </p>
               </div>
               <PlatformInterface />
             </div>
@@ -634,6 +593,34 @@ function LandingPageContent() {
                   <p className="mt-3 text-sm leading-6 text-landing-on-dark-muted">{body}</p>
                 </article>
               ))}
+            </div>
+            <div
+              data-landing-reveal
+              className="mt-14 grid gap-10 border-t border-landing-on-dark-line pt-10 md:grid-cols-[0.8fr_1.2fr]"
+            >
+              <div>
+                <p className="text-sm font-semibold">Control is part of protection.</p>
+                <p className="mt-2 text-sm leading-6 text-landing-on-dark-muted">
+                  Eterna is not an automatic takedown service.
+                </p>
+              </div>
+              <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                {governanceChecks.map((item) => (
+                  <div
+                    key={item}
+                    className="flex gap-3 border-t border-landing-on-dark-line pt-4 text-sm leading-6"
+                  >
+                    <Check className="mt-1 size-4 shrink-0 text-landing-accent" />
+                    {item}
+                  </div>
+                ))}
+                <Link
+                  to="/security"
+                  className="landing-link inline-flex items-center gap-1 text-sm font-semibold text-landing"
+                >
+                  Read Security & Governance <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -685,7 +672,49 @@ function LandingPageContent() {
           </div>
         </section>
 
-        <section className="py-20 md:py-28">
+        <section id="who-we-protect" className="py-20 md:py-28">
+          <div className="mx-auto max-w-6xl px-6">
+            <div
+              data-landing-reveal
+              className="grid gap-8 md:grid-cols-[1.05fr_0.95fr] md:items-end"
+            >
+              <div>
+                <p className="landing-kicker">Who Eterna protects</p>
+                <h2 className="mt-4 max-w-[740px] text-4xl font-medium md:text-5xl">
+                  Protection for identities that operate in public.
+                </h2>
+              </div>
+              <div className="md:pb-1">
+                <p className="text-sm leading-6 text-landing-muted">
+                  Engagements are confidential and authorized, managed directly or through
+                  authorized representatives. Client identities remain private unless explicit
+                  permission is provided for public disclosure.
+                </p>
+                <p className="mt-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-landing-muted">
+                  <i className="size-1.5 rounded-full bg-landing-accent" aria-hidden="true" />
+                  Confidential by design
+                </p>
+              </div>
+            </div>
+            <div data-landing-reveal className="landing-stagger mt-14 grid gap-6 md:grid-cols-3">
+              {audiences.map(({ icon: Icon, title, description }, index) => (
+                <article
+                  key={title}
+                  className="landing-audience-card rounded-md border border-landing-line bg-landing p-7"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-landing-accent">0{index + 1}</span>
+                    <Icon className="size-5 text-landing-accent" />
+                  </div>
+                  <h3 className="mt-10 text-lg font-semibold">{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-landing-muted">{description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-landing-line py-20 md:py-28">
           <div className="mx-auto max-w-6xl px-6">
             <div data-landing-reveal>
               <p className="landing-kicker">Protection in practice</p>
@@ -729,72 +758,6 @@ function LandingPageContent() {
                 View anonymized case studies <ArrowRight />
               </Link>
             </Button>
-          </div>
-        </section>
-
-        <section className="bg-landing-soft py-20 md:py-28">
-          <div className="mx-auto max-w-6xl px-6">
-            <div data-landing-reveal className="text-center">
-              <p className="landing-kicker">Who Eterna serves</p>
-              <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-medium md:text-6xl">
-                Protection for people and teams carrying public exposure.
-              </h2>
-            </div>
-            <div data-landing-reveal className="landing-stagger mt-12 grid gap-6 md:grid-cols-3">
-              {[
-                [Mic2, "Public figures", "Names, faces, voices and public presence."],
-                [Building2, "Organizations", "Brand, executive and protected-content exposure."],
-                [
-                  Users,
-                  "Authorized representatives",
-                  "Structured review and case coordination for trusted teams.",
-                ],
-              ].map(([Icon, title, body]) => (
-                <article key={title as string} className="landing-audience-card bg-landing p-7">
-                  <Icon className="size-5 text-landing-accent" />
-                  <h3 className="mt-14 text-xl font-semibold">{title as string}</h3>
-                  <p className="mt-3 text-sm text-landing-muted">{body as string}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="py-20 md:py-28">
-          <div
-            data-landing-reveal
-            className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[0.8fr_1.2fr]"
-          >
-            <div>
-              <p className="landing-kicker">Trust & governance</p>
-              <h2 className="mt-4 text-4xl font-medium md:text-5xl">
-                Control is part of protection.
-              </h2>
-              <p className="mt-5 text-sm leading-6 text-landing-muted">
-                Eterna is not an automatic takedown service.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                "Verified authorization before enforcement",
-                "Eligibility and route checks before submission",
-                "Human approval for consequential actions",
-                "Auditable evidence and case history",
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="flex gap-3 border-t border-landing-line pt-4 text-sm leading-6"
-                >
-                  <Check className="mt-1 size-4 shrink-0 text-landing-accent" />
-                  {item}
-                </div>
-              ))}
-              <Button asChild variant="link" className="h-auto justify-start p-0 text-landing-ink">
-                <Link to="/security">
-                  Read Security & Governance <ArrowRight />
-                </Link>
-              </Button>
-            </div>
           </div>
         </section>
 
@@ -852,7 +815,7 @@ function LandingPageContent() {
               {[
                 [
                   "Who is Eterna Sentinel for?",
-                  "Public figures, executives, organizations and authorized representatives managing visible identities and valuable digital assets.",
+                  "Public figures, executives and founders, and organizations and brands, including authorized representatives acting on their behalf.",
                 ],
                 [
                   "Does Eterna remove everything it finds?",
@@ -877,40 +840,6 @@ function LandingPageContent() {
                 </AccordionItem>
               ))}
             </Accordion>
-          </div>
-        </section>
-
-        <section className="py-20 md:py-28">
-          <div className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-2">
-            <div>
-              <p className="landing-kicker">Eterna operations</p>
-              <h2 className="mt-4 text-4xl font-medium">A managed digital protection operation.</h2>
-              <p className="mt-5 max-w-md text-sm leading-6 text-landing-muted">
-                Eterna Sentinel combines software-supported discovery with human investigation,
-                evidence handling and case coordination.
-              </p>
-              <p className="mt-3 max-w-md text-sm leading-6 text-landing-muted">
-                The Eterna platform brings deepfake defense, AI impersonation response and Eterna
-                Image Immunization together as one governed system.{" "}
-                <Link to="/eterna-ai" className="landing-link text-landing-ink">
-                  See how the technology works
-                </Link>
-                .
-              </p>
-            </div>
-            <dl className="grid gap-px bg-landing-line sm:grid-cols-2">
-              {[
-                ["Company", "Eterna Sentinel"],
-                ["Operating model", "Technology + human review"],
-                ["Client categories", "Individuals, representatives, organizations"],
-                ["Protection areas", "Identity, reputation, content"],
-              ].map(([term, description]) => (
-                <div key={term} className="bg-landing p-6">
-                  <dt className="text-[10px] uppercase text-landing-muted">{term}</dt>
-                  <dd className="mt-3 text-sm font-semibold">{description}</dd>
-                </div>
-              ))}
-            </dl>
           </div>
         </section>
 
