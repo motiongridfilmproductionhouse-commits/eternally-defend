@@ -39,7 +39,12 @@ describe("coverage model", () => {
 
   it("reports LIMITED between 30% and 60% success", () => {
     const report = computeCoverage(
-      rows({ google_search: "results_found", web_general: "results_found", news: "results_found" }),
+      rows({
+        google_search: "results_found",
+        web_general: "results_found",
+        news: "results_found",
+        youtube: "results_found",
+      }),
     );
     expect(report.state).toBe("LIMITED");
   });
