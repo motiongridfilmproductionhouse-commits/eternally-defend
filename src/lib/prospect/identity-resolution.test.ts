@@ -86,3 +86,60 @@ describe("identity resolution", () => {
     expect(result.factors.length).toBeGreaterThan(0);
   });
 });
+
+describe("target-specific context only", () => {
+  it("a common name + profession + the word 'film' on an unrelated page is NOT MATCHED", () => {
+    const common: IdentityTargetProfile = { name: "Raj Kumar", profession: "actor" };
+    const result = resolveIdentity(common, {
+      url: "https://randomsite.example/gossip",
+      title: "Raj Kumar, actor, attends a film event",
+      snippet: "The actor was present at the film screening; a case is pending in court.",
+    });
+    expect(result.bucket).not.toBe("MATCHED");
+  });
+
+  it("profession plus generic vocabulary is a weak, non-strong signal", () => {
+    const result = resolveIdentity(
+      { name: "Anand Varghese", profession: "film producer" },
+      {
+        url: "https://randomsite.example/story",
+        title: "Anand Varghese, film producer, in an interview about a court case",
+      },
+    );
+    expect(result.strongSignals).toHaveLength(0);
+    expect(result.bucket).toBe("POSSIBLE_MATCH");
+  });
+
+  it("a staff-supplied known work is a strong signal", () => {
+    const result = resolveIdentity(
+      { ...target, knownWorks: ["Monsoon Harbour"] },
+      {
+        url: "https://news.example/story",
+        title: "Anand Varghese on Monsoon Harbour",
+        snippet: "The producer discusses Monsoon Harbour.",
+      },
+    );
+    expect(result.bucket).toBe("MATCHED");
+    expect(result.strongSignals.join(" ")).toContain("Known work");
+  });
+
+  it("a staff-supplied linked entity resolves an ambiguous name", () => {
+    const ambiguous: IdentityTargetProfile = {
+      name: "Raj Kumar",
+      profession: "actor",
+      nameIsAmbiguous: true,
+      linkedEntities: ["Greenlight Studios"],
+    };
+    const weak = resolveIdentity(ambiguous, {
+      url: "https://news.example/a",
+      title: "Raj Kumar, actor, in a film",
+    });
+    expect(weak.bucket).toBe("NEEDS_IDENTITY_REVIEW");
+
+    const strong = resolveIdentity(ambiguous, {
+      url: "https://news.example/b",
+      title: "Raj Kumar of Greenlight Studios responds",
+    });
+    expect(strong.bucket).toBe("MATCHED");
+  });
+});
