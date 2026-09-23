@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getProgress } from "@/lib/onboarding/progress.functions";
+import { getMyPreEnrollmentSummary } from "@/lib/prospect/client-package.functions";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { ExitOnboardingButton } from "@/components/onboarding/ExitOnboardingButton";
 import { Loader2 } from "lucide-react";
@@ -43,6 +44,13 @@ export const Route = createFileRoute("/onboarding")({
 function OnboardingPage() {
   const fetchProgress = useServerFn(getProgress);
   const q = useQuery({ queryKey: ["onboarding-progress"], queryFn: () => fetchProgress() });
+  const fetchPreEnrollment = useServerFn(getMyPreEnrollmentSummary);
+  const pre = useQuery({
+    queryKey: ["pre-enrollment-summary"],
+    queryFn: () => fetchPreEnrollment(),
+    enabled: !q.isLoading,
+    staleTime: 60_000,
+  });
 
   if (q.isLoading) {
     return (
@@ -58,6 +66,18 @@ function OnboardingPage() {
   return (
     <>
       <ExitOnboardingButton />
+      {pre.data?.delivered ? (
+        <div
+          role="status"
+          className="fixed bottom-4 left-1/2 z-40 w-[min(560px,calc(100%-32px))] -translate-x-1/2 rounded-xl border border-white/10 bg-[#0B1224]/95 px-4 py-3 text-xs leading-relaxed text-white/75 shadow-lg"
+        >
+          Your profile was pre-filled from Eterna&apos;s pre-enrollment review — please check and
+          confirm each detail.
+          {pre.data.findings.length
+            ? ` ${pre.data.findings.length} verified finding${pre.data.findings.length === 1 ? "" : "s"} will be available for your review.`
+            : ""}
+        </div>
+      ) : null}
       <OnboardingWizard initialProgress={q.data ?? null} />
     </>
   );

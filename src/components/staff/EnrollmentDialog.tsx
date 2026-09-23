@@ -10,6 +10,8 @@ export interface EnrollmentResult {
   identityPackaged: boolean;
   inviteCode: string | null;
   inviteNote: string | null;
+  packageId?: string;
+  linkedExistingAccount?: boolean;
 }
 
 export function EnrollmentDialog({
@@ -74,12 +76,18 @@ export function EnrollmentDialog({
               human-verified findings (with their evidence references) are packaged for onboarding
               under prospect scan{" "}
               <span className="sx-mono">{String(snap.scan.id).slice(0, 8)}</span>. No enforcement
-              can start until the client is enrolled and authorised.
+              can start until the client is enrolled and authorised. When the client redeems the
+              invitation (or an admin links an existing account by email), onboarding pre-fills
+              their profile and imports these findings for their review.
             </span>
           </div>
           {result ? (
             <div className="sx-panel">
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>Enrollment package ready</div>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                {result.linkedExistingAccount
+                  ? "Delivered to the client account"
+                  : "Enrollment package ready"}
+              </div>
               <div style={{ fontSize: 13, color: "var(--sx-ink-2)", lineHeight: 1.6 }}>
                 {result.transferred} finding(s) transferred · {result.alreadyTransferred} already
                 transferred earlier · identity{" "}

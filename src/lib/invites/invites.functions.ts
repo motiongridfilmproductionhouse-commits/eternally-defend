@@ -72,6 +72,11 @@ export const signUpWithInvite = createServerFn({ method: "POST" })
       const user = await createInvitedUser(data.email, data.password);
       await recordRedemption(claim.inviteId, user.id, data.email);
       await recordInviteAttempt(key, data.email, true);
+      // Pre-enrollment hand-off: link a staff enrollment package issued with this
+      // invitation to the new account. Best effort — never blocks signup.
+      const { linkPackageForRedeemedInvite } =
+        await import("@/lib/prospect/enrollment-consume.server");
+      await linkPackageForRedeemedInvite(claim.inviteId, user.id);
       return { ok: true as const, accountType: claim.accountType };
     } catch (e) {
       // Account creation failed — give the invitation use back.

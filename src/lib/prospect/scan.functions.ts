@@ -513,18 +513,52 @@ export const beginClientEnrollment = createServerFn({ method: "POST" })
         throw new Error(`Could not record transfer: ${insertError.message}`);
     }
 
-    // Client invitation through the existing invite system (admins only, as today).
+    // One enrollment package per prospect scan (identity snapshot + prospect_scan_id).
+    // Onboarding consumes it once the client account is linked.
+    const { ensurePackage, linkPackageToExistingClient, applyPreEnrollmentPackagesForUser } =
+      await import("./enrollment-consume.server");
+    const { accountTypeForIdentity } = await import("./enrollment");
+    const { data: identityRow } = await db
+      .from("prospect_identities")
+      .select("identity_type")
+      .eq("id", scan.prospect_id)
+      .maybeSingle();
+    const accountType = accountTypeForIdentity(identityRow?.identity_type);
+    const pkg = await ensurePackage(db, {
+      scanId: scan.id,
+      prospectId: scan.prospect_id,
+      accountType,
+      createdBy: context.userId,
+    });
+
+    const [{ data: isAdmin }, { data: isSuper }] = await Promise.all([
+      db.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      db.rpc("has_role", { _user_id: context.userId, _role: "super_admin" }),
+    ]);
+    const canInvite = Boolean(isAdmin || isSuper);
+
     let inviteCode: string | null = null;
+    let inviteNote: string | null = null;
+    let linkedExistingAccount = false;
     const email = data.clientEmail || null;
     const alreadyInvited = (existingRes.data ?? []).some(
       (t: { target_table: string }) => t.target_table === "signup_invite",
     );
-    if (email && !alreadyInvited) {
-      const [{ data: isAdmin }, { data: isSuper }] = await Promise.all([
-        db.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
-        db.rpc("has_role", { _user_id: context.userId, _role: "super_admin" }),
-      ]);
-      if (isAdmin || isSuper) {
+
+    if (pkg.client_user_id) {
+      // Already linked (earlier hand-off): push any newly selected findings through.
+      await applyPreEnrollmentPackagesForUser(pkg.client_user_id);
+      linkedExistingAccount = true;
+      inviteNote =
+        "Package is linked to the client account; newly selected findings were delivered.";
+    } else if (email && canInvite) {
+      const existingUser = await linkPackageToExistingClient(pkg.id, email);
+      if (existingUser) {
+        linkedExistingAccount = true;
+        inviteNote =
+          "An existing client account uses this email — the package was delivered to it.";
+      } else if (!alreadyInvited) {
+        // Client invitation through the existing invite system (admins only, as today).
         const { generateInviteCode, hashInviteCode } = await import("@/lib/invites/invites.server");
         const code = generateInviteCode();
         const { data: invite, error: inviteError } = await db
@@ -534,12 +568,18 @@ export const beginClientEnrollment = createServerFn({ method: "POST" })
             label: `Pre-enrollment · scan ${scan.id.slice(0, 8)}`,
             max_uses: 1,
             assigned_email: email.toLowerCase(),
+            account_type: accountType,
             created_by: context.userId,
           })
           .select("id")
           .single();
         if (!inviteError && invite) {
           inviteCode = code;
+          await db
+            .from("prospect_enrollment_packages")
+            .update({ invite_id: invite.id, assigned_email: email.toLowerCase() })
+            .eq("id", pkg.id)
+            .is("invite_id", null);
           await db.from("prospect_enrollment_transfers").insert({
             scan_id: scan.id,
             prospect_id: scan.prospect_id,
@@ -549,21 +589,22 @@ export const beginClientEnrollment = createServerFn({ method: "POST" })
             transferred_by: context.userId,
           });
         }
+      } else {
+        inviteNote = "An invitation was already issued for this scan.";
       }
+    } else if (email) {
+      inviteNote = "Invitations are issued by an admin — the package is ready for them.";
     }
 
     return {
       prospectScanId: scan.id as string,
+      packageId: pkg.id,
       transferred: plan.toTransfer.length,
       alreadyTransferred: plan.alreadyTransferred.length,
       identityPackaged: plan.includeIdentity || plan.identityAlreadyPackaged,
+      linkedExistingAccount,
       inviteCode,
-      inviteNote:
-        email && !inviteCode
-          ? alreadyInvited
-            ? "An invitation was already issued for this scan."
-            : "Invitations are issued by an admin — the package is ready for them."
-          : null,
+      inviteNote,
     };
   });
 
