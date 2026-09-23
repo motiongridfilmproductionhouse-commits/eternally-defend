@@ -78,14 +78,14 @@ describe("server-side scan continuation — planWorkerTick", () => {
           id: "old",
           status: "running",
           created_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
-          started_at: null,
+          started_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
           worker_lease_until: null,
         },
         {
           id: "old-leased",
           status: "running",
           created_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
-          started_at: null,
+          started_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
           worker_lease_until: iso(5_000),
         },
       ],
@@ -93,6 +93,23 @@ describe("server-side scan continuation — planWorkerTick", () => {
     );
     expect(plan.toExpire).toEqual(["old"]);
     expect(plan.toAdvance).toEqual([]);
+  });
+
+  it("resumes a long-queued scan that never started (e.g. created while the worker was unreachable)", () => {
+    const plan = planWorkerTick(
+      [
+        {
+          id: "5b9538c4-582e-4d06-8e9e-102f6fb3fa44",
+          status: "queued",
+          created_at: iso(-10 * DEFAULT_MAX_SCAN_AGE_MS),
+          started_at: null,
+          worker_lease_until: null,
+        },
+      ],
+      NOW,
+    );
+    expect(plan.toAdvance).toEqual(["5b9538c4-582e-4d06-8e9e-102f6fb3fa44"]);
+    expect(plan.toExpire).toEqual([]);
   });
 
   it("respects the per-tick limit", () => {

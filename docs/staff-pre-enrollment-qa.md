@@ -86,9 +86,42 @@ The worker token lives only in `internal_cron_secrets`. No client role has a gra
 - **Staff linking:** non-admin staff cannot link by email, and a package cannot be re-pointed to another client.
 - **Scan insert:** kicks the worker with the token.
 
+### Production worker routing
+
+`20260924121000_prospect_worker_production_origin.sql` is a forward migration; the already-merged migrations are not edited. It:
+- defines the worker endpoint once, in `public.prospect_worker_hook_url()`, as `https://eternasentinel.com/api/public/hooks/prospect-scan-worker`. Client roles cannot call it.
+- reschedules `eterna-prospect-scan-worker` (every minute) against that endpoint.
+- recreates the scan-insert kick (`prospect_scans_dispatch_worker`) to use the same endpoint.
+- keeps the existing managed token. It is only inserted if missing: never regenerated, never granted to anyone, and sent only server to server.
+
+**Existing scans.** The worker measures the maximum run time from `started_at`. A scan that is still queued and has never started, such as `5b9538c4-582e-4d06-8e9e-102f6fb3fa44`, is always resumed and never expired. Once this migration is active, the next cron tick picks it up. No new scan or identity record is created.
+
+### Scan popup loading UX
+
+As soon as a scan id exists in `/staff?scan=<id>`, or a start request is in flight, the search page is covered by `ScanShell`. It uses the same scrim, modal frame, Eterna core animation and 01–07 stage rail as the live scan. It shows "Initializing live intelligence scan…" until the stored snapshot arrives, then hands over to `ScanModal`.
+
+If loading fails, the shell stays up and shows "Unable to load scan" with two actions:
+- **Retry** refetches the same scan id and never starts a scan.
+- **Return to Search** closes the view.
+
+Refreshing `/staff?scan=<id>` reconnects to the same scan.
+
+### Migration tests (re-runnable)
+
+`scripts/prospect-migration-qa/run.sh` applies every prospect migration to a throwaway local Postgres, with a small Supabase-like prelude (roles, `auth.uid()`, `cron` and `net` stubs). It then runs:
+- the production-routing and existing-scan recovery checks (`M01`–`M10`);
+- the worker, client, staff and admin access checks (`T`, `W`, `C`, `S` and `Z` series).
+
+Each output line ends with its expected value.
+
+```
+PSQL="psql -d postgres" ./scripts/prospect-migration-qa/run.sh
+```
+
 ### Deploy checklist
 
-1. Apply the migrations in order: `20260923100000_prospect_runner_hardening.sql`, `20260924090000_prospect_enrollment_consumption.sql`, `20260924091000_prospect_scan_worker_schedule.sql`, `20260924120000_prospect_without_service_role.sql`.
-2. Check the worker URL. The cron job and the scan-insert trigger use the same Lovable origin as the existing Eterna hooks. If the host differs, update both and optionally set `PROSPECT_SCAN_WORKER_BASE_URL`, which is used for chaining.
+1. Apply the migrations in order: `20260923100000_prospect_runner_hardening.sql`, `20260924090000_prospect_enrollment_consumption.sql`, `20260924091000_prospect_scan_worker_schedule.sql`, `20260924120000_prospect_without_service_role.sql`, `20260924121000_prospect_worker_production_origin.sql`.
+2. The worker endpoint is `https://eternasentinel.com/api/public/hooks/prospect-scan-worker`. To move it, create a forward migration that redefines `prospect_worker_hook_url()`; the cron job and the trigger both follow it. `PROSPECT_SCAN_WORKER_BASE_URL` is optional; chaining otherwise uses the request origin.
 3. Runtime configuration: only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Do **not** add `SUPABASE_SERVICE_ROLE_KEY` for this feature.
-4. Regenerate the Supabase types when convenient. The new tables and functions are accessed through the codebase's existing untyped casts.
+4. After deploying, check that scan `5b9538c4-582e-4d06-8e9e-102f6fb3fa44` moves from `queued` to `running` within a minute or two.
+5. Regenerate the Supabase types when convenient.

@@ -328,7 +328,7 @@ export function ScanModal(props: ScanModalProps) {
 
 /* ── Header pieces ──────────────────────────────────────────────────────── */
 
-function IntelligenceCore({ logoSrc, running }: { logoSrc: string; running: boolean }) {
+export function IntelligenceCore({ logoSrc, running }: { logoSrc: string; running: boolean }) {
   return (
     <div className={`sx-core${running ? "" : " is-idle"}`} aria-hidden="true">
       <svg viewBox="0 0 120 120">
