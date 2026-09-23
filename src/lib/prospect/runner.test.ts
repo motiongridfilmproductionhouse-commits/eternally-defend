@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   runProspectScan,
+  runProspectScanStep,
   type ProspectStore,
   type ProviderExecutor,
   type NormalizedHit,
@@ -46,6 +47,17 @@ function memoryStore() {
     scores: [] as RiskScoreResult[],
   };
   const store: ProspectStore = {
+    async getScanStatus() {
+      return String(state.scan.status ?? "queued");
+    },
+    async listUnitRecords() {
+      return state.events
+        .filter((e) => typeof e.detail?.unit === "string")
+        .map((e) => ({
+          unit: String(e.detail!.unit),
+          detail: { type: e.type, ...(e.detail ?? {}) },
+        }));
+    },
     async updateScan(patch) {
       Object.assign(state.scan, patch);
     },
@@ -198,7 +210,7 @@ describe("runProspectScan", () => {
     );
     expect(state.discoveries).toHaveLength(1);
     expect(state.observations).toHaveLength(3);
-    expect(result.discoveries).toBe(1);
+    expect(result.done).toBe(true);
     const analysis = analyseScan({
       sources: Array.from(state.sources.values()),
       discoveries: state.discoveries,
@@ -465,5 +477,61 @@ describe("runProspectScan", () => {
     expect(copies).toHaveLength(1);
     expect(copies[0]!.detection_reason).toMatch(/earliest discovered source/);
     expect(JSON.stringify(state.findings)).not.toMatch(/original source/i);
+  });
+
+  it("is resumable: tiny steps with fresh runtime state produce the same stored result as one run", async () => {
+    const hitsFor = (q: string): NormalizedHit[] =>
+      q === '"Anand Varghese"'
+        ? [
+            { url: "https://news.example/allegation" },
+            { url: "https://mirror.example/copy" },
+            { url: "https://other.example/cricket" },
+          ]
+        : [];
+    const single = memoryStore();
+    await runProspectScan(
+      {
+        store: single.store,
+        executors: [
+          executor("brave", "web_general", hitsFor),
+          executor("google", "google_search", hitsFor),
+        ],
+        fetchPage: pageFor,
+        detector: null,
+      },
+      { target },
+    );
+
+    const stepped = memoryStore();
+    let steps = 0;
+    for (let guard = 0; guard < 200; guard++) {
+      // New executors/ports every step: nothing survives in process memory.
+      const r = await runProspectScanStep(
+        {
+          store: stepped.store,
+          executors: [
+            executor("brave", "web_general", hitsFor),
+            executor("google", "google_search", hitsFor),
+          ],
+          fetchPage: pageFor,
+          detector: null,
+        },
+        { target },
+        { budgetMs: 0 },
+      );
+      steps++;
+      expect(r.unitsRun).toBeGreaterThan(0);
+      if (r.done) break;
+    }
+    expect(steps).toBeGreaterThan(5);
+    expect(stepped.state.discoveries.map((d) => d.canonical_url).sort()).toEqual(
+      single.state.discoveries.map((d) => d.canonical_url).sort(),
+    );
+    expect(stepped.state.observations).toHaveLength(single.state.observations.length);
+    expect(stepped.state.findings.map((f) => `${f.stage_key}:${f.category}`).sort()).toEqual(
+      single.state.findings.map((f) => `${f.stage_key}:${f.category}`).sort(),
+    );
+    expect(stepped.state.scan.status).toBe(single.state.scan.status);
+    expect(stepped.state.scores).toHaveLength(2);
   });
 });

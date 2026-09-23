@@ -123,3 +123,14 @@ ALTER TABLE public.prospect_discoveries
 ALTER TABLE public.prospect_discovery_observations
   ADD COLUMN IF NOT EXISTS query_purpose text,
   ADD COLUMN IF NOT EXISTS discovery_method text;
+
+-- 6. Step lease: the runner advances in short, resumable steps (serverless-safe);
+--    a lease guarantees only one step runs for a scan at a time.
+ALTER TABLE public.prospect_scans
+  ADD COLUMN IF NOT EXISTS worker_lease_until timestamptz,
+  ADD COLUMN IF NOT EXISTS worker_lease_id text;
+
+-- Unit-record lookups (detail->>'unit') for resumable steps.
+CREATE INDEX IF NOT EXISTS prospect_scan_events_unit_idx
+  ON public.prospect_scan_events (scan_id, id)
+  WHERE (detail ->> 'unit') IS NOT NULL;

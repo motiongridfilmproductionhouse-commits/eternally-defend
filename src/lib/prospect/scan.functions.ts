@@ -61,8 +61,8 @@ function handleFromUrl(url: string | null | undefined): string | null {
 
 function launchInBackground(scanId: string) {
   return (async () => {
-    const { executeProspectScan } = await import("./runner-wiring.server");
-    const work = executeProspectScan(scanId).catch((error) =>
+    const { advanceProspectScan } = await import("./runner-wiring.server");
+    const work = advanceProspectScan(scanId, 18_000).catch((error) =>
       console.error(
         "[prospect] scan execution failed",
         scanId,
@@ -201,6 +201,32 @@ export const rescanProspect = createServerFn({ method: "POST" })
     const scanId = await createScanRow(db, context.userId, prev.prospect_id, identity);
     await launchInBackground(scanId);
     return { scanId };
+  });
+
+/**
+ * Advance a running scan by one bounded, resumable step. The open scan popup
+ * calls this in a loop; a lease guarantees only one step runs at a time, and
+ * every step resumes from stored rows (nothing is kept in process memory).
+ */
+export const advanceScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { scanId: string }) =>
+    z.object({ scanId: z.string().uuid() }).strict().parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { assertStaff } = await import("./snapshot.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = context.supabase as any;
+    await assertStaff(db, context.userId);
+    // RLS read proves this staff session can see the scan before we act on it.
+    const { data: visible } = await db
+      .from("prospect_scans")
+      .select("id")
+      .eq("id", data.scanId)
+      .maybeSingle();
+    if (!visible) throw new Error("Scan not found");
+    const { advanceProspectScan } = await import("./runner-wiring.server");
+    return advanceProspectScan(data.scanId, 20_000);
   });
 
 /** Everything the scan popup renders — computed from stored rows only. */
@@ -539,4 +565,44 @@ export const beginClientEnrollment = createServerFn({ method: "POST" })
             : "Invitations are issued by an admin — the package is ready for them."
           : null,
     };
+  });
+
+/**
+ * Boot + search-screen readiness: which source families this environment can
+ * actually query right now (credentials present, policy allows). Nothing here
+ * claims a scan happened — it only reports capability.
+ */
+export const getDiscoveryReadiness = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertStaff } = await import("./snapshot.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await assertStaff(context.supabase as any, context.userId);
+    const { SOURCE_FAMILIES } = await import("./source-registry");
+    const { productionExecutors, productionDetector } = await import("./providers.server");
+    const executors = productionExecutors();
+    const families = SOURCE_FAMILIES.map((family) => {
+      const configured = executors.filter((e) => e.familyKey === family.key && e.isConfigured());
+      const state = !family.policyEnabled
+        ? ("policy_disabled" as const)
+        : !family.directAccess || configured.length === 0
+          ? ("unavailable" as const)
+          : ("available" as const);
+      return {
+        key: family.key as string,
+        label: family.label,
+        state,
+        reason:
+          state === "available"
+            ? null
+            : !family.policyEnabled
+              ? (family.policyReason ?? "Disabled by policy")
+              : !family.directAccess
+                ? (family.unavailableReason ?? "No permitted API access configured")
+                : "No configured provider",
+        providers: configured.map((e) => e.label),
+      };
+    });
+    const detector = productionDetector();
+    return { families, detector: detector?.name ?? null, checkedAt: new Date().toISOString() };
   });

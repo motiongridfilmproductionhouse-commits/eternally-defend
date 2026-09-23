@@ -9,9 +9,8 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ProspectStore } from "./runner";
+import type { ProspectStore, StoredSourceRow } from "./runner";
 import type { CapabilityRow, DiscoveryRow, FindingRow, ObservationRow } from "./analysis";
-import type { SourceState } from "./coverage";
 
 // The generated Database types lag new prospect columns; the prospect store is
 // deliberately loosely typed and validated by its own row interfaces.
@@ -31,6 +30,36 @@ export function createProspectStore(
   prospectId: string,
 ): ProspectStore {
   return {
+    async getScanStatus() {
+      const { data, error } = await db
+        .from("prospect_scans")
+        .select("status")
+        .eq("id", scanId)
+        .single();
+      if (error) fail("getScanStatus", error);
+      return String(data.status);
+    },
+
+    async listUnitRecords() {
+      const out: Array<{ unit: string; detail: Record<string, unknown> }> = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await db
+          .from("prospect_scan_events")
+          .select("detail")
+          .eq("scan_id", scanId)
+          .not("detail->>unit", "is", null)
+          .order("id", { ascending: true })
+          .range(from, from + 999);
+        if (error) fail("listUnitRecords", error);
+        for (const row of data ?? []) {
+          const detail = (row.detail ?? {}) as Record<string, unknown>;
+          if (typeof detail.unit === "string") out.push({ unit: detail.unit, detail });
+        }
+        if (!data || data.length < 1000) break;
+      }
+      return out;
+    },
+
     async updateScan(patch) {
       const { error } = await db.from("prospect_scans").update(patch).eq("id", scanId);
       if (error) fail("updateScan", error);
@@ -135,7 +164,10 @@ export function createProspectStore(
         })
         .select("id")
         .maybeSingle();
-      if (error) fail("insertCluster", error);
+      if (error) {
+        if (error.code === "23505") return; // cluster already stored by an earlier step
+        fail("insertCluster", error);
+      }
       const clusterId = data?.id as string | undefined;
       if (!clusterId) return;
       const { error: memberError } = await db
@@ -162,15 +194,12 @@ export function createProspectStore(
     async listSources() {
       const { data, error } = await db
         .from("prospect_scan_sources")
-        .select("family_key, state, weight_class, direct_access")
+        .select(
+          "family_key, state, weight_class, direct_access, providers, queries_issued, raw_results, unique_items",
+        )
         .eq("scan_id", scanId);
       if (error) fail("listSources", error);
-      return (data ?? []) as Array<{
-        family_key: string;
-        state: SourceState;
-        weight_class: string;
-        direct_access: boolean;
-      }>;
+      return (data ?? []) as StoredSourceRow[];
     },
 
     async listDiscoveries() {
