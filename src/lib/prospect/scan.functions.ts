@@ -59,22 +59,48 @@ function handleFromUrl(url: string | null | undefined): string | null {
   }
 }
 
+/**
+ * Start a scan on the server. The first bounded step runs right after the
+ * response (so the popup fills quickly), then the server-side worker takes
+ * over and chains itself; pg_cron resumes anything left behind. Nothing here
+ * depends on the staff browser staying open.
+ */
 function launchInBackground(scanId: string) {
   return (async () => {
-    const { advanceProspectScan } = await import("./runner-wiring.server");
-    const work = advanceProspectScan(scanId, 18_000).catch((error) =>
-      console.error(
-        "[prospect] scan execution failed",
+    const requestUrl = (() => {
+      try {
+        return (getRequest() as Request).url;
+      } catch {
+        return null;
+      }
+    })();
+    const work = (async () => {
+      const { advanceProspectScan } = await import("./runner-wiring.server");
+      const { dispatchProspectWorker, resolveWorkerOrigin } = await import("./worker.server");
+      try {
+        const first = await advanceProspectScan(scanId, 15_000);
+        if (first.done) return;
+      } catch (error) {
+        console.error(
+          "[prospect] first scan step failed",
+          scanId,
+          error instanceof Error ? error.message : error,
+        );
+      }
+      const dispatch = await dispatchProspectWorker({
+        origin: resolveWorkerOrigin(requestUrl),
         scanId,
-        error instanceof Error ? error.message : error,
-      ),
-    );
-    const request = getRequest() as Request & { waitUntil?: (p: Promise<unknown>) => void };
-    if (request?.waitUntil) request.waitUntil(work);
-    else {
-      const { registerWaitUntilExecution } = await import("@/lib/deepfake/startup-network.server");
-      registerWaitUntilExecution(work);
-    }
+        hop: 0,
+      });
+      if (!dispatch.dispatched) {
+        console.warn("[prospect] worker dispatch not confirmed; cron will resume", {
+          scanId,
+          reason: dispatch.reason,
+        });
+      }
+    })();
+    const { keepAlive } = await import("./worker.server");
+    await keepAlive(work);
   })();
 }
 

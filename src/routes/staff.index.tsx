@@ -109,35 +109,43 @@ function StaffHome() {
     };
   }, [scanId, qc]);
 
-  // Drive the scan while its popup is open: one bounded, resumable backend step
-  // at a time (the server holds a lease, so overlapping calls never double-run).
+  // Scans run on the server (worker hook + pg_cron); closing, refreshing or
+  // reconnecting never affects them. While the popup is open it only acts as a
+  // watchdog: if no new stored event has appeared for a while, it asks the
+  // server to run one lease-protected step (a no-op when a worker holds it).
   const scanFinished = scan.data ? isFinished(scan.data.scan.status) : false;
+  const lastEventAt = (() => {
+    const events = scan.data?.events ?? [];
+    const last = events[events.length - 1];
+    return last ? Date.parse(last.created_at) : null;
+  })();
   const [driveError, setDriveError] = useState<string | null>(null);
   useEffect(() => {
     if (!scanId || scanFinished) return;
     let cancelled = false;
-    (async () => {
-      let failures = 0;
-      while (!cancelled) {
-        try {
-          const res = await advanceFn({ data: { scanId } });
-          failures = 0;
-          setDriveError(null);
-          void qc.invalidateQueries({ queryKey: ["prospect-scan", scanId] });
-          if (res.done && res.leased) break;
-          if (!res.leased) await new Promise((r) => setTimeout(r, 2500));
-        } catch (e) {
-          failures++;
-          setDriveError(e instanceof Error ? e.message : "Scan step failed");
-          if (failures >= 5) break;
-          await new Promise((r) => setTimeout(r, 3000 * failures));
-        }
+    let busy = false;
+    const STALL_MS = 45_000;
+    const tick = async () => {
+      if (cancelled || busy) return;
+      const quietFor = lastEventAt == null ? Infinity : Date.now() - lastEventAt;
+      if (quietFor < STALL_MS) return;
+      busy = true;
+      try {
+        await advanceFn({ data: { scanId } });
+        setDriveError(null);
+        void qc.invalidateQueries({ queryKey: ["prospect-scan", scanId] });
+      } catch (e) {
+        setDriveError(e instanceof Error ? e.message : "Scan step failed");
+      } finally {
+        busy = false;
       }
-    })();
+    };
+    const timer = window.setInterval(() => void tick(), 15_000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
-  }, [scanId, scanFinished, advanceFn, qc]);
+  }, [scanId, scanFinished, lastEventAt, advanceFn, qc]);
 
   const evidence = useQuery({
     queryKey: ["prospect-evidence", findingId],
@@ -294,7 +302,7 @@ function StaffHome() {
             transform: "translateX(-50%)",
           }}
         >
-          Scan worker: {driveError} — retrying.
+          Scan worker: {driveError} — the server will keep retrying.
         </div>
       ) : null}
       {scanId && scan.isError ? (

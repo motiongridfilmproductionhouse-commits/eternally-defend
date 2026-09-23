@@ -7,7 +7,9 @@
  *   1. takes a short lease on the scan row (one step at a time, ever),
  *   2. re-derives all state from stored rows and runs as many units as fit,
  *   3. releases the lease.
- * Steps are started by the staff server functions only (after the staff check).
+ * Steps are started server-side: by the staff start/rescan request, by the
+ * prospect-scan-worker hook (self-chaining + pg_cron every minute), and by the
+ * open popup's stall watchdog. The lease makes all of these safe to overlap.
  */
 
 import { randomUUID } from "node:crypto";

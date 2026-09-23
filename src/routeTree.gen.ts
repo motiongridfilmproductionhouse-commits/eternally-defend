@@ -118,6 +118,7 @@ import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './ro
 import { Route as ApiPublicHooksProtectionSchedulerTokenRouteImport } from './routes/api/public/hooks/protection-scheduler-token'
 import { Route as ApiPublicHooksProtectionAutopilotRouteImport } from './routes/api/public/hooks/protection-autopilot'
 import { Route as ApiPublicHooksProtectionActivationRepairRouteImport } from './routes/api/public/hooks/protection-activation-repair'
+import { Route as ApiPublicHooksProspectScanWorkerRouteImport } from './routes/api/public/hooks/prospect-scan-worker'
 import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
 import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
 import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
@@ -720,6 +721,12 @@ const ApiPublicHooksProtectionActivationRepairRoute =
     path: '/api/public/hooks/protection-activation-repair',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksProspectScanWorkerRoute =
+  ApiPublicHooksProspectScanWorkerRouteImport.update({
+    id: '/api/public/hooks/prospect-scan-worker',
+    path: '/api/public/hooks/prospect-scan-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksPostmarkWebhookRoute =
   ApiPublicHooksPostmarkWebhookRouteImport.update({
     id: '/api/public/hooks/postmark-webhook',
@@ -920,6 +927,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
+  '/api/public/hooks/prospect-scan-worker': typeof ApiPublicHooksProspectScanWorkerRoute
   '/api/public/hooks/protection-activation-repair': typeof ApiPublicHooksProtectionActivationRepairRoute
   '/api/public/hooks/protection-autopilot': typeof ApiPublicHooksProtectionAutopilotRoute
   '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
@@ -1041,6 +1049,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
+  '/api/public/hooks/prospect-scan-worker': typeof ApiPublicHooksProspectScanWorkerRoute
   '/api/public/hooks/protection-activation-repair': typeof ApiPublicHooksProtectionActivationRepairRoute
   '/api/public/hooks/protection-autopilot': typeof ApiPublicHooksProtectionAutopilotRoute
   '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
@@ -1167,6 +1176,7 @@ export interface FileRoutesById {
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
+  '/api/public/hooks/prospect-scan-worker': typeof ApiPublicHooksProspectScanWorkerRoute
   '/api/public/hooks/protection-activation-repair': typeof ApiPublicHooksProtectionActivationRepairRoute
   '/api/public/hooks/protection-autopilot': typeof ApiPublicHooksProtectionAutopilotRoute
   '/api/public/hooks/protection-scheduler-token': typeof ApiPublicHooksProtectionSchedulerTokenRoute
@@ -1292,6 +1302,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
+    | '/api/public/hooks/prospect-scan-worker'
     | '/api/public/hooks/protection-activation-repair'
     | '/api/public/hooks/protection-autopilot'
     | '/api/public/hooks/protection-scheduler-token'
@@ -1413,6 +1424,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
+    | '/api/public/hooks/prospect-scan-worker'
     | '/api/public/hooks/protection-activation-repair'
     | '/api/public/hooks/protection-autopilot'
     | '/api/public/hooks/protection-scheduler-token'
@@ -1538,6 +1550,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/distribution-monitor'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
+    | '/api/public/hooks/prospect-scan-worker'
     | '/api/public/hooks/protection-activation-repair'
     | '/api/public/hooks/protection-autopilot'
     | '/api/public/hooks/protection-scheduler-token'
@@ -1618,6 +1631,7 @@ export interface RootRouteChildren {
   ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
   ApiPublicHooksEnforcementWorkerRoute: typeof ApiPublicHooksEnforcementWorkerRoute
   ApiPublicHooksPostmarkWebhookRoute: typeof ApiPublicHooksPostmarkWebhookRoute
+  ApiPublicHooksProspectScanWorkerRoute: typeof ApiPublicHooksProspectScanWorkerRoute
   ApiPublicHooksProtectionActivationRepairRoute: typeof ApiPublicHooksProtectionActivationRepairRoute
   ApiPublicHooksProtectionAutopilotRoute: typeof ApiPublicHooksProtectionAutopilotRoute
   ApiPublicHooksProtectionSchedulerTokenRoute: typeof ApiPublicHooksProtectionSchedulerTokenRoute
@@ -2391,6 +2405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksProtectionActivationRepairRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/prospect-scan-worker': {
+      id: '/api/public/hooks/prospect-scan-worker'
+      path: '/api/public/hooks/prospect-scan-worker'
+      fullPath: '/api/public/hooks/prospect-scan-worker'
+      preLoaderRoute: typeof ApiPublicHooksProspectScanWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/postmark-webhook': {
       id: '/api/public/hooks/postmark-webhook'
       path: '/api/public/hooks/postmark-webhook'
@@ -2731,6 +2752,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksDistributionMonitorRoute,
   ApiPublicHooksEnforcementWorkerRoute: ApiPublicHooksEnforcementWorkerRoute,
   ApiPublicHooksPostmarkWebhookRoute: ApiPublicHooksPostmarkWebhookRoute,
+  ApiPublicHooksProspectScanWorkerRoute: ApiPublicHooksProspectScanWorkerRoute,
   ApiPublicHooksProtectionActivationRepairRoute:
     ApiPublicHooksProtectionActivationRepairRoute,
   ApiPublicHooksProtectionAutopilotRoute:
