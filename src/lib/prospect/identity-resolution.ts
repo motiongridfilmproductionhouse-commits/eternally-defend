@@ -30,6 +30,13 @@ export interface IdentityTargetProfile {
   knownProfileUrl?: string | null;
   /** Handles without the leading @, e.g. ["eterna.official"] */
   knownHandles?: Array<string | null | undefined>;
+  /**
+   * Staff-supplied or already-verified target-specific context: known works,
+   * titles, projects, productions. Generic vocabulary never counts as context.
+   */
+  knownWorks?: Array<string | null | undefined>;
+  /** Staff-supplied linked entities: co-occurring people, companies, labels. */
+  linkedEntities?: Array<string | null | undefined>;
   /** True when the name is common or several distinct entities share it. */
   nameIsAmbiguous?: boolean;
 }
