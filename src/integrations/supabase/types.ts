@@ -7607,6 +7607,8 @@ export type Database = {
           known_handles: Json
           known_profile_url: string | null
           known_website: string | null
+          known_works: string[]
+          linked_entities: string[]
           name_is_ambiguous: boolean
           normalized_name: string
           organization: string | null
@@ -7624,6 +7626,8 @@ export type Database = {
           known_handles?: Json
           known_profile_url?: string | null
           known_website?: string | null
+          known_works?: string[]
+          linked_entities?: string[]
           name_is_ambiguous?: boolean
           normalized_name: string
           organization?: string | null
@@ -7641,6 +7645,8 @@ export type Database = {
           known_handles?: Json
           known_profile_url?: string | null
           known_website?: string | null
+          known_works?: string[]
+          linked_entities?: string[]
           name_is_ambiguous?: boolean
           normalized_name?: string
           organization?: string | null
