@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WaitinglistRouteImport } from './routes/waitinglist'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StudentDigitalSafetyRouteImport } from './routes/student-digital-safety'
+import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PartnerStatusRouteImport } from './routes/partner-status'
@@ -34,6 +35,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as PartnerRouteImport } from './routes/_partner'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
 import { Route as NewsroomWhyCompaniesNeedReputationMonitoringRouteImport } from './routes/newsroom_.why-companies-need-reputation-monitoring'
 import { Route as NewsroomWhatIsImageImmunizationRouteImport } from './routes/newsroom_.what-is-image-immunization'
@@ -85,6 +87,7 @@ import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as PartnerPartnerIndexRouteImport } from './routes/_partner.partner.index'
 import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
+import { Route as StaffReportScanIdRouteImport } from './routes/staff.report.$scanId'
 import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
 import { Route as ApiPublicOnboardingCompletionBackfillRouteImport } from './routes/api/public/onboarding-completion-backfill'
 import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/image-proxy'
@@ -143,6 +146,11 @@ const TermsRoute = TermsRouteImport.update({
 const StudentDigitalSafetyRoute = StudentDigitalSafetyRouteImport.update({
   id: '/student-digital-safety',
   path: '/student-digital-safety',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffRoute = StaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SecurityRoute = SecurityRouteImport.update({
@@ -253,6 +261,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const StaffIndexRoute = StaffIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StaffRoute,
 } as any)
 const VerifySlugRoute = VerifySlugRouteImport.update({
   id: '/verify/$slug',
@@ -536,6 +549,11 @@ const AppSensitiveProtectionIndexRoute =
     path: '/sensitive-protection/',
     getParentRoute: () => AppRoute,
   } as any)
+const StaffReportScanIdRoute = StaffReportScanIdRouteImport.update({
+  id: '/report/$scanId',
+  path: '/report/$scanId',
+  getParentRoute: () => StaffRoute,
+} as any)
 const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
   id: '/api/public/veriff-webhook',
   path: '/api/public/veriff-webhook',
@@ -808,6 +826,7 @@ export interface FileRoutesByFullPath {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/security': typeof SecurityRoute
+  '/staff': typeof StaffRouteWithChildren
   '/student-digital-safety': typeof StudentDigitalSafetyRoute
   '/terms': typeof TermsRoute
   '/waitinglist': typeof WaitinglistRoute
@@ -860,6 +879,7 @@ export interface FileRoutesByFullPath {
   '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/newsroom/why-companies-need-reputation-monitoring': typeof NewsroomWhyCompaniesNeedReputationMonitoringRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/staff/': typeof StaffIndexRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
@@ -883,6 +903,7 @@ export interface FileRoutesByFullPath {
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/onboarding-completion-backfill': typeof ApiPublicOnboardingCompletionBackfillRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/staff/report/$scanId': typeof StaffReportScanIdRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/partner/': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -979,6 +1000,7 @@ export interface FileRoutesByTo {
   '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/newsroom/why-companies-need-reputation-monitoring': typeof NewsroomWhyCompaniesNeedReputationMonitoringRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/staff': typeof StaffIndexRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
@@ -1002,6 +1024,7 @@ export interface FileRoutesByTo {
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/onboarding-completion-backfill': typeof ApiPublicOnboardingCompletionBackfillRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/staff/report/$scanId': typeof StaffReportScanIdRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/partner': typeof PartnerPartnerIndexRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -1050,6 +1073,7 @@ export interface FileRoutesById {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/security': typeof SecurityRoute
+  '/staff': typeof StaffRouteWithChildren
   '/student-digital-safety': typeof StudentDigitalSafetyRoute
   '/terms': typeof TermsRoute
   '/waitinglist': typeof WaitinglistRoute
@@ -1102,6 +1126,7 @@ export interface FileRoutesById {
   '/newsroom_/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
   '/newsroom_/why-companies-need-reputation-monitoring': typeof NewsroomWhyCompaniesNeedReputationMonitoringRoute
   '/verify/$slug': typeof VerifySlugRoute
+  '/staff/': typeof StaffIndexRoute
   '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
   '/_app/admin/identity-review': typeof AppAdminIdentityReviewRoute
@@ -1125,6 +1150,7 @@ export interface FileRoutesById {
   '/api/public/image-proxy': typeof ApiPublicImageProxyRoute
   '/api/public/onboarding-completion-backfill': typeof ApiPublicOnboardingCompletionBackfillRoute
   '/api/public/veriff-webhook': typeof ApiPublicVeriffWebhookRoute
+  '/staff/report/$scanId': typeof StaffReportScanIdRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_partner/partner/': typeof PartnerPartnerIndexRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
@@ -1172,6 +1198,7 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/security'
+    | '/staff'
     | '/student-digital-safety'
     | '/terms'
     | '/waitinglist'
@@ -1224,6 +1251,7 @@ export interface FileRouteTypes {
     | '/newsroom/what-is-image-immunization'
     | '/newsroom/why-companies-need-reputation-monitoring'
     | '/verify/$slug'
+    | '/staff/'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
     | '/admin/identity-review'
@@ -1247,6 +1275,7 @@ export interface FileRouteTypes {
     | '/api/public/image-proxy'
     | '/api/public/onboarding-completion-backfill'
     | '/api/public/veriff-webhook'
+    | '/staff/report/$scanId'
     | '/sensitive-protection/'
     | '/partner/'
     | '/sensitive-protection/results/$id'
@@ -1343,6 +1372,7 @@ export interface FileRouteTypes {
     | '/newsroom/what-is-image-immunization'
     | '/newsroom/why-companies-need-reputation-monitoring'
     | '/verify/$slug'
+    | '/staff'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
     | '/admin/identity-review'
@@ -1366,6 +1396,7 @@ export interface FileRouteTypes {
     | '/api/public/image-proxy'
     | '/api/public/onboarding-completion-backfill'
     | '/api/public/veriff-webhook'
+    | '/staff/report/$scanId'
     | '/sensitive-protection'
     | '/partner'
     | '/sensitive-protection/results/$id'
@@ -1413,6 +1444,7 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/security'
+    | '/staff'
     | '/student-digital-safety'
     | '/terms'
     | '/waitinglist'
@@ -1465,6 +1497,7 @@ export interface FileRouteTypes {
     | '/newsroom_/what-is-image-immunization'
     | '/newsroom_/why-companies-need-reputation-monitoring'
     | '/verify/$slug'
+    | '/staff/'
     | '/_app/admin/approved-sources-review'
     | '/_app/admin/diagnostics'
     | '/_app/admin/identity-review'
@@ -1488,6 +1521,7 @@ export interface FileRouteTypes {
     | '/api/public/image-proxy'
     | '/api/public/onboarding-completion-backfill'
     | '/api/public/veriff-webhook'
+    | '/staff/report/$scanId'
     | '/_app/sensitive-protection/'
     | '/_partner/partner/'
     | '/_app/sensitive-protection/results/$id'
@@ -1536,6 +1570,7 @@ export interface RootRouteChildren {
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
   SecurityRoute: typeof SecurityRoute
+  StaffRoute: typeof StaffRouteWithChildren
   StudentDigitalSafetyRoute: typeof StudentDigitalSafetyRoute
   TermsRoute: typeof TermsRoute
   WaitinglistRoute: typeof WaitinglistRoute
@@ -1612,6 +1647,13 @@ declare module '@tanstack/react-router' {
       path: '/student-digital-safety'
       fullPath: '/student-digital-safety'
       preLoaderRoute: typeof StudentDigitalSafetyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff': {
+      id: '/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof StaffRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/security': {
@@ -1767,6 +1809,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/staff/': {
+      id: '/staff/'
+      path: '/'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof StaffRoute
     }
     '/verify/$slug': {
       id: '/verify/$slug'
@@ -2124,6 +2173,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sensitive-protection/'
       preLoaderRoute: typeof AppSensitiveProtectionIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/staff/report/$scanId': {
+      id: '/staff/report/$scanId'
+      path: '/report/$scanId'
+      fullPath: '/staff/report/$scanId'
+      preLoaderRoute: typeof StaffReportScanIdRouteImport
+      parentRoute: typeof StaffRoute
     }
     '/api/public/veriff-webhook': {
       id: '/api/public/veriff-webhook'
@@ -2565,6 +2621,18 @@ const PartnerRouteChildren: PartnerRouteChildren = {
 const PartnerRouteWithChildren =
   PartnerRoute._addFileChildren(PartnerRouteChildren)
 
+interface StaffRouteChildren {
+  StaffIndexRoute: typeof StaffIndexRoute
+  StaffReportScanIdRoute: typeof StaffReportScanIdRoute
+}
+
+const StaffRouteChildren: StaffRouteChildren = {
+  StaffIndexRoute: StaffIndexRoute,
+  StaffReportScanIdRoute: StaffReportScanIdRoute,
+}
+
+const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
@@ -2588,6 +2656,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
   SecurityRoute: SecurityRoute,
+  StaffRoute: StaffRouteWithChildren,
   StudentDigitalSafetyRoute: StudentDigitalSafetyRoute,
   TermsRoute: TermsRoute,
   WaitinglistRoute: WaitinglistRoute,
@@ -2676,3 +2745,4 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+

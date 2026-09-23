@@ -8,6 +8,16 @@ import { Input } from "@/components/ui/input";
 import { agentAccess, claimAssessment, previewAssessment } from "@/lib/agent/assessment.functions";
 import { ShieldHalf, KeyRound } from "lucide-react";
 
+/**
+ * True when the account holds the `staff` role (own-row read under RLS). Only
+ * decides where to navigate; the /staff route and every staff server function
+ * re-check the role server-side.
+ */
+async function holdsStaffRole(userId: string): Promise<boolean> {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  return ((data ?? []) as Array<{ role: string }>).some((r) => r.role === "staff");
+}
+
 export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
@@ -114,6 +124,11 @@ function AuthPage() {
         setHandoffNeedsClient(true);
         return;
       }
+      // Staff accounts open the Staff Intelligence Scan (role-based, server-checked there).
+      if (await holdsStaffRole(data.session.user.id)) {
+        navigate({ to: "/staff" });
+        return;
+      }
       // Route by onboarding status — dashboard gate would just bounce back here otherwise.
       const { data: profile } = await supabase
         .from("client_profiles")
@@ -170,6 +185,11 @@ function AuthPage() {
           return;
         }
         await finishAssessment();
+        if (await holdsStaffRole(data.user.id)) {
+          redirected.current = true;
+          navigate({ to: "/staff" });
+          return;
+        }
         const { data: profile } = await supabase
           .from("client_profiles")
           .select("onboarding_completed")
