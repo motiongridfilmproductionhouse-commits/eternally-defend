@@ -10511,7 +10511,13 @@ export type Database = {
     }
     Enums: {
       account_type_enum: "personal" | "business"
-      app_role: "admin" | "analyst" | "user" | "super_admin" | "partner"
+      app_role:
+        | "admin"
+        | "analyst"
+        | "user"
+        | "super_admin"
+        | "partner"
+        | "staff"
       asset_kind_enum:
         | "name"
         | "brand"
@@ -10828,7 +10834,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type_enum: ["personal", "business"],
-      app_role: ["admin", "analyst", "user", "super_admin", "partner"],
+      app_role: ["admin", "analyst", "user", "super_admin", "partner", "staff"],
       asset_kind_enum: [
         "name",
         "brand",
