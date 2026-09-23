@@ -150,7 +150,11 @@ function GuidePage() {
             >
               Executive First Hour Response Playbook
             </Link>{" "}
-            for a condensed first move.
+            for a condensed first move, or Eterna's full{" "}
+            <Link to="/deepfake-protection" className="landing-link text-landing-ink">
+              Deepfake Protection
+            </Link>{" "}
+            framework for how detection, verification and response fit together.
           </p>
 
           <div className="border-t border-landing-line pt-8">

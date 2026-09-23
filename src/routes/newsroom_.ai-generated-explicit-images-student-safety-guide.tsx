@@ -371,6 +371,12 @@ function ExplicitImagesGuidePage() {
                 title: "What to Do if Someone Threatens to Publish Your Private Images or Videos",
                 description: "First steps for the moment before anything has been published.",
               },
+              {
+                to: "/deepfake-protection",
+                title: "Deepfake Protection: Detection, Verification & Response",
+                description:
+                  "How Eterna identifies, verifies and responds to manipulated media involving minors and students.",
+              },
             ]}
           />
 

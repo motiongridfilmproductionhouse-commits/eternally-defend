@@ -227,6 +227,16 @@ function EternaAiPage() {
               </Link>
               .
             </p>
+            <p>
+              For the full detection, verification and response framework, see{" "}
+              <Link
+                to="/deepfake-protection"
+                className="landing-link inline-flex items-center gap-1 font-semibold text-landing-ink"
+              >
+                Deepfake Protection <ArrowRight className="size-3.5" />
+              </Link>
+              .
+            </p>
           </div>
         </div>
       </section>
@@ -271,6 +281,16 @@ function EternaAiPage() {
               </Link>
               .
             </p>
+            <p>
+              For the full detection, verification and response framework, see{" "}
+              <Link
+                to="/ai-impersonation"
+                className="landing-link inline-flex items-center gap-1 font-semibold text-landing-ink"
+              >
+                AI Impersonation Protection <ArrowRight className="size-3.5" />
+              </Link>
+              .
+            </p>
           </div>
         </div>
       </section>
@@ -296,6 +316,17 @@ function EternaAiPage() {
               described in{" "}
               <Link to="/security" className="landing-link text-landing-ink">
                 Security &amp; Governance
+              </Link>
+              .
+            </p>
+            <p>
+              When monitoring surfaces false claims or coordinated attacks rather than synthetic
+              media or impersonation, the same discipline applies through{" "}
+              <Link
+                to="/online-reputation-protection"
+                className="landing-link inline-flex items-center gap-1 font-semibold text-landing-ink"
+              >
+                Online Reputation Protection <ArrowRight className="size-3.5" />
               </Link>
               .
             </p>
@@ -387,6 +418,16 @@ function EternaAiPage() {
                 className="landing-link text-landing-ink"
               >
                 Detection Is Not Prevention
+              </Link>
+              .
+            </p>
+            <p>
+              For the full picture of Eterna's active research areas, see{" "}
+              <Link
+                to="/research"
+                className="landing-link inline-flex items-center gap-1 font-semibold text-landing-ink"
+              >
+                Eterna Research <ArrowRight className="size-3.5" />
               </Link>
               .
             </p>

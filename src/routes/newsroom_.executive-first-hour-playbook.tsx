@@ -134,6 +134,11 @@ function GuidePage() {
                   Eterna's published verification methodology
                 </Link>
               </li>
+              <li>
+                <Link to="/online-reputation-protection" className="landing-link text-landing-ink">
+                  Online Reputation Protection
+                </Link>
+              </li>
             </ul>
           </div>
 

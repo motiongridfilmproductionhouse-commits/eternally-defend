@@ -327,6 +327,12 @@ function RemovalSuppressionRecoveryPage() {
                 title: "Why Companies Need Digital Reputation Monitoring Before a Crisis Happens",
                 description: "The case for continuous monitoring instead of waiting for a crisis.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description:
+                  "Where verified response fits alongside removal and suppression approaches.",
+              },
             ]}
           />
 

@@ -207,10 +207,7 @@ function DeepfakeOfMePage() {
             under 18 when the image was created. Both work by generating a digital fingerprint (a
             "hash") of the image on your own device — the image itself is never uploaded or seen by
             anyone — which participating platforms then use to detect and remove matching content.{" "}
-            <Link
-              to="/methodology"
-              className="landing-link text-landing-ink"
-            >
+            <Link to="/methodology" className="landing-link text-landing-ink">
               Eterna's Verification Methodology
             </Link>{" "}
             covers documentation in more depth if you need it for a platform report or beyond.
@@ -330,6 +327,12 @@ function DeepfakeOfMePage() {
                 to: "/newsroom/what-is-a-deepfake",
                 title: "What Is a Deepfake and Why Is It Becoming a Reputation Problem?",
                 description: "A plain-language explanation of what you're actually looking at.",
+              },
+              {
+                to: "/deepfake-protection",
+                title: "Deepfake Protection: Detection, Verification & Response",
+                description:
+                  "The full detection, verification and response framework Eterna applies to deepfakes.",
               },
             ]}
           />

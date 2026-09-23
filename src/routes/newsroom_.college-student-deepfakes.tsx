@@ -231,10 +231,7 @@ function CollegeStudentDeepfakesPage() {
           </p>
           <p>
             If you're a parent, faculty member or administrator,{" "}
-            <Link
-              to="/student-digital-safety"
-              className="landing-link text-landing-ink"
-            >
+            <Link to="/student-digital-safety" className="landing-link text-landing-ink">
               A Digital Safety Guide for Students in the Age of Generative AI
             </Link>{" "}
             is written specifically for that role.
@@ -345,6 +342,12 @@ function CollegeStudentDeepfakesPage() {
                 to: "/newsroom/someone-made-a-deepfake-of-me",
                 title: "Someone Made a Deepfake of Me — What Should I Do?",
                 description: "The immediate first steps for a student facing this directly.",
+              },
+              {
+                to: "/deepfake-protection",
+                title: "Eterna's Deepfake Protection Framework",
+                description:
+                  "The detection, verification and response cycle Eterna applies to manipulated media.",
               },
             ]}
           />

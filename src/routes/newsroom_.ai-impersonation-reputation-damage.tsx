@@ -350,6 +350,12 @@ function AiImpersonationDamagePage() {
                 title: "The Impersonation Response Guide",
                 description: "The fuller sequence once evidence is preserved and reported.",
               },
+              {
+                to: "/ai-impersonation",
+                title: "AI Impersonation Protection",
+                description:
+                  "Eterna's evidence-led approach to fake profiles, cloned voices and identity misuse.",
+              },
             ]}
           />
 

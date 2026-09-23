@@ -205,10 +205,7 @@ function First24HoursPage() {
               <span className="font-semibold text-landing-ink">Preserve evidence.</span> Capture
               full-page screenshots with visible URLs and timestamps, save original files, and log
               what you've found and when. Eterna's{" "}
-              <Link
-                to="/methodology"
-                className="landing-link text-landing-ink"
-              >
+              <Link to="/methodology" className="landing-link text-landing-ink">
                 verification methodology
               </Link>{" "}
               covers this in more depth for deepfake-specific cases, and the same principles apply
@@ -429,6 +426,12 @@ function First24HoursPage() {
                 title: "Content Removal vs Search Suppression vs Reputation Recovery",
                 description:
                   "How response in the first 24 hours differs from longer-term recovery.",
+              },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description:
+                  "Eterna's monitor, verify, preserve, respond and monitor-again framework.",
               },
             ]}
           />

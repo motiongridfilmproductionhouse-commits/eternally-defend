@@ -285,6 +285,11 @@ function DeepfakeReuploadsPage() {
                 title: "Someone Made a Deepfake of Me — What Should I Do?",
                 description: "The ordered first steps if this is happening to you right now.",
               },
+              {
+                to: "/deepfake-protection",
+                title: "Deepfake Protection: Detection, Verification & Response",
+                description: "Why continuous monitoring after an initial response matters.",
+              },
             ]}
           />
 

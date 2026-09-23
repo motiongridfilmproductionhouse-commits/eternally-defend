@@ -334,6 +334,12 @@ function BrandReputationRiskPage() {
                 title: "The First 24 Hours of an Online Reputation Crisis",
                 description: "What the earliest hours of a reputation incident actually require.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description:
+                  "How Eterna monitors, verifies and responds to reputation attacks on organizations.",
+              },
             ]}
           />
 

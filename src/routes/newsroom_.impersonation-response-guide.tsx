@@ -228,6 +228,11 @@ function GuidePage() {
                   The Executive First Hour Response Playbook: a condensed first move
                 </Link>
               </li>
+              <li>
+                <Link to="/ai-impersonation" className="landing-link text-landing-ink">
+                  AI Impersonation Protection
+                </Link>
+              </li>
             </ul>
           </div>
 
