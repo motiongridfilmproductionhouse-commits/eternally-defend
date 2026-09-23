@@ -229,10 +229,7 @@ function ReputationMonitoringPage() {
               discovered early can often be documented in its original form. Content discovered
               after it has already spread across multiple platforms is harder to trace back to its
               origin and harder to fully document, as Eterna's{" "}
-              <Link
-                to="/methodology"
-                className="landing-link text-landing-ink"
-              >
+              <Link to="/methodology" className="landing-link text-landing-ink">
                 verification methodology
               </Link>{" "}
               explains.

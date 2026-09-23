@@ -231,10 +231,7 @@ function CollegeStudentDeepfakesPage() {
           </p>
           <p>
             If you're a parent, faculty member or administrator,{" "}
-            <Link
-              to="/student-digital-safety"
-              className="landing-link text-landing-ink"
-            >
+            <Link to="/student-digital-safety" className="landing-link text-landing-ink">
               A Digital Safety Guide for Students in the Age of Generative AI
             </Link>{" "}
             is written specifically for that role.

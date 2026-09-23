@@ -205,10 +205,7 @@ function First24HoursPage() {
               <span className="font-semibold text-landing-ink">Preserve evidence.</span> Capture
               full-page screenshots with visible URLs and timestamps, save original files, and log
               what you've found and when. Eterna's{" "}
-              <Link
-                to="/methodology"
-                className="landing-link text-landing-ink"
-              >
+              <Link to="/methodology" className="landing-link text-landing-ink">
                 verification methodology
               </Link>{" "}
               covers this in more depth for deepfake-specific cases, and the same principles apply
