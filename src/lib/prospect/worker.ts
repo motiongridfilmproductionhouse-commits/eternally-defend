@@ -22,7 +22,7 @@ export interface WorkerScanRow {
 export interface WorkerTickPlan {
   /** Runnable scans (queued/running, lease free), oldest first. */
   toAdvance: string[];
-  /** Scans past the maximum run time with no live lease: fail honestly. */
+  /** Started scans past the maximum run time with no live lease: fail honestly. */
   toExpire: string[];
 }
 
@@ -52,8 +52,11 @@ export function planWorkerTick(
     const lease = ms(r.worker_lease_until);
     const leaseHeld = lease != null && lease > nowMs;
     if (leaseHeld) continue; // another worker is on it right now
-    const born = ms(r.started_at) ?? ms(r.created_at) ?? nowMs;
-    if (nowMs - born > maxAge) toExpire.push(r.id);
+    // The run-time limit counts from when the scan actually started running.
+    // A scan still waiting in the queue (never started — e.g. created while the
+    // worker was unreachable) is always resumed, never expired.
+    const startedAt = ms(r.started_at);
+    if (startedAt != null && nowMs - startedAt > maxAge) toExpire.push(r.id);
     else if (toAdvance.length < limit) toAdvance.push(r.id);
   }
   return { toAdvance, toExpire };

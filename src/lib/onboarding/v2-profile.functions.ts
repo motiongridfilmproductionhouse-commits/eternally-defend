@@ -104,9 +104,9 @@ export const selectV2AccountType = createServerFn({ method: "POST" })
 
     // Pre-enrollment hand-off: now that the profile row exists, pre-fill empty
     // fields from a linked staff enrollment package (idempotent, best effort).
-    const { applyPreEnrollmentPackagesSafely } =
+    const { applyMyPreEnrollmentPackagesSafely } =
       await import("@/lib/prospect/enrollment-consume.server");
-    await applyPreEnrollmentPackagesSafely(userId);
+    await applyMyPreEnrollmentPackagesSafely(supabase, userId);
     const { data: refreshed } = await supabase
       .from("client_profiles")
       .select()

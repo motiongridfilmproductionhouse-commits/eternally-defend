@@ -21,6 +21,7 @@ import {
 import { StaffBoot } from "@/components/staff/StaffBoot";
 import { StaffSearch, type RecentScan } from "@/components/staff/StaffSearch";
 import { ScanModal } from "@/components/staff/ScanModal";
+import { ScanShell } from "@/components/staff/ScanShell";
 import { EvidenceDrawer, type DecisionAction } from "@/components/staff/EvidenceDrawer";
 import { EnrollmentDialog, type EnrollmentResult } from "@/components/staff/EnrollmentDialog";
 import { isFinished } from "@/components/staff/staff-model";
@@ -80,7 +81,15 @@ function StaffHome() {
     queryKey: ["prospect-scan", scanId],
     queryFn: () => scanFn({ data: { scanId: scanId! } }),
     enabled: Boolean(scanId),
-    refetchInterval: (q) => (q.state.data && isFinished(q.state.data.scan.status) ? false : 1500),
+    // Poll stored progress until the scan finishes. After a load error with no
+    // data yet, stop polling so the error view stays put (Retry refetches the
+    // same scan id).
+    refetchInterval: (q) =>
+      q.state.status === "error" && !q.state.data
+        ? false
+        : q.state.data && isFinished(q.state.data.scan.status)
+          ? false
+          : 1500,
   });
 
   // Realtime nudge: refetch the stored snapshot as soon as the backend appends an event.
@@ -113,6 +122,7 @@ function StaffHome() {
   // reconnecting never affects them. While the popup is open it only acts as a
   // watchdog: if no new stored event has appeared for a while, it asks the
   // server to run one lease-protected step (a no-op when a worker holds it).
+  const hasScan = Boolean(scan.data);
   const scanFinished = scan.data ? isFinished(scan.data.scan.status) : false;
   const lastEventAt = (() => {
     const events = scan.data?.events ?? [];
@@ -121,7 +131,7 @@ function StaffHome() {
   })();
   const [driveError, setDriveError] = useState<string | null>(null);
   useEffect(() => {
-    if (!scanId || scanFinished) return;
+    if (!scanId || !hasScan || scanFinished) return;
     let cancelled = false;
     let busy = false;
     const STALL_MS = 45_000;
@@ -145,7 +155,7 @@ function StaffHome() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [scanId, scanFinished, lastEventAt, advanceFn, qc]);
+  }, [scanId, hasScan, scanFinished, lastEventAt, advanceFn, qc]);
 
   const evidence = useQuery({
     queryKey: ["prospect-evidence", findingId],
@@ -271,6 +281,23 @@ function StaffHome() {
         />
       </div>
 
+      {/* Once a scan id exists the search page is always covered: an
+          initializing shell until the stored snapshot arrives, an error shell
+          (Retry reloads the SAME scan id, never starts a new scan), then the
+          live ScanModal. Refreshing /staff?scan=<id> reconnects to that scan. */}
+      {(scanId && !snap) || (!scanId && start.isPending) ? (
+        <ScanShell
+          logoSrc={LOGO}
+          state={scanId && scan.isError && !scan.isFetching ? "error" : "initializing"}
+          errorMessage={scan.error ? (scan.error as Error).message : null}
+          retrying={scan.isFetching}
+          onRetry={() => void scan.refetch()}
+          onReturn={() => {
+            setFindingId(null);
+            navigate({ search: {} });
+          }}
+        />
+      ) : null}
       {scanId && snap ? (
         <ScanModal
           snap={snap}
@@ -303,16 +330,6 @@ function StaffHome() {
           }}
         >
           Scan worker: {driveError} — the server will keep retrying.
-        </div>
-      ) : null}
-      {scanId && scan.isError ? (
-        <div className="sx-scrim" style={{ display: "grid", placeItems: "center" }}>
-          <div className="sx-note warn" role="alert">
-            Could not load this scan: {(scan.error as Error).message}
-            <button type="button" className="sx-btn sm" onClick={() => navigate({ search: {} })}>
-              Close
-            </button>
-          </div>
         </div>
       ) : null}
 

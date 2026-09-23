@@ -45,9 +45,9 @@ export const getProgress = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const onboardingVersion = await getOrAssignOnboardingVersion(supabase, userId);
     // Deliver any linked pre-enrollment package (no-op when none; idempotent).
-    const { applyPreEnrollmentPackagesSafely } =
+    const { applyMyPreEnrollmentPackagesSafely } =
       await import("@/lib/prospect/enrollment-consume.server");
-    await applyPreEnrollmentPackagesSafely(userId);
+    await applyMyPreEnrollmentPackagesSafely(supabase, userId);
 
     const { data, error } = await supabase
       .from("onboarding_progress")

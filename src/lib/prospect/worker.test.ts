@@ -78,14 +78,14 @@ describe("server-side scan continuation — planWorkerTick", () => {
           id: "old",
           status: "running",
           created_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
-          started_at: null,
+          started_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
           worker_lease_until: null,
         },
         {
           id: "old-leased",
           status: "running",
           created_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
-          started_at: null,
+          started_at: iso(-DEFAULT_MAX_SCAN_AGE_MS - 1),
           worker_lease_until: iso(5_000),
         },
       ],
@@ -93,6 +93,23 @@ describe("server-side scan continuation — planWorkerTick", () => {
     );
     expect(plan.toExpire).toEqual(["old"]);
     expect(plan.toAdvance).toEqual([]);
+  });
+
+  it("resumes a long-queued scan that never started (e.g. created while the worker was unreachable)", () => {
+    const plan = planWorkerTick(
+      [
+        {
+          id: "5b9538c4-582e-4d06-8e9e-102f6fb3fa44",
+          status: "queued",
+          created_at: iso(-10 * DEFAULT_MAX_SCAN_AGE_MS),
+          started_at: null,
+          worker_lease_until: null,
+        },
+      ],
+      NOW,
+    );
+    expect(plan.toAdvance).toEqual(["5b9538c4-582e-4d06-8e9e-102f6fb3fa44"]);
+    expect(plan.toExpire).toEqual([]);
   });
 
   it("respects the per-tick limit", () => {
@@ -127,14 +144,17 @@ describe("server-side scan continuation — chaining", () => {
     expect(resolveWorkerOrigin(null, {} as NodeJS.ProcessEnv)).toBeNull();
   });
 
-  it("the hook authenticates with the existing scheduler scheme and the cron job exists", () => {
+  it("the hook verifies the managed worker token in the database and the cron job exists", () => {
     const root = join(__dirname, "..", "..", "..");
     const hook = readFileSync(
       join(root, "src/routes/api/public/hooks/prospect-scan-worker.ts"),
       "utf8",
     );
-    expect(hook).toMatch(/requireTrustedRuntime\(\)/);
-    expect(hook).toMatch(/authorizeCronRequest\(request, \{\s*jobName: "prospect_scan_worker"/);
+    expect(hook).toMatch(/verifyWorkerToken\(token\)/);
+    expect(hook).toMatch(/createWorkerDb\(token\)/);
+    expect(hook).not.toMatch(
+      /requireTrustedRuntime|authorizeCronRequest|supabase\/client\.server|supabaseAdmin/,
+    );
     const sql = readFileSync(
       join(root, "supabase/migrations/20260924091000_prospect_scan_worker_schedule.sql"),
       "utf8",

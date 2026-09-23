@@ -2,18 +2,20 @@
  * Pre-enrollment prospect scan worker. Continues scans on the server so they
  * never depend on a staff browser staying open.
  *
- * Callers: the staff start/rescan request, this hook itself (chaining while a
- * scan has work left) and pg_cron every minute as a safety net. Each call
+ * Callers (all server-side, all carrying the managed `prospect_scan_worker`
+ * token from internal_cron_secrets in the Authorization header):
+ *   - the AFTER INSERT trigger on prospect_scans (immediate kick, pg_net),
+ *   - pg_cron every minute (safety net),
+ *   - this hook itself, chaining while a scan still has work.
+ *
+ * No service-role credential: the token is verified by the database and the
+ * worker then talks to Supabase with the publishable key plus the token
+ * header, which RLS admits on the prospect scan tables only. Each call
  * responds 202 immediately and runs one bounded tick in the background; the
  * per-scan lease makes overlapping calls harmless.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import {
-  authorizeCronRequest,
-  cronAuthResponse,
-  requireTrustedRuntime,
-} from "@/lib/protection/cron-auth.server";
 
 const BodySchema = z
   .object({
@@ -28,14 +30,19 @@ export const Route = createFileRoute("/api/public/hooks/prospect-scan-worker")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const runtime = requireTrustedRuntime();
-        if (!runtime.ok) return runtime.response;
+        const { workerConfigAvailable, presentedWorkerToken, verifyWorkerToken, createWorkerDb } =
+          await import("@/lib/prospect/worker-client.server");
+        if (!workerConfigAvailable()) {
+          return Response.json(
+            { ok: false, error: "supabase_public_config_missing" },
+            { status: 503 },
+          );
+        }
 
-        const auth = await authorizeCronRequest(request, {
-          jobName: "prospect_scan_worker",
-          envSecrets: [process.env.PROSPECT_SCAN_WORKER_SECRET, process.env.CRON_SECRET],
-        });
-        if (!auth.ok) return cronAuthResponse(auth);
+        const token = presentedWorkerToken(request);
+        if (!token || !(await verifyWorkerToken(token))) {
+          return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+        }
 
         let body: z.infer<typeof BodySchema> = {};
         try {
@@ -58,7 +65,8 @@ export const Route = createFileRoute("/api/public/hooks/prospect-scan-worker")({
 
         const work = (async () => {
           try {
-            const tick = await runProspectWorkerTick({ budgetMs: TICK_BUDGET_MS, scanId });
+            const db = createWorkerDb(token);
+            const tick = await runProspectWorkerTick({ db, budgetMs: TICK_BUDGET_MS, scanId });
             console.info("[prospect-worker] tick", {
               hop,
               scan_id: scanId ?? null,
@@ -70,6 +78,7 @@ export const Route = createFileRoute("/api/public/hooks/prospect-scan-worker")({
             if (shouldChain({ remaining: tick.remaining, unitsRun: tick.unitsRun, hop })) {
               await dispatchProspectWorker({
                 origin: resolveWorkerOrigin(origin),
+                token,
                 scanId,
                 hop: hop + 1,
               });
