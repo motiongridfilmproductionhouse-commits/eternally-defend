@@ -139,11 +139,33 @@ function MethodologyPage() {
               record of documented digital-identity incidents.
             </p>
           </div>
-          <Button asChild variant="link" className="mt-8 h-auto p-0 text-landing-ink">
-            <Link to="/identity-response-observatory">
-              Read about the Observatory <ArrowRight />
+          <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
+            <Button asChild variant="link" className="h-auto p-0 text-landing-ink">
+              <Link to="/identity-response-observatory">
+                Read about the Observatory <ArrowRight />
+              </Link>
+            </Button>
+            <Button asChild variant="link" className="h-auto p-0 text-landing-ink">
+              <Link to="/security">
+                Security &amp; Governance <ArrowRight />
+              </Link>
+            </Button>
+          </div>
+          <p className="mt-8 max-w-2xl text-sm leading-6 text-landing-muted">
+            This same standard is applied across Eterna's{" "}
+            <Link to="/deepfake-protection" className="landing-link text-landing-ink">
+              deepfake protection
             </Link>
-          </Button>
+            ,{" "}
+            <Link to="/ai-impersonation" className="landing-link text-landing-ink">
+              AI impersonation protection
+            </Link>{" "}
+            and{" "}
+            <Link to="/online-reputation-protection" className="landing-link text-landing-ink">
+              online reputation protection
+            </Link>{" "}
+            work.
+          </p>
         </div>
       </section>
     </PublicPage>

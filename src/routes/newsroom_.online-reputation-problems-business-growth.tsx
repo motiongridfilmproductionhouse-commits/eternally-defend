@@ -353,6 +353,11 @@ function ReputationBusinessGrowthPage() {
                 title: "Why Companies Need Digital Reputation Monitoring Before a Crisis Happens",
                 description: "The case for continuous monitoring instead of waiting for a crisis.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description: "Eterna's identity-protection approach to business reputation risk.",
+              },
             ]}
           />
 

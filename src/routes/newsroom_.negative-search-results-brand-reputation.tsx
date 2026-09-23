@@ -301,6 +301,12 @@ function NegativeSearchResultsPage() {
                 description:
                   "How reputation risk moves through sales, hiring, partnerships and investor trust.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description:
+                  "Eterna's evidence-led approach to harmful, search-visible information.",
+              },
             ]}
           />
 

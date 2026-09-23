@@ -325,6 +325,11 @@ function ThreatenedPublicationPage() {
                 title: "A Digital Safety Guide for Students in the Age of Generative AI",
                 description: "The pillar guide this article is part of.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description: "How Eterna evaluates evidence and rights before pursuing a response.",
+              },
             ]}
           />
 

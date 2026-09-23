@@ -282,6 +282,11 @@ function FakeAccountPage() {
                 title: "False Allegations Online: What Individuals and Businesses Should Do",
                 description: "How to assess and respond when a fake account starts making claims.",
               },
+              {
+                to: "/ai-impersonation",
+                title: "AI Impersonation Protection for Fake Profiles",
+                description: "Eterna's response framework for fake accounts and copied photos.",
+              },
             ]}
           />
 

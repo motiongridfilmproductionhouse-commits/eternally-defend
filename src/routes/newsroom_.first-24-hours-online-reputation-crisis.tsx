@@ -430,6 +430,12 @@ function First24HoursPage() {
                 description:
                   "How response in the first 24 hours differs from longer-term recovery.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description:
+                  "Eterna's monitor, verify, preserve, respond and monitor-again framework.",
+              },
             ]}
           />
 

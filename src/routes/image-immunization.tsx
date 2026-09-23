@@ -189,6 +189,13 @@ function ImageImmunizationPage() {
                 </Link>
                 .
               </p>
+              <p className="mt-4 text-sm leading-7 text-landing-muted">
+                EIP's ongoing validation is part of{" "}
+                <Link to="/research" className="landing-link text-landing-ink">
+                  Eterna Research
+                </Link>
+                , the team's wider work on identity protection in the synthetic media era.
+              </p>
             </div>
           </div>
         </div>
@@ -300,6 +307,11 @@ function ImageImmunizationPage() {
                   className="landing-link text-landing-ink"
                 >
                   Detection Is Not Prevention
+                </Link>
+              </li>
+              <li>
+                <Link to="/research" className="landing-link text-landing-ink">
+                  Eterna Research
                 </Link>
               </li>
             </ul>

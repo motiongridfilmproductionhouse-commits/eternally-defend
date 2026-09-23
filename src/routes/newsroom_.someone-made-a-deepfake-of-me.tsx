@@ -331,6 +331,12 @@ function DeepfakeOfMePage() {
                 title: "What Is a Deepfake and Why Is It Becoming a Reputation Problem?",
                 description: "A plain-language explanation of what you're actually looking at.",
               },
+              {
+                to: "/deepfake-protection",
+                title: "Deepfake Protection: Detection, Verification & Response",
+                description:
+                  "The full detection, verification and response framework Eterna applies to deepfakes.",
+              },
             ]}
           />
 

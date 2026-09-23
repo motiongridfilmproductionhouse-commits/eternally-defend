@@ -380,6 +380,12 @@ function ReputationMonitoringPage() {
                 title: "Content Removal vs Search Suppression vs Reputation Recovery",
                 description: "Why response options narrow the longer discovery takes.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description:
+                  "Eterna's monitoring and evidence-led response approach for organizations.",
+              },
             ]}
           />
 

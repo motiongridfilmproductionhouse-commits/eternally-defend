@@ -149,6 +149,11 @@ function AnnouncementPage() {
                   Inside Eterna Image Immunization — the technical view
                 </Link>
               </li>
+              <li>
+                <Link to="/research" className="landing-link text-landing-ink">
+                  Eterna Research
+                </Link>
+              </li>
             </ul>
           </div>
 

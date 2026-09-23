@@ -303,6 +303,12 @@ function WhatIsADeepfakePage() {
                 title: "How AI Impersonation Can Damage Personal and Business Reputation",
                 description: "What happens once a convincing fake actually starts to spread.",
               },
+              {
+                to: "/deepfake-protection",
+                title: "Deepfake Protection: Detection, Verification & Response",
+                description:
+                  "How Eterna's protection framework applies once a deepfake is suspected.",
+              },
             ]}
           />
 

@@ -336,6 +336,11 @@ function FalseAllegationsPage() {
                 title: "Why Removing One Harmful Post Does Not Always Solve a Reputation Problem",
                 description: "Why a successful takedown can still leave the problem in place.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description: "How Eterna verifies claims before pursuing an authorized response.",
+              },
             ]}
           />
 

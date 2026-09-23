@@ -346,6 +346,12 @@ function CollegeStudentDeepfakesPage() {
                 title: "Someone Made a Deepfake of Me — What Should I Do?",
                 description: "The immediate first steps for a student facing this directly.",
               },
+              {
+                to: "/deepfake-protection",
+                title: "Eterna's Deepfake Protection Framework",
+                description:
+                  "The detection, verification and response cycle Eterna applies to manipulated media.",
+              },
             ]}
           />
 

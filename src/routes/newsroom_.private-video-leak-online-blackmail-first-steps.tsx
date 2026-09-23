@@ -320,6 +320,12 @@ function PrivateVideoLeakPage() {
                 title: "A Digital Safety Guide for Students in the Age of Generative AI",
                 description: "The pillar guide this article is part of.",
               },
+              {
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description:
+                  "Evidence-led response for content that threatens someone's standing online.",
+              },
             ]}
           />
 

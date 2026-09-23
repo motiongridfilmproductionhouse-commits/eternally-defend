@@ -179,6 +179,11 @@ function TechnicalBlogPage() {
                   Methodology
                 </Link>
               </li>
+              <li>
+                <Link to="/research" className="landing-link text-landing-ink">
+                  Eterna Research
+                </Link>
+              </li>
             </ul>
           </div>
 
