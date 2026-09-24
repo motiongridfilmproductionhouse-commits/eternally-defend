@@ -2220,10 +2220,6 @@
   stroke: color-mix(in oklab, var(--landing-accent) 50%, transparent);
   stroke-dasharray: 4 3;
 }
-.hiw-s-chip {
-  fill: var(--landing-soft);
-  stroke: var(--landing-line);
-}
 .hiw-s-ring {
   fill: none;
   stroke: var(--landing-accent);
