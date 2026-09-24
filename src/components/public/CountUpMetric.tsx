@@ -65,13 +65,16 @@ export function CountUpMetric({
   }, [suffix, value]);
 
   return (
-    <div ref={metricRef} className="bg-landing py-8 sm:px-6">
-      <p className="text-4xl font-medium" aria-label={`${currentValue} ${label}`}>
+    <div ref={metricRef} className="metric-cell bg-landing py-8 sm:px-6">
+      <span className="metric-rule" aria-hidden="true" />
+      <p className="metric-number text-4xl font-medium" aria-label={`${currentValue} ${label}`}>
         {currentValue}
       </p>
-      <p className="mt-2 text-xs text-landing-muted">{label}</p>
+      <p className="metric-label mt-2 text-xs text-landing-muted">{label}</p>
       {detail && (
-        <p className="mt-3 text-[10px] uppercase tracking-wide text-landing-muted">{detail}</p>
+        <p className="metric-label mt-3 text-[10px] uppercase tracking-wide text-landing-muted">
+          {detail}
+        </p>
       )}
     </div>
   );
