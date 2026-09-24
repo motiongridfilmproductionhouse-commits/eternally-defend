@@ -91,13 +91,28 @@ const protections = [
   [Eye, "Reputation risk", "Track emerging public-web risk and context."],
 ] as const;
 
-const process = [
-  ["01", "Verify", "Confirm identity, authority and protected assets."],
-  ["02", "Monitor", "Scan agreed public surfaces for relevant signals."],
-  ["03", "Investigate", "Separate genuine risk from ordinary appearances."],
-  ["04", "Preserve Evidence", "Retain source, timestamp and context."],
-  ["05", "Enforce", "Act on eligible, authorized and approved cases."],
-  ["06", "Monitor Again", "Track status, recurrence and new exposure."],
+const processSteps = [
+  {
+    number: "01",
+    label: "Report Content",
+    title: "Report defamatory content",
+    body: "Share the link to a post, video, article, or other content. Our team reviews it and identifies the appropriate response.",
+    Illustration: ReportCaseIllustration,
+  },
+  {
+    number: "02",
+    label: "Evidence Record",
+    title: "Create an evidence record",
+    body: "We document available links, screenshots, timestamps, and relevant context to create a clear case record.",
+    Illustration: EvidenceRecordIllustration,
+  },
+  {
+    number: "03",
+    label: "Request & Updates",
+    title: "Submit a removal request and send updates",
+    body: "Where an appropriate reporting route applies, we submit the request and notify you when the case changes, including if content is removed, rejected, or needs more information.",
+    Illustration: CaseStatusIllustration,
+  },
 ] as const;
 
 const governanceChecks = [
@@ -568,48 +583,41 @@ function LandingPageContent() {
 
         <section
           id="how-it-works"
-          className="border-y border-landing-line bg-landing-ink py-20 text-landing md:py-28"
+          aria-labelledby="how-it-works-heading"
+          className="border-y border-landing-line bg-landing py-20 md:py-32"
         >
           <div className="mx-auto max-w-6xl px-6">
-            <div data-landing-reveal className="grid gap-10 md:grid-cols-2">
+            <div data-landing-reveal className="grid gap-10 md:grid-cols-2 md:items-end">
               <div>
-                <p className="landing-kicker text-landing-accent">How Eterna operates</p>
-                <h2 className="mt-4 text-4xl font-medium md:text-6xl">
-                  A continuous protection cycle.
+                <p className="landing-kicker">How it works</p>
+                <h2 id="how-it-works-heading" className="mt-4 text-4xl font-medium md:text-6xl">
+                  From report to removal request.
                 </h2>
               </div>
-              <p className="max-w-md text-sm leading-6 text-landing-on-dark-muted md:justify-self-end">
-                Technology supports each stage. Authorization, context and human judgment govern
-                consequential action.
+              <p className="max-w-md text-sm leading-6 text-landing-muted md:justify-self-end">
+                Our team handles each case from first report to final status. Where a reporting
+                route applies, we submit the request, and the platform or host makes the decision.
               </p>
             </div>
+
+            <HowItWorksSteps />
+
             <div
               data-landing-reveal
-              className="landing-stagger mt-14 grid gap-px bg-landing-on-dark-line md:grid-cols-3"
-            >
-              {process.map(([number, title, body]) => (
-                <article key={number} className="bg-landing-ink p-7">
-                  <p className="text-xs text-landing-accent">{number}</p>
-                  <h3 className="mt-12 text-xl font-semibold">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-landing-on-dark-muted">{body}</p>
-                </article>
-              ))}
-            </div>
-            <div
-              data-landing-reveal
-              className="mt-14 grid gap-10 border-t border-landing-on-dark-line pt-10 md:grid-cols-[0.8fr_1.2fr]"
+              className="mt-20 grid gap-10 border-t border-landing-line pt-10 md:grid-cols-[0.8fr_1.2fr]"
             >
               <div>
-                <p className="text-sm font-semibold">Control is part of protection.</p>
-                <p className="mt-2 text-sm leading-6 text-landing-on-dark-muted">
-                  Eterna is not an automatic takedown service.
+                <p className="text-sm font-semibold">A request, not a guarantee.</p>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-landing-muted">
+                  Eterna is not an automatic takedown service. The platform or host decides whether
+                  content comes down, and we report every outcome, including rejections.
                 </p>
               </div>
               <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
                 {governanceChecks.map((item) => (
                   <div
                     key={item}
-                    className="flex gap-3 border-t border-landing-on-dark-line pt-4 text-sm leading-6"
+                    className="flex gap-3 border-t border-landing-line pt-4 text-sm leading-6"
                   >
                     <Check className="mt-1 size-4 shrink-0 text-landing-accent" />
                     {item}
@@ -617,7 +625,7 @@ function LandingPageContent() {
                 ))}
                 <Link
                   to="/security"
-                  className="landing-link inline-flex items-center gap-1 text-sm font-semibold text-landing"
+                  className="landing-link inline-flex items-center gap-1 text-sm font-semibold text-landing-ink"
                 >
                   Read Security & Governance <ArrowRight className="size-3.5" />
                 </Link>
@@ -1260,6 +1268,327 @@ function PlatformInterface() {
         )}
       </div>
     </div>
+  );
+}
+
+function HowItWorksSteps() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const [autoplay, setAutoplay] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setAutoplay(false);
+      return;
+    }
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
+      threshold: 0.35,
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!autoplay || paused || !inView) return;
+    const id = window.setInterval(() => {
+      if (!window.matchMedia("(min-width: 768px)").matches) return;
+      setActive((current) => (current + 1) % processSteps.length);
+    }, 5200);
+    return () => window.clearInterval(id);
+  }, [autoplay, paused, inView]);
+
+  const selectStep = (index: number) => {
+    setActive(index);
+    setAutoplay(false);
+  };
+
+  return (
+    <div
+      ref={rootRef}
+      data-landing-reveal
+      className="hiw-steps mt-16 md:mt-24"
+      style={{ "--hiw-progress": active / (processSteps.length - 1) } as React.CSSProperties}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
+      }}
+    >
+      <div role="group" aria-label="Process steps" className="hidden grid-cols-3 md:grid">
+        {processSteps.map(({ number, label }, index) => (
+          <button
+            key={number}
+            type="button"
+            aria-pressed={active === index}
+            aria-controls={`hiw-panel-${number}`}
+            onClick={() => selectStep(index)}
+            className={cn(
+              "hiw-pill",
+              index === 0 && "justify-self-start",
+              index === 1 && "justify-self-center",
+              index === 2 && "justify-self-end",
+            )}
+            style={{ "--hiw-i": index } as React.CSSProperties}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div aria-hidden="true" className="hiw-track hidden md:block">
+        <span className="hiw-track-line" />
+        <span className="hiw-track-progress" />
+        {processSteps.map(({ number }, index) => (
+          <span
+            key={number}
+            className="hiw-marker"
+            data-active={active === index || undefined}
+            style={
+              {
+                "--hiw-i": index,
+                left: `${(index / (processSteps.length - 1)) * 100}%`,
+                "--hiw-x": `${(index / (processSteps.length - 1)) * -100}%`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+
+      <ol className="grid md:grid-cols-3">
+        {processSteps.map(({ number, label, title, body, Illustration }, index) => (
+          <li
+            key={number}
+            id={`hiw-panel-${number}`}
+            aria-current={active === index ? "step" : undefined}
+            data-active={active === index || undefined}
+            onClick={() => selectStep(index)}
+            className="hiw-step"
+            style={{ "--hiw-i": index } as React.CSSProperties}
+          >
+            <p className="mb-4 text-xs font-semibold text-landing-accent md:hidden">
+              Step {number} · {label}
+            </p>
+            <h3 className="hiw-step-title text-xl font-medium">{title}</h3>
+            <p className="hiw-step-body mt-4 max-w-sm text-sm leading-6 text-landing-muted">
+              {body}
+            </p>
+            <div className="hiw-illustration">
+              <div className="hiw-float">
+                <Illustration />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/* How it works — step illustrations. Decorative: each step's text carries the meaning. */
+function ReportCaseIllustration() {
+  return (
+    <svg viewBox="0 0 320 200" aria-hidden="true" focusable="false">
+      <rect x="20.5" y="14.5" width="279" height="171" rx="10" className="hiw-s-surface" />
+      <circle cx="36" cy="30" r="3" className="hiw-s-line" />
+      <circle cx="46" cy="30" r="3" className="hiw-s-line" />
+      <circle cx="56" cy="30" r="3" className="hiw-s-line" />
+      <rect x="72" y="23" width="170" height="14" rx="7" className="hiw-s-soft" />
+      <text x="82" y="32.6" fontSize="7.5" className="hiw-s-muted-text">
+        social.example/post/48213
+      </text>
+      <path d="M21 45.5h278" className="hiw-s-rule" />
+      <circle cx="44" cy="66" r="10" className="hiw-s-soft" />
+      <rect x="62" y="59" width="68" height="6" rx="3" className="hiw-s-line" />
+      <rect x="62" y="70" width="42" height="5" rx="2.5" className="hiw-s-soft" />
+      <rect
+        x="30.5"
+        y="86.5"
+        width="240"
+        height="42"
+        rx="5"
+        className="hiw-s-highlight hiw-report-highlight"
+      />
+      <rect x="38" y="94" width="196" height="6" rx="3" className="hiw-s-line" />
+      <rect x="38" y="105" width="222" height="6" rx="3" className="hiw-s-line" />
+      <rect x="38" y="116" width="150" height="6" rx="3" className="hiw-s-line" />
+      <g className="hiw-report-flag">
+        <circle cx="272" cy="66" r="11" className="hiw-s-ring hiw-pulse" />
+        <circle cx="272" cy="66" r="11" className="hiw-s-accent" />
+        <path d="M268.5 72V60.5h7.5l-1.8 3 1.8 3h-7.5" className="hiw-s-on-accent" />
+      </g>
+      <g className="hiw-report-status">
+        <rect x="30" y="146" width="104" height="24" rx="12" className="hiw-s-accent-tint" />
+        <circle cx="44" cy="158" r="3.5" className="hiw-s-accent" />
+        <text x="53" y="161.2" fontSize="9" fontWeight="600" className="hiw-s-ink-text">
+          Case received
+        </text>
+        <text x="288" y="161.2" fontSize="7.5" textAnchor="end" className="hiw-s-muted-text">
+          Under review
+        </text>
+      </g>
+    </svg>
+  );
+}
+
+function EvidenceRecordIllustration() {
+  return (
+    <svg viewBox="0 0 320 200" aria-hidden="true" focusable="false">
+      <g
+        className="hiw-evidence-card"
+        style={
+          {
+            "--hiw-card": 0,
+            "--hiw-from-x": "-18px",
+            "--hiw-from-y": "-10px",
+            "--hiw-from-r": "-4deg",
+          } as React.CSSProperties
+        }
+      >
+        <rect x="30.5" y="16.5" width="220" height="44" rx="8" className="hiw-s-surface" />
+        <rect x="42" y="28" width="20" height="20" rx="5" className="hiw-s-accent-tint" />
+        <path
+          d="M50 40l4-4m-5.5 2.5-1.3 1.3a2.6 2.6 0 0 0 3.7 3.7l1.3-1.3m3.3-5.7 1.3-1.3a2.6 2.6 0 0 0-3.7-3.7l-1.3 1.3"
+          className="hiw-s-stroke-accent"
+        />
+        <text x="72" y="34.5" fontSize="7" className="hiw-s-muted-text">
+          Source URL
+        </text>
+        <text x="72" y="47" fontSize="8.5" className="hiw-s-ink-text">
+          news.example/article/2291
+        </text>
+      </g>
+      <g
+        className="hiw-evidence-card"
+        style={
+          {
+            "--hiw-card": 1,
+            "--hiw-from-x": "22px",
+            "--hiw-from-y": "-4px",
+            "--hiw-from-r": "3deg",
+          } as React.CSSProperties
+        }
+      >
+        <rect x="46.5" y="52.5" width="220" height="80" rx="8" className="hiw-s-surface" />
+        <rect x="58" y="63" width="74" height="58" rx="4" className="hiw-s-soft" />
+        <circle cx="118" cy="76" r="5" className="hiw-s-line" />
+        <path d="M62 117l17-19 12 12 8-8 29 15z" className="hiw-s-line" />
+        <text x="144" y="75" fontSize="7" className="hiw-s-muted-text">
+          Screenshot
+        </text>
+        <rect x="144" y="83" width="96" height="5" rx="2.5" className="hiw-s-line" />
+        <rect x="144" y="93" width="72" height="5" rx="2.5" className="hiw-s-line" />
+        <text x="144" y="115" fontSize="7" className="hiw-s-muted-text">
+          1440 × 900 · PNG
+        </text>
+      </g>
+      <g
+        className="hiw-evidence-card"
+        style={
+          {
+            "--hiw-card": 2,
+            "--hiw-from-x": "-6px",
+            "--hiw-from-y": "18px",
+            "--hiw-from-r": "-2deg",
+          } as React.CSSProperties
+        }
+      >
+        <rect x="62.5" y="124.5" width="220" height="56" rx="8" className="hiw-s-surface" />
+        <circle cx="84" cy="152.5" r="10" className="hiw-s-accent-tint" />
+        <path d="M84 147v5.5l3.5 2.2" className="hiw-s-stroke-accent" />
+        <text x="102" y="148.5" fontSize="7" className="hiw-s-muted-text">
+          Captured
+        </text>
+        <text x="102" y="161" fontSize="8.5" className="hiw-s-ink-text">
+          14 Mar 2026 · 09:42 UTC
+        </text>
+        <circle cx="262" cy="152.5" r="10" className="hiw-s-accent" />
+        <path d="M257.5 152.7l3 3 6-6.2" className="hiw-s-on-accent hiw-evidence-check" />
+      </g>
+    </svg>
+  );
+}
+
+function CaseStatusIllustration() {
+  return (
+    <svg viewBox="0 0 320 200" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="hiw-notification-shadow" x="-20%" y="-30%" width="140%" height="180%">
+          <feDropShadow dx="0" dy="8" stdDeviation="8" className="hiw-s-shadow" />
+        </filter>
+      </defs>
+      <rect x="12.5" y="16.5" width="172" height="168" rx="10" className="hiw-s-surface" />
+      <text x="26" y="36" fontSize="7" className="hiw-s-muted-text">
+        Removal request
+      </text>
+      <text x="26" y="49" fontSize="10" fontWeight="600" className="hiw-s-ink-text">
+        Case ET-2841
+      </text>
+      <path d="M13 60.5h171" className="hiw-s-rule" />
+      <path d="M31 79v34" className="hiw-s-rule" />
+      <circle cx="31" cy="74" r="5" className="hiw-s-accent" />
+      <path d="M28.8 74.1l1.6 1.6 3-3.2" className="hiw-s-on-accent" />
+      <text x="44" y="77" fontSize="8" className="hiw-s-ink-text">
+        Evidence recorded
+      </text>
+      <circle cx="31" cy="96" r="5" className="hiw-s-accent" />
+      <path d="M28.8 96.1l1.6 1.6 3-3.2" className="hiw-s-on-accent" />
+      <text x="44" y="99" fontSize="8" className="hiw-s-ink-text">
+        Request submitted
+      </text>
+      <circle cx="31" cy="118" r="5" className="hiw-s-ring hiw-pulse hiw-status-pulse" />
+      <circle cx="31" cy="118" r="5" className="hiw-s-surface hiw-s-ring-solid" />
+      <circle cx="31" cy="118" r="2" className="hiw-s-accent" />
+      <text x="44" y="121" fontSize="8" fontWeight="600" className="hiw-s-ink-text">
+        Awaiting platform decision
+      </text>
+      <path d="M13 134.5h171" className="hiw-s-rule" />
+      <text x="26" y="150" fontSize="6.8" className="hiw-s-muted-text">
+        Possible outcomes
+      </text>
+      <rect x="26.5" y="157.5" width="42" height="16" rx="8" className="hiw-s-chip" />
+      <text x="47.5" y="168" fontSize="7" textAnchor="middle" className="hiw-s-ink-text">
+        Removed
+      </text>
+      <rect x="72.5" y="157.5" width="44" height="16" rx="8" className="hiw-s-chip" />
+      <text x="94.5" y="168" fontSize="7" textAnchor="middle" className="hiw-s-ink-text">
+        Rejected
+      </text>
+      <rect x="120.5" y="157.5" width="54" height="16" rx="8" className="hiw-s-chip" />
+      <text x="147.5" y="168" fontSize="7" textAnchor="middle" className="hiw-s-ink-text">
+        More info
+      </text>
+      <g className="hiw-notification">
+        <rect
+          x="172.5"
+          y="40.5"
+          width="136"
+          height="60"
+          rx="10"
+          filter="url(#hiw-notification-shadow)"
+          className="hiw-s-surface"
+        />
+        <circle cx="192" cy="70" r="10" className="hiw-s-accent-tint" />
+        <path
+          d="M187.5 73h9l-1.2-1.6v-3.2a3.3 3.3 0 0 0-6.6 0v3.2zm3.1 2.3a1.6 1.6 0 0 0 2.8 0"
+          className="hiw-s-stroke-accent"
+        />
+        <circle cx="198" cy="62.5" r="2.6" className="hiw-s-accent hiw-notification-dot" />
+        <text x="208" y="64" fontSize="8.5" fontWeight="600" className="hiw-s-ink-text">
+          Case updated
+        </text>
+        <text x="208" y="76" fontSize="7.5" className="hiw-s-muted-text">
+          Platform responded
+        </text>
+        <text x="208" y="88" fontSize="6.8" className="hiw-s-muted-text">
+          Just now
+        </text>
+      </g>
+    </svg>
   );
 }
 
