@@ -607,10 +607,11 @@ function LandingPageContent() {
               className="mt-20 grid gap-10 border-t border-landing-line pt-10 md:grid-cols-[0.8fr_1.2fr]"
             >
               <div>
-                <p className="text-sm font-semibold">A request, not a guarantee.</p>
+                <p className="text-sm font-semibold">Clear support. Updates at every step.</p>
                 <p className="mt-2 max-w-sm text-sm leading-6 text-landing-muted">
-                  Eterna is not an automatic takedown service. The platform or host decides whether
-                  content comes down, and we report every outcome, including rejections.
+                  We review each case and submit eligible requests through the appropriate platform
+                  or host channel. We keep you informed as your case progresses; the platform or
+                  host makes the final decision.
                 </p>
               </div>
               <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
@@ -1521,46 +1522,34 @@ function CaseStatusIllustration() {
           <feDropShadow dx="0" dy="8" stdDeviation="8" className="hiw-s-shadow" />
         </filter>
       </defs>
-      <rect x="12.5" y="16.5" width="172" height="168" rx="10" className="hiw-s-surface" />
-      <text x="26" y="36" fontSize="7" className="hiw-s-muted-text">
+      <rect x="12.5" y="24.5" width="172" height="150" rx="10" className="hiw-s-surface" />
+      <text x="26" y="44" fontSize="7" className="hiw-s-muted-text">
         Removal request
       </text>
-      <text x="26" y="49" fontSize="10" fontWeight="600" className="hiw-s-ink-text">
+      <text x="26" y="57" fontSize="10" fontWeight="600" className="hiw-s-ink-text">
         Case ET-2841
       </text>
-      <path d="M13 60.5h171" className="hiw-s-rule" />
-      <path d="M31 79v34" className="hiw-s-rule" />
-      <circle cx="31" cy="74" r="5" className="hiw-s-accent" />
-      <path d="M28.8 74.1l1.6 1.6 3-3.2" className="hiw-s-on-accent" />
-      <text x="44" y="77" fontSize="8" className="hiw-s-ink-text">
+      <path d="M13 68.5h171" className="hiw-s-rule" />
+      <path d="M31 87v63" className="hiw-s-rule" />
+      <circle cx="31" cy="84" r="5" className="hiw-s-accent" />
+      <path d="M28.8 84.1l1.6 1.6 3-3.2" className="hiw-s-on-accent" />
+      <text x="44" y="87" fontSize="8" className="hiw-s-ink-text">
         Evidence recorded
       </text>
-      <circle cx="31" cy="96" r="5" className="hiw-s-accent" />
-      <path d="M28.8 96.1l1.6 1.6 3-3.2" className="hiw-s-on-accent" />
-      <text x="44" y="99" fontSize="8" className="hiw-s-ink-text">
-        Request submitted
+      <circle cx="31" cy="106" r="5" className="hiw-s-accent" />
+      <path d="M28.8 106.1l1.6 1.6 3-3.2" className="hiw-s-on-accent" />
+      <text x="44" y="109" fontSize="8" className="hiw-s-ink-text">
+        Submitted
       </text>
-      <circle cx="31" cy="118" r="5" className="hiw-s-ring hiw-pulse hiw-status-pulse" />
-      <circle cx="31" cy="118" r="5" className="hiw-s-surface hiw-s-ring-solid" />
-      <circle cx="31" cy="118" r="2" className="hiw-s-accent" />
-      <text x="44" y="121" fontSize="8" fontWeight="600" className="hiw-s-ink-text">
-        Awaiting platform decision
+      <circle cx="31" cy="128" r="5" className="hiw-s-ring hiw-pulse hiw-status-pulse" />
+      <circle cx="31" cy="128" r="5" className="hiw-s-surface hiw-s-ring-solid" />
+      <circle cx="31" cy="128" r="2" className="hiw-s-accent" />
+      <text x="44" y="131" fontSize="8" fontWeight="600" className="hiw-s-ink-text">
+        Under review
       </text>
-      <path d="M13 134.5h171" className="hiw-s-rule" />
-      <text x="26" y="150" fontSize="6.8" className="hiw-s-muted-text">
-        Possible outcomes
-      </text>
-      <rect x="26.5" y="157.5" width="42" height="16" rx="8" className="hiw-s-chip" />
-      <text x="47.5" y="168" fontSize="7" textAnchor="middle" className="hiw-s-ink-text">
-        Removed
-      </text>
-      <rect x="72.5" y="157.5" width="44" height="16" rx="8" className="hiw-s-chip" />
-      <text x="94.5" y="168" fontSize="7" textAnchor="middle" className="hiw-s-ink-text">
-        Rejected
-      </text>
-      <rect x="120.5" y="157.5" width="54" height="16" rx="8" className="hiw-s-chip" />
-      <text x="147.5" y="168" fontSize="7" textAnchor="middle" className="hiw-s-ink-text">
-        More info
+      <circle cx="31" cy="150" r="5" className="hiw-s-surface" />
+      <text x="44" y="153" fontSize="8" className="hiw-s-muted-text">
+        Update received
       </text>
       <g className="hiw-notification">
         <rect
@@ -1582,7 +1571,7 @@ function CaseStatusIllustration() {
           Case updated
         </text>
         <text x="208" y="76" fontSize="7.5" className="hiw-s-muted-text">
-          Platform responded
+          Now under review
         </text>
         <text x="208" y="88" fontSize="6.8" className="hiw-s-muted-text">
           Just now
