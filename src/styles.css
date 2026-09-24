@@ -2389,3 +2389,75 @@
     opacity: 0 !important;
   }
 }
+
+/* ============ Operational scale metrics — blue gradient numerals + micro-interactions ============ */
+@utility metric-number {
+  background: linear-gradient(
+    115deg,
+    oklch(0.48 0.16 262) 0%,
+    oklch(0.62 0.22 252) 48%,
+    oklch(0.44 0.14 266) 100%
+  );
+  background-size: 180% 100%;
+  background-position: 0% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition:
+    background-position 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.metric-cell {
+  position: relative;
+  transition: background-color 450ms ease;
+}
+
+.metric-cell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1.5rem;
+  height: 2px;
+  width: 2.25rem;
+  background: linear-gradient(
+    90deg,
+    oklch(0.6 0.21 256) 0%,
+    oklch(0.7 0.2 230 / 0) 100%
+  );
+  transition: width 550ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.metric-cell .metric-label {
+  transition: color 350ms ease;
+}
+
+.metric-cell:hover {
+  background-color: oklch(0.98 0.014 250);
+}
+
+.metric-cell:hover::before {
+  width: calc(100% - 3rem);
+}
+
+.metric-cell:hover .metric-number {
+  background-position: 100% 0;
+  transform: translateY(-3px);
+}
+
+.metric-cell:hover .metric-label {
+  color: var(--landing-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-cell,
+  .metric-cell::before,
+  .metric-number,
+  .metric-cell .metric-label {
+    transition: none !important;
+  }
+  .metric-cell:hover .metric-number {
+    transform: none;
+  }
+}
