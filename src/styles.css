@@ -1989,8 +1989,11 @@
     transform: translate(0, 0) scale(1) rotate(0deg);
     opacity: 1;
   }
+  40% {
+    opacity: 0.85;
+  }
   100% {
-    transform: translate(55%, -8%) scale(0.9) rotate(9deg);
+    transform: translate(32%, -7%) scale(0.92) rotate(6deg);
     opacity: 0;
   }
 }
