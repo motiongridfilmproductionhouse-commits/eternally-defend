@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import { CountUpMetric } from "@/components/public/CountUpMetric";
+import { ClientShuffleCards } from "@/components/public/ClientShuffle";
 import { PlatformLogos } from "@/components/public/PlatformLogos";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import {
@@ -710,6 +711,36 @@ function LandingPageContent() {
                   <p className="mt-3 text-sm leading-6 text-landing-muted">{description}</p>
                 </article>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="clients"
+          className="border-t border-landing-line bg-landing-soft py-20 md:py-28"
+          aria-labelledby="clients-heading"
+        >
+          <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div data-landing-reveal>
+              <p className="landing-kicker">Clients</p>
+              <h2
+                id="clients-heading"
+                className="mt-4 max-w-[520px] text-4xl font-medium md:text-5xl"
+              >
+                Feedback from the people we protect.
+              </h2>
+              <p className="mt-5 max-w-md text-sm leading-6 text-landing-muted">
+                Engagements are confidential, so feedback is shared by role with permission —
+                never by name. Every account reflects the managed, human-reviewed way Eterna
+                operates.
+              </p>
+              <p className="mt-6 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-landing-muted">
+                <i className="size-1.5 rounded-full bg-landing-accent" aria-hidden="true" />
+                Shared with permission · Names confidential
+              </p>
+            </div>
+            <div data-landing-reveal className="pb-6">
+              <ClientShuffleCards />
             </div>
           </div>
         </section>

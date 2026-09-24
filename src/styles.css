@@ -1982,3 +1982,51 @@
     animation: none;
   }
 }
+
+/* ============ Clients shuffle cards ============ */
+@keyframes clientCardExit {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(5%, -42%) scale(0.96) rotate(-2.5deg);
+    opacity: 0;
+  }
+}
+
+.client-card-exit {
+  animation: clientCardExit 0.5s cubic-bezier(0.45, 0, 0.3, 1) forwards;
+  transition: none;
+}
+
+.client-card-fluid {
+  background: radial-gradient(
+    80% 120% at 0% 50%,
+    oklch(0.85 0.12 210 / 0.55),
+    transparent 65%
+  );
+  animation: clientFluidDrift 5.5s ease-in-out infinite alternate;
+}
+
+@keyframes clientFluidDrift {
+  0% {
+    transform: translateX(0) skewX(0deg);
+  }
+  100% {
+    transform: translateX(36px) skewX(-8deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-card-exit,
+  .client-card-fluid {
+    animation: none;
+  }
+  .client-card-exit {
+    opacity: 0;
+  }
+}
