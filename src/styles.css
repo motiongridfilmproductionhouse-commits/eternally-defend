@@ -2434,7 +2434,7 @@
 }
 
 .metric-cell:hover {
-  background-color: oklch(0.98 0.014 250);
+  background-color: oklch(0.99 0.008 250);
 }
 
 .metric-cell:hover::before {
