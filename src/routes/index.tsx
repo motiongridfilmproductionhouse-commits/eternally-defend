@@ -110,7 +110,7 @@ const processSteps = [
     number: "03",
     label: "Request & Updates",
     title: "Submit a removal request and send updates",
-    body: "Where an appropriate reporting route applies, we submit the request and notify you when the case changes, including if content is removed, rejected, or needs more information.",
+    body: "Where an appropriate reporting route applies, we submit the request and keep you informed as the case progresses, including platform updates or any additional information needed.",
     Illustration: CaseStatusIllustration,
   },
 ] as const;
@@ -1089,13 +1089,7 @@ const evidenceRows = [
 ] as const;
 
 const investigationStages = ["New", "Reviewing", "Verified", "Dismissed", "Escalated"] as const;
-const enforcementStages = [
-  "Submitted",
-  "Under review",
-  "Removed",
-  "Rejected",
-  "Escalated",
-] as const;
+const enforcementStages = ["Submitted", "Under review", "Update received"] as const;
 
 const monitoringMetrics = [
   { label: "Recurrence", value: "Tracked" },
