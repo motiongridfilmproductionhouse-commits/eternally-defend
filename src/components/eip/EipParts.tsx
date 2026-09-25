@@ -6,6 +6,7 @@ import {
   STATUS_LABEL,
   STATUS_STYLE,
   eipDb,
+  isActive,
   reasonLabel,
   type EipEvaluation,
   type EipJob,
@@ -38,7 +39,13 @@ export function useSignedUrl(path: string | null | undefined) {
   return url;
 }
 
-export function Thumb({ path, className = "size-12" }: { path: string | null; className?: string }) {
+export function Thumb({
+  path,
+  className = "size-12",
+}: {
+  path: string | null;
+  className?: string;
+}) {
   const url = useSignedUrl(path);
   return url ? (
     <img src={url} alt="" className={`${className} rounded-md object-cover border border-border`} />
@@ -54,8 +61,8 @@ export function StageProgress({ job }: { job: EipJob }) {
     <div className="space-y-3">
       {job.status === "QUEUED" && (
         <p className="text-sm text-muted-foreground">
-          Queued — waiting for the EIP engine to pick up this job. Stages update as the engine reports
-          them.
+          Queued — waiting for the EIP engine to pick up this job. Stages update as the engine
+          reports them.
         </p>
       )}
       <ol className="space-y-2">
@@ -71,7 +78,15 @@ export function StageProgress({ job }: { job: EipJob }) {
               ) : (
                 <Circle className="size-4 text-muted-foreground/50 shrink-0" />
               )}
-              <span className={active ? "font-semibold text-foreground" : done ? "text-foreground" : "text-muted-foreground"}>
+              <span
+                className={
+                  active
+                    ? "font-semibold text-foreground"
+                    : done
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                }
+              >
                 {s}
               </span>
             </li>
@@ -85,8 +100,16 @@ export function StageProgress({ job }: { job: EipJob }) {
 const OUTCOME = {
   PASS: { icon: CheckCircle2, cls: "text-success", title: "EIP Protection Validated" },
   LIMITED: { icon: AlertTriangle, cls: "text-warning", title: "EIP Protection Limited" },
-  FAIL: { icon: XCircle, cls: "text-danger", title: "Image Did Not Meet EIP Protection Requirements" },
-  SYSTEM_ERROR: { icon: ServerCrash, cls: "text-muted-foreground", title: "EIP Processing Could Not Complete" },
+  FAIL: {
+    icon: XCircle,
+    cls: "text-danger",
+    title: "Image Did Not Meet EIP Protection Requirements",
+  },
+  SYSTEM_ERROR: {
+    icon: ServerCrash,
+    cls: "text-muted-foreground",
+    title: "EIP Processing Could Not Complete",
+  },
 } as const;
 
 export function JobResult({
@@ -104,8 +127,10 @@ export function JobResult({
 }) {
   const [showCert, setShowCert] = useState(false);
   const protectedUrl = useSignedUrl(job.protected_storage_path);
-  if (job.status === "QUEUED" || job.status === "PROCESSING") return <StageProgress job={job} />;
-  const o = OUTCOME[job.status];
+  if (isActive(job.status)) return <StageProgress job={job} />;
+  if (job.status === "CANCELLED")
+    return <p className="text-sm text-muted-foreground">Processing was cancelled.</p>;
+  const o = OUTCOME[job.status as keyof typeof OUTCOME];
   const initial = evaluations.find((e) => e.is_initial) ?? evaluations[0];
 
   return (
@@ -115,12 +140,13 @@ export function JobResult({
         <div className="min-w-0">
           <h3 className="font-display text-lg font-bold text-foreground">{o.title}</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            {job.status === "PASS" && "The protected image met all current EIP validation criteria."}
+            {job.status === "PASS" &&
+              "The protected image met all current EIP validation criteria."}
             {job.status === "LIMITED" &&
               "The image showed measurable protection but did not meet all full PASS criteria."}
             {job.status === "FAIL" && "The image did not meet the EIP protection requirements."}
             {job.status === "SYSTEM_ERROR" &&
-              "This is an operational failure, not a protection result. No evaluation was recorded."}
+              `${job.error_message ?? "EIP processing could not complete."} This is an operational failure, not a protection result.`}
           </p>
         </div>
       </div>
@@ -164,11 +190,12 @@ export function JobResult({
             View Technical Report
           </Button>
         )}
-        {(job.status === "PASS" || job.status === "LIMITED" || job.status === "FAIL") && onReevaluate && (
-          <Button variant="outline" onClick={onReevaluate}>
-            Re-evaluate
-          </Button>
-        )}
+        {(job.status === "PASS" || job.status === "LIMITED" || job.status === "FAIL") &&
+          onReevaluate && (
+            <Button variant="outline" onClick={onReevaluate}>
+              Re-evaluate
+            </Button>
+          )}
         {job.status === "FAIL" && onNew && <Button onClick={onNew}>Try Another Image</Button>}
         {job.status === "SYSTEM_ERROR" && (
           <>
@@ -248,7 +275,9 @@ function History({ evaluations }: { evaluations: EipEvaluation[] }) {
               {e.is_initial ? "Initial Evaluation" : `Evaluation ${e.evaluation_version}`}
             </span>
             <EipStatusBadge status={e.status} />
-            <span className="text-muted-foreground text-xs">{new Date(e.created_at).toLocaleString()}</span>
+            <span className="text-muted-foreground text-xs">
+              {new Date(e.created_at).toLocaleString()}
+            </span>
           </li>
         ))}
       </ul>

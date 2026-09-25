@@ -15,12 +15,23 @@ const STATE_CLS = {
 } as const;
 const ACCEPT = ["image/jpeg", "image/png", "image/webp"];
 
-export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob) => void; onCancel: () => void }) {
+export function ImmunizeWizard({
+  onCreated,
+  onCancel,
+}: {
+  onCreated: (j: EipJob) => void;
+  onCancel: () => void;
+}) {
   const { session } = useSession();
   const authz = useAuthorization();
   const qc = useQueryClient();
   const rec = (authz.state?.authorization ?? null) as { id: string; legal_name?: string } | null;
-  const authorized = !!rec && (authz.status === "authorized" || authz.status === "enterprise_authorized" || authz.state?.clientAuthorizationStatus === "signed" || authz.completed);
+  const authorized =
+    !!rec &&
+    (authz.status === "authorized" ||
+      authz.status === "enterprise_authorized" ||
+      authz.state?.clientAuthorizationStatus === "signed" ||
+      authz.completed);
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -43,7 +54,11 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
     const valid = ACCEPT.includes(file.type) && dims.w > 0;
     const minSide = Math.min(dims.w, dims.h);
     return [
-      { label: "Image", state: valid ? "READY" : "BLOCKED", note: valid ? file.type : "Invalid image" },
+      {
+        label: "Image",
+        state: valid ? "READY" : "BLOCKED",
+        note: valid ? file.type : "Invalid image",
+      },
       {
         label: "Resolution",
         state: !valid ? "BLOCKED" : minSide < 512 ? "WARNING" : "READY",
@@ -75,7 +90,9 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
       const hash = await sha256Hex(file);
       const ext = file.name.split(".").pop() ?? "img";
       const path = `${session.user.id}/${crypto.randomUUID()}.${ext}`;
-      const up = await eipDb.storage.from("eip-uploads").upload(path, file, { contentType: file.type });
+      const up = await eipDb.storage
+        .from("eip-uploads")
+        .upload(path, file, { contentType: file.type });
       if (up.error) throw up.error;
       const { data, error } = await eipDb
         .from("eip_jobs")
@@ -138,8 +155,12 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
             </p>
           )}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onCancel}>Cancel</Button>
-            <Button disabled={!authorized} onClick={() => setStep(2)}>Continue</Button>
+            <Button variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button disabled={!authorized} onClick={() => setStep(2)}>
+              Continue
+            </Button>
           </div>
         </section>
       )}
@@ -149,7 +170,9 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
           <h3 className="font-display text-lg font-bold">Upload Image</h3>
           <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card p-8 text-center cursor-pointer hover:border-primary/40 transition">
             <UploadCloud className="size-7 text-primary" />
-            <span className="text-sm text-foreground">Upload the image you intend to publish or distribute.</span>
+            <span className="text-sm text-foreground">
+              Upload the image you intend to publish or distribute.
+            </span>
             <span className="text-xs text-muted-foreground">JPEG, PNG or WebP · up to 25 MB</span>
             <input
               type="file"
@@ -165,18 +188,27 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
           </label>
           {file && preview && (
             <div className="flex items-center gap-4">
-              <img src={preview} alt="" className="size-24 rounded-lg object-cover border border-border" />
+              <img
+                src={preview}
+                alt=""
+                className="size-24 rounded-lg object-cover border border-border"
+              />
               <div className="text-sm min-w-0">
                 <div className="font-medium truncate">{file.name}</div>
                 <div className="text-muted-foreground">
-                  {dims ? `${dims.w} × ${dims.h}` : "Reading…"} · {(file.size / 1024 / 1024).toFixed(2)} MB
+                  {dims ? `${dims.w} × ${dims.h}` : "Reading…"} ·{" "}
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
                 </div>
               </div>
             </div>
           )}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-            <Button disabled={!file || !dims} onClick={() => setStep(3)}>Run preflight</Button>
+            <Button variant="outline" onClick={() => setStep(1)}>
+              Back
+            </Button>
+            <Button disabled={!file || !dims} onClick={() => setStep(3)}>
+              Run preflight
+            </Button>
           </div>
         </section>
       )}
@@ -186,12 +218,17 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
           <h3 className="font-display text-lg font-bold">Preflight Check</h3>
           <ul className="space-y-2">
             {checks.map((c) => (
-              <li key={c.label} className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+              <li
+                key={c.label}
+                className="flex items-start justify-between gap-3 rounded-lg border border-border p-3"
+              >
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{c.label}</div>
                   <div className="text-xs text-muted-foreground break-words">{c.note}</div>
                 </div>
-                <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${STATE_CLS[c.state]}`}>
+                <span
+                  className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${STATE_CLS[c.state]}`}
+                >
                   {c.state}
                 </span>
               </li>
@@ -201,8 +238,12 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
             {blocked ? "Blocked — resolve the items above" : "Ready for EIP"}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-            <Button disabled={blocked} onClick={() => setStep(4)}>Continue</Button>
+            <Button variant="outline" onClick={() => setStep(2)}>
+              Back
+            </Button>
+            <Button disabled={blocked} onClick={() => setStep(4)}>
+              Continue
+            </Button>
           </div>
         </section>
       )}
@@ -221,12 +262,16 @@ export function ImmunizeWizard({ onCreated, onCancel }: { onCreated: (j: EipJob)
             <dd>Assigned by the EIP engine when processing starts</dd>
           </dl>
           <p className="text-xs text-muted-foreground">
-            Your image is stored privately in your account and processed only for Image Immunization. It is never
-            shared or published by Eterna.
+            Your image is stored privately in your account and processed only for Image
+            Immunization. It is never shared or published by Eterna.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
-            <Button disabled={busy} onClick={start}>{busy ? "Starting…" : "Start Immunization"}</Button>
+            <Button variant="outline" onClick={() => setStep(3)}>
+              Back
+            </Button>
+            <Button disabled={busy} onClick={start}>
+              {busy ? "Starting…" : "Start Immunization"}
+            </Button>
           </div>
         </section>
       )}

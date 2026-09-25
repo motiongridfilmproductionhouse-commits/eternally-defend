@@ -129,6 +129,7 @@ import { Route as ApiPublicHooksProtectionActivationRepairRouteImport } from './
 import { Route as ApiPublicHooksProspectScanWorkerRouteImport } from './routes/api/public/hooks/prospect-scan-worker'
 import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
 import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
+import { Route as ApiPublicHooksEipWorkerRouteImport } from './routes/api/public/hooks/eip-worker'
 import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
 import { Route as ApiPublicHooksDeepfakeScanExecuteRouteImport } from './routes/api/public/hooks/deepfake-scan-execute'
 import { Route as ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport } from './routes/api/public/hooks/deepfake-manual-evidence-execute'
@@ -791,6 +792,11 @@ const ApiPublicHooksEnforcementWorkerRoute =
     path: '/api/public/hooks/enforcement-worker',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksEipWorkerRoute = ApiPublicHooksEipWorkerRouteImport.update({
+  id: '/api/public/hooks/eip-worker',
+  path: '/api/public/hooks/eip-worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksDistributionMonitorRoute =
   ApiPublicHooksDistributionMonitorRouteImport.update({
     id: '/api/public/hooks/distribution-monitor',
@@ -985,6 +991,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/eip-worker': typeof ApiPublicHooksEipWorkerRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/prospect-scan-worker': typeof ApiPublicHooksProspectScanWorkerRoute
@@ -1115,6 +1122,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/eip-worker': typeof ApiPublicHooksEipWorkerRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/prospect-scan-worker': typeof ApiPublicHooksProspectScanWorkerRoute
@@ -1250,6 +1258,7 @@ export interface FileRoutesById {
   '/api/public/hooks/deepfake-manual-evidence-execute': typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   '/api/public/hooks/deepfake-scan-execute': typeof ApiPublicHooksDeepfakeScanExecuteRoute
   '/api/public/hooks/distribution-monitor': typeof ApiPublicHooksDistributionMonitorRoute
+  '/api/public/hooks/eip-worker': typeof ApiPublicHooksEipWorkerRoute
   '/api/public/hooks/enforcement-worker': typeof ApiPublicHooksEnforcementWorkerRoute
   '/api/public/hooks/postmark-webhook': typeof ApiPublicHooksPostmarkWebhookRoute
   '/api/public/hooks/prospect-scan-worker': typeof ApiPublicHooksProspectScanWorkerRoute
@@ -1384,6 +1393,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/deepfake-manual-evidence-execute'
     | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/eip-worker'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/prospect-scan-worker'
@@ -1514,6 +1524,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/deepfake-manual-evidence-execute'
     | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/eip-worker'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/prospect-scan-worker'
@@ -1648,6 +1659,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/deepfake-manual-evidence-execute'
     | '/api/public/hooks/deepfake-scan-execute'
     | '/api/public/hooks/distribution-monitor'
+    | '/api/public/hooks/eip-worker'
     | '/api/public/hooks/enforcement-worker'
     | '/api/public/hooks/postmark-webhook'
     | '/api/public/hooks/prospect-scan-worker'
@@ -1735,6 +1747,7 @@ export interface RootRouteChildren {
   ApiPublicHooksDeepfakeManualEvidenceExecuteRoute: typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRoute
   ApiPublicHooksDeepfakeScanExecuteRoute: typeof ApiPublicHooksDeepfakeScanExecuteRoute
   ApiPublicHooksDistributionMonitorRoute: typeof ApiPublicHooksDistributionMonitorRoute
+  ApiPublicHooksEipWorkerRoute: typeof ApiPublicHooksEipWorkerRoute
   ApiPublicHooksEnforcementWorkerRoute: typeof ApiPublicHooksEnforcementWorkerRoute
   ApiPublicHooksPostmarkWebhookRoute: typeof ApiPublicHooksPostmarkWebhookRoute
   ApiPublicHooksProspectScanWorkerRoute: typeof ApiPublicHooksProspectScanWorkerRoute
@@ -2588,6 +2601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksEnforcementWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/eip-worker': {
+      id: '/api/public/hooks/eip-worker'
+      path: '/api/public/hooks/eip-worker'
+      fullPath: '/api/public/hooks/eip-worker'
+      preLoaderRoute: typeof ApiPublicHooksEipWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/distribution-monitor': {
       id: '/api/public/hooks/distribution-monitor'
       path: '/api/public/hooks/distribution-monitor'
@@ -2924,6 +2944,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksDeepfakeScanExecuteRoute,
   ApiPublicHooksDistributionMonitorRoute:
     ApiPublicHooksDistributionMonitorRoute,
+  ApiPublicHooksEipWorkerRoute: ApiPublicHooksEipWorkerRoute,
   ApiPublicHooksEnforcementWorkerRoute: ApiPublicHooksEnforcementWorkerRoute,
   ApiPublicHooksPostmarkWebhookRoute: ApiPublicHooksPostmarkWebhookRoute,
   ApiPublicHooksProspectScanWorkerRoute: ApiPublicHooksProspectScanWorkerRoute,
@@ -2941,13 +2962,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
