@@ -107,6 +107,7 @@ import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes
 import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
 import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
 import { Route as AppProtectionSourcesRouteImport } from './routes/_app.protection.sources'
+import { Route as AppDashboardImageImmunizationRouteImport } from './routes/_app.dashboard_.image-immunization'
 import { Route as AppAdminWaitlistRouteImport } from './routes/_app.admin.waitlist'
 import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
 import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.removal-routes'
@@ -115,6 +116,7 @@ import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.adm
 import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
 import { Route as AppAdminInvitesRouteImport } from './routes/_app.admin.invites'
 import { Route as AppAdminIdentityReviewRouteImport } from './routes/_app.admin.identity-review'
+import { Route as AppAdminEipRouteImport } from './routes/_app.admin.eip'
 import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppAdminApprovedSourcesReviewRouteImport } from './routes/_app.admin.approved-sources-review'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
@@ -663,6 +665,12 @@ const AppProtectionSourcesRoute = AppProtectionSourcesRouteImport.update({
   path: '/protection/sources',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDashboardImageImmunizationRoute =
+  AppDashboardImageImmunizationRouteImport.update({
+    id: '/dashboard_/image-immunization',
+    path: '/dashboard/image-immunization',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppAdminWaitlistRoute = AppAdminWaitlistRouteImport.update({
   id: '/admin/waitlist',
   path: '/admin/waitlist',
@@ -705,6 +713,11 @@ const AppAdminInvitesRoute = AppAdminInvitesRouteImport.update({
 const AppAdminIdentityReviewRoute = AppAdminIdentityReviewRouteImport.update({
   id: '/admin/identity-review',
   path: '/admin/identity-review',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminEipRoute = AppAdminEipRouteImport.update({
+  id: '/admin/eip',
+  path: '/admin/eip',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminDiagnosticsRoute = AppAdminDiagnosticsRouteImport.update({
@@ -934,6 +947,7 @@ export interface FileRoutesByFullPath {
   '/staff/': typeof StaffIndexRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
+  '/admin/eip': typeof AppAdminEipRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
   '/admin/invites': typeof AppAdminInvitesRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
@@ -942,6 +956,7 @@ export interface FileRoutesByFullPath {
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/admin/waitlist': typeof AppAdminWaitlistRoute
+  '/dashboard/image-immunization': typeof AppDashboardImageImmunizationRoute
   '/protection/sources': typeof AppProtectionSourcesRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
@@ -1062,6 +1077,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/admin/diagnostics': typeof AppAdminDiagnosticsRoute
+  '/admin/eip': typeof AppAdminEipRoute
   '/admin/identity-review': typeof AppAdminIdentityReviewRoute
   '/admin/invites': typeof AppAdminInvitesRoute
   '/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
@@ -1070,6 +1086,7 @@ export interface FileRoutesByTo {
   '/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/admin/waitlist': typeof AppAdminWaitlistRoute
+  '/dashboard/image-immunization': typeof AppDashboardImageImmunizationRoute
   '/protection/sources': typeof AppProtectionSourcesRoute
   '/reports/$reportId': typeof AppReportsReportIdRoute
   '/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
@@ -1195,6 +1212,7 @@ export interface FileRoutesById {
   '/staff/': typeof StaffIndexRoute
   '/_app/admin/approved-sources-review': typeof AppAdminApprovedSourcesReviewRoute
   '/_app/admin/diagnostics': typeof AppAdminDiagnosticsRoute
+  '/_app/admin/eip': typeof AppAdminEipRoute
   '/_app/admin/identity-review': typeof AppAdminIdentityReviewRoute
   '/_app/admin/invites': typeof AppAdminInvitesRoute
   '/_app/admin/multimedia-health': typeof AppAdminMultimediaHealthRoute
@@ -1203,6 +1221,7 @@ export interface FileRoutesById {
   '/_app/admin/removal-routes': typeof AppAdminRemovalRoutesRoute
   '/_app/admin/sensitive-protection': typeof AppAdminSensitiveProtectionRoute
   '/_app/admin/waitlist': typeof AppAdminWaitlistRoute
+  '/_app/dashboard_/image-immunization': typeof AppDashboardImageImmunizationRoute
   '/_app/protection/sources': typeof AppProtectionSourcesRoute
   '/_app/reports/$reportId': typeof AppReportsReportIdRoute
   '/_app/sensitive-protection/emergency': typeof AppSensitiveProtectionEmergencyRoute
@@ -1327,6 +1346,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
+    | '/admin/eip'
     | '/admin/identity-review'
     | '/admin/invites'
     | '/admin/multimedia-health'
@@ -1335,6 +1355,7 @@ export interface FileRouteTypes {
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
     | '/admin/waitlist'
+    | '/dashboard/image-immunization'
     | '/protection/sources'
     | '/reports/$reportId'
     | '/sensitive-protection/emergency'
@@ -1455,6 +1476,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/admin/approved-sources-review'
     | '/admin/diagnostics'
+    | '/admin/eip'
     | '/admin/identity-review'
     | '/admin/invites'
     | '/admin/multimedia-health'
@@ -1463,6 +1485,7 @@ export interface FileRouteTypes {
     | '/admin/removal-routes'
     | '/admin/sensitive-protection'
     | '/admin/waitlist'
+    | '/dashboard/image-immunization'
     | '/protection/sources'
     | '/reports/$reportId'
     | '/sensitive-protection/emergency'
@@ -1587,6 +1610,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/_app/admin/approved-sources-review'
     | '/_app/admin/diagnostics'
+    | '/_app/admin/eip'
     | '/_app/admin/identity-review'
     | '/_app/admin/invites'
     | '/_app/admin/multimedia-health'
@@ -1595,6 +1619,7 @@ export interface FileRouteTypes {
     | '/_app/admin/removal-routes'
     | '/_app/admin/sensitive-protection'
     | '/_app/admin/waitlist'
+    | '/_app/dashboard_/image-immunization'
     | '/_app/protection/sources'
     | '/_app/reports/$reportId'
     | '/_app/sensitive-protection/emergency'
@@ -2409,6 +2434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProtectionSourcesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/dashboard_/image-immunization': {
+      id: '/_app/dashboard_/image-immunization'
+      path: '/dashboard/image-immunization'
+      fullPath: '/dashboard/image-immunization'
+      preLoaderRoute: typeof AppDashboardImageImmunizationRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/waitlist': {
       id: '/_app/admin/waitlist'
       path: '/admin/waitlist'
@@ -2463,6 +2495,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/identity-review'
       fullPath: '/admin/identity-review'
       preLoaderRoute: typeof AppAdminIdentityReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/eip': {
+      id: '/_app/admin/eip'
+      path: '/admin/eip'
+      fullPath: '/admin/eip'
+      preLoaderRoute: typeof AppAdminEipRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/diagnostics': {
@@ -2672,6 +2711,7 @@ interface AppRouteChildren {
   AppYoutubeRemovalRoute: typeof AppYoutubeRemovalRoute
   AppAdminApprovedSourcesReviewRoute: typeof AppAdminApprovedSourcesReviewRoute
   AppAdminDiagnosticsRoute: typeof AppAdminDiagnosticsRoute
+  AppAdminEipRoute: typeof AppAdminEipRoute
   AppAdminIdentityReviewRoute: typeof AppAdminIdentityReviewRoute
   AppAdminInvitesRoute: typeof AppAdminInvitesRoute
   AppAdminMultimediaHealthRoute: typeof AppAdminMultimediaHealthRoute
@@ -2680,6 +2720,7 @@ interface AppRouteChildren {
   AppAdminRemovalRoutesRoute: typeof AppAdminRemovalRoutesRoute
   AppAdminSensitiveProtectionRoute: typeof AppAdminSensitiveProtectionRoute
   AppAdminWaitlistRoute: typeof AppAdminWaitlistRoute
+  AppDashboardImageImmunizationRoute: typeof AppDashboardImageImmunizationRoute
   AppProtectionSourcesRoute: typeof AppProtectionSourcesRoute
   AppSensitiveProtectionEmergencyRoute: typeof AppSensitiveProtectionEmergencyRoute
   AppSensitiveProtectionRemovalCasesRoute: typeof AppSensitiveProtectionRemovalCasesRoute
@@ -2712,6 +2753,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppYoutubeRemovalRoute: AppYoutubeRemovalRoute,
   AppAdminApprovedSourcesReviewRoute: AppAdminApprovedSourcesReviewRoute,
   AppAdminDiagnosticsRoute: AppAdminDiagnosticsRoute,
+  AppAdminEipRoute: AppAdminEipRoute,
   AppAdminIdentityReviewRoute: AppAdminIdentityReviewRoute,
   AppAdminInvitesRoute: AppAdminInvitesRoute,
   AppAdminMultimediaHealthRoute: AppAdminMultimediaHealthRoute,
@@ -2720,6 +2762,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminRemovalRoutesRoute: AppAdminRemovalRoutesRoute,
   AppAdminSensitiveProtectionRoute: AppAdminSensitiveProtectionRoute,
   AppAdminWaitlistRoute: AppAdminWaitlistRoute,
+  AppDashboardImageImmunizationRoute: AppDashboardImageImmunizationRoute,
   AppProtectionSourcesRoute: AppProtectionSourcesRoute,
   AppSensitiveProtectionEmergencyRoute: AppSensitiveProtectionEmergencyRoute,
   AppSensitiveProtectionRemovalCasesRoute:
