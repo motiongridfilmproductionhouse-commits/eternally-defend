@@ -109,6 +109,8 @@ export function ImmunizeWizard({
 
   async function start() {
     if (!file || !dims || !session || !rec) return;
+    if (startLock.current) return;
+    startLock.current = true;
     setBusy(true);
     try {
       const hash = await sha256Hex(file);
@@ -139,6 +141,7 @@ export function ImmunizeWizard({
       onCreated(data as EipJob, file);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start immunization");
+      startLock.current = false;
     } finally {
       setBusy(false);
     }
