@@ -4168,6 +4168,190 @@ export type Database = {
         }
         Relationships: []
       }
+      eip_account_access: {
+        Row: {
+          enabled: boolean
+          requested_at: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          requested_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          requested_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      eip_evaluations: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          evaluation_version: string
+          id: string
+          identity_evaluation: string | null
+          is_initial: boolean
+          job_id: string
+          reason_codes: string[]
+          status: string
+          transformation_robustness: string | null
+          visual_quality: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          evaluation_version: string
+          id?: string
+          identity_evaluation?: string | null
+          is_initial?: boolean
+          job_id: string
+          reason_codes?: string[]
+          status: string
+          transformation_robustness?: string | null
+          visual_quality?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          evaluation_version?: string
+          id?: string
+          identity_evaluation?: string | null
+          is_initial?: boolean
+          job_id?: string
+          reason_codes?: string[]
+          status?: string
+          transformation_robustness?: string | null
+          visual_quality?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eip_evaluations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "eip_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eip_jobs: {
+        Row: {
+          authorization_ref: string
+          authorized_identity: string | null
+          certificate_id: string | null
+          completed_at: string | null
+          config_sha256: string | null
+          created_at: string
+          current_stage: string | null
+          engine_version: string | null
+          error_message: string | null
+          height: number | null
+          id: string
+          image_name: string
+          mime_type: string
+          original_sha256: string
+          protected_sha256: string | null
+          protected_storage_path: string | null
+          reason_codes: string[]
+          size_bytes: number | null
+          started_at: string | null
+          status: string
+          storage_path: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          authorization_ref: string
+          authorized_identity?: string | null
+          certificate_id?: string | null
+          completed_at?: string | null
+          config_sha256?: string | null
+          created_at?: string
+          current_stage?: string | null
+          engine_version?: string | null
+          error_message?: string | null
+          height?: number | null
+          id?: string
+          image_name: string
+          mime_type: string
+          original_sha256: string
+          protected_sha256?: string | null
+          protected_storage_path?: string | null
+          reason_codes?: string[]
+          size_bytes?: number | null
+          started_at?: string | null
+          status?: string
+          storage_path: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          authorization_ref?: string
+          authorized_identity?: string | null
+          certificate_id?: string | null
+          completed_at?: string | null
+          config_sha256?: string | null
+          created_at?: string
+          current_stage?: string | null
+          engine_version?: string | null
+          error_message?: string | null
+          height?: number | null
+          id?: string
+          image_name?: string
+          mime_type?: string
+          original_sha256?: string
+          protected_sha256?: string | null
+          protected_storage_path?: string | null
+          reason_codes?: string[]
+          size_bytes?: number | null
+          started_at?: string | null
+          status?: string
+          storage_path?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
+      eip_reevaluation_requests: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          requested_by: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          requested_by: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          requested_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eip_reevaluation_requests_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "eip_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enforcement_actions: {
         Row: {
           action_type: string
@@ -11290,6 +11474,7 @@ export type Database = {
           invite_id: string
         }[]
       }
+      eip_enabled: { Args: { _uid: string }; Returns: boolean }
       get_public_verification: {
         Args: { _slug: string }
         Returns: {
