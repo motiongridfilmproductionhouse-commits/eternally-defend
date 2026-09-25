@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
+  Fingerprint,
   Waypoints,
   KeyRound,
   LayoutDashboard,
@@ -76,6 +77,7 @@ const mainNav: NavItem[] = [
   { icon: Copyright, label: "Copyright Intelligence", to: "/copyright-intel", badge: "NEW" },
   { icon: Megaphone, label: "Campaign Protection", to: "/campaigns" },
   { icon: ShieldCheck, label: "Enforcement", to: "/enforcement" },
+  { icon: Fingerprint, label: "Image Immunization", to: "/dashboard/image-immunization", badge: "EIP" },
   { icon: Briefcase, label: "Cases", to: "/cases" },
   { icon: Trash2, label: "Removal Center", to: "/removals" },
   { icon: Archive, label: "Evidence Vault", to: "/evidence-vault" },
@@ -93,6 +95,7 @@ const adminSystemNav: NavItem[] = [
   { icon: HeartPulse, label: "MM Health", to: "/admin/multimedia-health", badge: "ADMIN" },
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
   { icon: Waypoints, label: "Removal Routes", to: "/admin/removal-routes", badge: "ADMIN" },
+  { icon: Fingerprint, label: "EIP Operations", to: "/admin/eip", badge: "ADMIN" },
   { icon: KeyRound, label: "Invitation Codes", to: "/admin/invites", badge: "ADMIN" },
   { icon: KeyRound, label: "Agent Assessments", to: "/agent-admin", badge: "ADMIN" },
   { icon: MailCheck, label: "Waitlist Review", to: "/admin/waitlist", badge: "ADMIN" },

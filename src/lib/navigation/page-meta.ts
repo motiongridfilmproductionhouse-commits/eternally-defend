@@ -15,6 +15,10 @@ export const PAGE_META: Record<string, PageMeta> = {
     title: "Eterna Command Center",
     sub: "Mission control for digital reputation protection",
   },
+  "/dashboard/image-immunization": {
+    title: "Image Immunization",
+    sub: "Pre-publication identity protection for authorized images",
+  },
   "/onboarding": {
     title: "Verification & Authorization",
     sub: "Identity, assets and legal authorization",
@@ -69,6 +73,7 @@ export const PAGE_META: Record<string, PageMeta> = {
   "/reports": { title: "Reports", sub: "Exportable protection and enforcement reports" },
   "/settings": { title: "Settings", sub: "Account, plan, security and preferences" },
   "/notifications": { title: "Notifications", sub: "Alerts, mentions and system messages" },
+  "/admin/eip": { title: "EIP Operations", sub: "Image Immunization jobs, results and account access" },
   "/admin": { title: "Admin Console", sub: "Platform operations and provider health" },
   "/partner": { title: "Partner Portal", sub: "Clients, proposals and commissions" },
 };

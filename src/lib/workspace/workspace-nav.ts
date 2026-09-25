@@ -28,6 +28,7 @@ export const CELEBRITY_NAV_ROUTES = [
   "/scan",
   "/face-protection",
   "/campaigns",
+  "/dashboard/image-immunization",
   "/notifications",
   "/evidence-vault",
   "/settings",
