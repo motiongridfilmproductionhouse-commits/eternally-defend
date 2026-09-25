@@ -1,10 +1,22 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lock } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  Clock3,
+  FileImage,
+  Fingerprint,
+  Image as ImageIcon,
+  Lock,
+  RefreshCw,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PageCard, StatCard } from "@/components/dashboard/PageCard";
 import { useSession } from "@/hooks/use-session";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import {
@@ -83,23 +95,6 @@ export function EipWorkspace() {
 
   if (access.loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
 
-  const header = (
-    <div className="max-w-3xl">
-      <div className="text-[10px] tracking-[0.25em] font-semibold text-primary uppercase">
-        Eterna EIP
-      </div>
-      <h2 className="font-display text-2xl font-bold mt-1">Image Immunization</h2>
-      <p className="text-sm text-foreground mt-1">
-        Pre-publication identity protection for authorized images.
-      </p>
-      <p className="text-sm text-muted-foreground mt-2">
-        Prepare authorized images before publication using Eterna Image Immunization, then validate
-        visual quality, transformation robustness and identity-protection performance before the
-        protected asset is released.
-      </p>
-    </div>
-  );
-
   if (!access.enabled) {
     const request = async () => {
       const { error } = await eipDb.from("eip_account_access").upsert({
@@ -112,17 +107,20 @@ export function EipWorkspace() {
       qc.invalidateQueries({ queryKey: ["eip-access"] });
     };
     return (
-      <div className="space-y-6">
-        {header}
-        <PageCard>
-          <div className="flex flex-col items-center text-center py-8 gap-3">
-            <Lock className="size-7 text-muted-foreground" />
-            <p className="font-medium">Image Immunization is not enabled for this account.</p>
-            <Button onClick={request} disabled={access.requested}>
-              {access.requested ? "Access requested" : "Request Access"}
-            </Button>
+      <div className="eip-dashboard">
+        <section className="eip-locked-panel">
+          <div className="eip-locked-icon">
+            <Lock className="size-7" />
           </div>
-        </PageCard>
+          <div>
+            <p className="eip-kicker">Eterna EIP</p>
+            <h2>Image Immunization</h2>
+            <p>Image Immunization is not enabled for this account.</p>
+          </div>
+          <Button onClick={request} disabled={access.requested}>
+            {access.requested ? "Access requested" : "Request Access"}
+          </Button>
+        </section>
       </div>
     );
   }
@@ -131,6 +129,8 @@ export function EipWorkspace() {
   const evals = data.data?.evaluations ?? [];
   const s = summarize(jobs, evals);
   const current = openJob ? (jobs.find((j) => j.id === openJob.id) ?? openJob) : null;
+  const latest = jobs[0] ?? null;
+  const activeJob = jobs.find((j) => isActive(j.status)) ?? null;
   const reeval = async (job: EipJob) => {
     const { error } = await eipDb
       .from("eip_reevaluation_requests")
@@ -139,63 +139,122 @@ export function EipWorkspace() {
     toast.success("Re-evaluation requested. The original result is preserved.");
   };
 
+  const metrics = [
+    { label: "Protected Images", value: s.protected, icon: ShieldCheck, tone: "success" },
+    { label: "Processing", value: s.processing, icon: Activity, tone: "primary" },
+    { label: "Limited", value: s.limited, icon: Shield, tone: "warning" },
+    { label: "Re-evaluation Needed", value: s.needsReeval, icon: RefreshCw, tone: "muted" },
+  ] as const;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        {header}
-        <div className="flex gap-2 shrink-0">
-          <Button onClick={() => setWizard(true)}>Immunize New Image</Button>
-          <Button variant="outline" onClick={() => setTab("assets")}>
-            View Protected Assets
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Protected Images" value={s.protected} />
-        <StatCard label="Processing" value={s.processing} />
-        <StatCard label="Limited" value={s.limited} accent="#D99A1E" />
-        <StatCard label="Re-evaluation Needed" value={s.needsReeval} accent="#64748B" />
-      </div>
-
-      <div className="flex gap-1 border-b border-border">
-        {(["overview", "assets"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm -mb-px border-b-2 ${tab === t ? "border-primary text-foreground font-semibold" : "border-transparent text-muted-foreground"}`}
-          >
-            {t === "overview" ? "Overview" : "Protected Assets"}
-          </button>
-        ))}
-      </div>
-
-      {tab === "overview" ? (
-        <PageCard title="Recent jobs">
-          {jobs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No images have been submitted for immunization yet.
+    <div className="eip-dashboard">
+      <section className="eip-hero-grid" aria-labelledby="eip-page-title">
+        <div className="eip-identity-hero">
+          <div className="eip-dot-field" aria-hidden />
+          <EipIdentityVisual protectedCount={s.protected} processingCount={s.processing} />
+          <div className="eip-hero-copy">
+            <p className="eip-kicker">Eterna EIP</p>
+            <h2 id="eip-page-title">Image Immunization</h2>
+            <p className="eip-hero-lead">Pre-publication identity protection for authorized images.</p>
+            <p className="eip-hero-support">
+              Prepare authorized images before publication using Eterna Image Immunization, then
+              validate visual quality, transformation robustness and identity-protection performance
+              before the protected asset is released.
             </p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {jobs.slice(0, 5).map((j) => (
-                <li key={j.id} className="flex items-center gap-3 py-3">
-                  <Thumb path={j.storage_path} />
-                  <button className="min-w-0 flex-1 text-left" onClick={() => openAny(j)}>
-                    <div className="text-sm font-medium truncate">{j.image_name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {j.current_stage ?? new Date(j.created_at).toLocaleString()}
-                    </div>
-                  </button>
-                  <EipStatusBadge status={j.status} />
+            <div className="eip-hero-actions">
+              <Button className="eip-primary-action" onClick={() => setWizard(true)}>
+                <Sparkles className="size-4" />
+                Immunize New Image
+              </Button>
+              <Button className="eip-secondary-action" variant="outline" onClick={() => setTab("assets")}>
+                <FileImage className="size-4" />
+                View Protected Assets
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <aside className="eip-right-stack" aria-label="Image Immunization status">
+          <div className="eip-signal-panel">
+            <div className="eip-signal-panel__head">
+              <div>
+                <p className="eip-panel-label">Protection readiness</p>
+                <strong>{activeJob ? "Active path" : latest ? "Recent path" : "Ready"}</strong>
+              </div>
+              <span>{activeJob?.status ?? latest?.status ?? "IDLE"}</span>
+            </div>
+            <EipSignalGraph active={!!activeJob} />
+            <div className="eip-signal-readout">
+              <div>
+                <span>{s.processing}</span>
+                <small>Processing</small>
+              </div>
+              <div>
+                <span>{s.protected}</span>
+                <small>Validated</small>
+              </div>
+            </div>
+          </div>
+
+          <div className="eip-path-panel">
+            <div className="eip-path-card eip-path-card--active">
+              <div>
+                <p className="eip-panel-label">Today</p>
+                <strong>Active path</strong>
+              </div>
+              <Fingerprint className="size-5" />
+            </div>
+            <ol className="eip-path-list">
+              {[
+                { label: "Authorization", value: "Verified", active: false },
+                { label: "Engine queue", value: `${s.processing} active`, active: !!activeJob },
+                { label: "Latest stage", value: activeJob?.current_stage ?? "Waiting", active: !!activeJob },
+              ].map((item) => (
+                <li key={item.label} className={item.active ? "is-active" : ""}>
+                  <span />
+                  <div>
+                    <strong>{item.label}</strong>
+                    <small>{item.value}</small>
+                  </div>
                 </li>
               ))}
-            </ul>
+            </ol>
+          </div>
+        </aside>
+      </section>
+
+      <section className="eip-metric-grid" aria-label="Image Immunization summary">
+        {metrics.map((m) => (
+          <EipMetricCard key={m.label} {...m} />
+        ))}
+      </section>
+
+      <section className="eip-work-grid">
+        <div className="eip-work-panel">
+          <div className="eip-tabs" role="tablist" aria-label="Image Immunization views">
+            {(["overview", "assets"] as const).map((t) => (
+              <Button
+                key={t}
+                type="button"
+                variant="ghost"
+                size="sm"
+                role="tab"
+                aria-selected={tab === t}
+                className={`eip-tab ${tab === t ? "is-active" : ""}`}
+                onClick={() => setTab(t)}
+              >
+                {t === "overview" ? "Overview" : "Protected Assets"}
+              </Button>
+            ))}
+          </div>
+
+          {tab === "overview" ? (
+            <RecentJobsPanel jobs={jobs} onOpen={openAny} />
+          ) : (
+            <AssetsTable jobs={jobs} onOpen={openAny} onReeval={reeval} />
           )}
-        </PageCard>
-      ) : (
-        <AssetsTable jobs={jobs} onOpen={openAny} onReeval={reeval} />
-      )}
+        </div>
+      </section>
 
       <Dialog open={wizard} onOpenChange={setWizard}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -246,6 +305,121 @@ export function EipWorkspace() {
   );
 }
 
+function EipIdentityVisual({
+  protectedCount,
+  processingCount,
+}: {
+  protectedCount: number;
+  processingCount: number;
+}) {
+  return (
+    <div className="eip-identity-visual" aria-hidden="true">
+      <div className="eip-head-silhouette">
+        <span className="eip-scan-orbit eip-scan-orbit--one" />
+        <span className="eip-scan-orbit eip-scan-orbit--two" />
+        <span className="eip-scan-line" />
+      </div>
+      <div className="eip-floating-note eip-floating-note--left">
+        <span>{protectedCount}</span>
+        <small>Protected</small>
+      </div>
+      <div className="eip-floating-note eip-floating-note--right">
+        <span>{processingCount}</span>
+        <small>Processing</small>
+      </div>
+      <div className="eip-mini-control">
+        <div>
+          <strong>Set protection path</strong>
+          <span>Visual quality</span>
+        </div>
+        <div className="eip-mini-bars">
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EipSignalGraph({ active }: { active: boolean }) {
+  return (
+    <div className="eip-signal-graph" aria-hidden="true">
+      <svg viewBox="0 0 420 250" role="presentation">
+        <path className="eip-graph-grid" d="M45 45H380M45 105H380M45 165H380M45 225H380M95 25V225M170 25V225M245 25V225M320 25V225" />
+        <path className="eip-graph-fill" d="M45 212 C150 198 250 208 320 82 C348 34 367 26 380 24 L380 225 L45 225 Z" />
+        <path className="eip-graph-line eip-graph-line--soft" d="M45 205 C145 192 244 198 316 96 C344 54 360 43 379 37" />
+        <path className="eip-graph-line" d="M45 214 C143 202 248 209 324 78 C350 35 365 28 380 25" />
+        <circle cx="170" cy="105" r="4" />
+        <circle cx="320" cy="82" r="4" />
+        <circle className={active ? "is-live" : ""} cx="380" cy="25" r="5" />
+      </svg>
+      <span className="eip-graph-chip eip-graph-chip--one">Visual quality</span>
+      <span className="eip-graph-chip eip-graph-chip--two">Identity guard</span>
+    </div>
+  );
+}
+
+function EipMetricCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  tone: "success" | "primary" | "warning" | "muted";
+}) {
+  return (
+    <article className={`eip-metric-card is-${tone}`}>
+      <div className="eip-metric-card__label">{label}</div>
+      <div className="eip-metric-card__body">
+        <strong>{value}</strong>
+        <span>
+          <Icon className="size-5" />
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function RecentJobsPanel({ jobs, onOpen }: { jobs: EipJob[]; onOpen: (j: EipJob) => void }) {
+  return (
+    <div className="eip-jobs-panel">
+      <div className="eip-panel-heading">
+        <div>
+          <p className="eip-panel-label">Recent jobs</p>
+          <h3>Processing history</h3>
+        </div>
+        <Clock3 className="size-5" />
+      </div>
+      {jobs.length === 0 ? (
+        <div className="eip-empty-state">
+          <ImageIcon className="size-7" />
+          <p>No images have been submitted for immunization yet.</p>
+        </div>
+      ) : (
+        <ul className="eip-job-list">
+          {jobs.slice(0, 5).map((j) => (
+            <li key={j.id}>
+              <Button variant="ghost" className="eip-job-row" onClick={() => onOpen(j)}>
+                <Thumb path={j.storage_path} className="eip-job-thumb" />
+                <span className="eip-job-meta">
+                  <strong>{j.image_name}</strong>
+                  <small>{j.current_stage ?? new Date(j.created_at).toLocaleString()}</small>
+                </span>
+                <EipStatusBadge status={j.status} />
+                <ArrowRight className="eip-job-arrow size-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function AssetsTable({
   jobs,
   onOpen,
@@ -258,11 +432,20 @@ export function AssetsTable({
   showClient?: boolean;
 }) {
   return (
-    <PageCard title={showClient ? "Jobs" : "Protected Assets"}>
+    <div className="eip-assets-panel">
+      <div className="eip-panel-heading">
+        <div>
+          <p className="eip-panel-label">{showClient ? "Jobs" : "Protected assets"}</p>
+          <h3>{showClient ? "All EIP jobs" : "Asset ledger"}</h3>
+        </div>
+      </div>
       {jobs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No EIP assets yet.</p>
+        <div className="eip-empty-state">
+          <FileImage className="size-7" />
+          <p>No EIP assets yet.</p>
+        </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="eip-table-wrap">
           <table className="w-full text-sm">
             <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -313,6 +496,6 @@ export function AssetsTable({
           </table>
         </div>
       )}
-    </PageCard>
+    </div>
   );
 }

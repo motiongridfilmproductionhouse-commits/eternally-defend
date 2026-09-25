@@ -13,3 +13,6 @@
 - [ ] Phase 4 live interface (boot sequence, search screen, stage view)
 - [ ] Phase 5 verification, summary (Preliminary + Verified), actions, enrollment handoff
 - [ ] Phase 6 QA gate + written report
+- [ ] Redesign Image Immunization dashboard to match the provided clean blue hero-grid reference
+- [ ] Image Immunization dashboard: left protected-image visual, right controls/analytics, bottom detail panels
+
