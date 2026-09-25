@@ -2688,7 +2688,56 @@
 }
 
 .eip-image-state {
+  --eip-surface-x: 0%;
+  --eip-surface-y: 0%;
+  --eip-surface-rotate: 0deg;
+  --eip-surface-scale: 1;
+  --eip-scan-opacity: 0.35;
+  --eip-line-opacity: 0.42;
+  --eip-tile-opacity: 0;
+  --eip-node-opacity: 0;
+  --eip-ring-opacity: 0;
+  --eip-channel-opacity: 0;
   color: var(--landing-ink);
+}
+
+.eip-image-state--1 {
+  --eip-surface-x: -4%;
+  --eip-surface-y: -2%;
+  --eip-surface-rotate: -1deg;
+  --eip-line-opacity: 0.36;
+}
+
+.eip-image-state--2 {
+  --eip-surface-x: 0%;
+  --eip-surface-y: 0%;
+  --eip-scan-opacity: 1;
+  --eip-line-opacity: 0.72;
+  --eip-node-opacity: 1;
+}
+
+.eip-image-state--3 {
+  --eip-surface-x: 2%;
+  --eip-surface-y: -1%;
+  --eip-surface-scale: 0.96;
+  --eip-ring-opacity: 1;
+  --eip-line-opacity: 0.48;
+}
+
+.eip-image-state--4 {
+  --eip-surface-x: -8%;
+  --eip-surface-y: 1%;
+  --eip-channel-opacity: 1;
+  --eip-line-opacity: 0.58;
+}
+
+.eip-image-state--5 {
+  --eip-surface-x: 0%;
+  --eip-surface-y: 0%;
+  --eip-tile-opacity: 1;
+  --eip-node-opacity: 0.76;
+  --eip-ring-opacity: 0.88;
+  --eip-line-opacity: 0.7;
 }
 
 .eip-image-state__frame {
@@ -2705,18 +2754,81 @@
 .eip-image-state__veil,
 .eip-image-state__line,
 .eip-image-state__scan,
+.eip-image-state__channel,
 .eip-image-state__corner {
   position: absolute;
   pointer-events: none;
 }
 
 .eip-image-state__surface {
+  display: block;
   inset: 18% 18% 20%;
   border: 1px solid color-mix(in oklab, var(--landing-accent) 22%, var(--landing-line));
   background:
     linear-gradient(145deg, color-mix(in oklab, var(--landing) 82%, var(--landing-cyan)), var(--landing)),
     var(--landing);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--landing) 78%, transparent);
+  transform: translate(var(--eip-surface-x), var(--eip-surface-y)) rotate(var(--eip-surface-rotate)) scale(var(--eip-surface-scale));
+  animation: eipSurfaceIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition:
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 520ms ease,
+    background 520ms ease;
+}
+
+.eip-image-state__surface::before,
+.eip-image-state__surface::after,
+.eip-image-state__tile,
+.eip-image-state__node,
+.eip-image-state__ring {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.eip-image-state__surface::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 49.5%, color-mix(in oklab, var(--landing-accent) 22%, transparent) 50%, transparent 50.5%),
+    linear-gradient(0deg, transparent 49.5%, color-mix(in oklab, var(--landing-accent) 18%, transparent) 50%, transparent 50.5%);
+}
+
+.eip-image-state__surface::after {
+  inset: 8%;
+  border: 1px solid color-mix(in oklab, var(--landing-cyan) 28%, transparent);
+  opacity: var(--eip-ring-opacity);
+  transform: scale(0.86);
+  animation: eipProtectPulse 1.9s ease-out infinite;
+}
+
+.eip-image-state--1 .eip-image-state__surface {
+  background: var(--landing);
+}
+
+.eip-image-state--2 .eip-image-state__surface {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 18%, color-mix(in oklab, var(--landing-accent) 10%, transparent) 18% 18.5%, transparent 18.5% 36%),
+    linear-gradient(145deg, color-mix(in oklab, var(--landing) 80%, var(--landing-cyan)), var(--landing));
+}
+
+.eip-image-state--3 .eip-image-state__surface {
+  border-color: color-mix(in oklab, var(--landing-accent) 48%, var(--landing-line));
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--landing-cyan) 18%, transparent), transparent 46%),
+    linear-gradient(145deg, color-mix(in oklab, var(--landing) 84%, var(--landing-cyan)), var(--landing));
+}
+
+.eip-image-state--4 .eip-image-state__surface {
+  background:
+    linear-gradient(90deg, color-mix(in oklab, var(--landing-accent) 10%, transparent), transparent 38%),
+    var(--landing);
+}
+
+.eip-image-state--5 .eip-image-state__surface {
+  border-color: color-mix(in oklab, var(--landing-accent) 58%, var(--landing-line));
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--landing-cyan) 16%, transparent), transparent 48%),
+    linear-gradient(145deg, color-mix(in oklab, var(--landing) 82%, var(--landing-accent)), var(--landing));
 }
 
 .eip-image-state__veil {
@@ -2724,6 +2836,57 @@
   background: radial-gradient(circle, color-mix(in oklab, var(--landing-cyan) 26%, transparent), transparent 68%);
   opacity: 0.82;
   transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 520ms ease;
+}
+
+.eip-image-state--1 .eip-image-state__veil--one { transform: translate(-18%, -8%) scale(0.82); }
+.eip-image-state--1 .eip-image-state__veil--two { transform: translate(20%, 8%) scale(0.78); opacity: 0.42; }
+.eip-image-state--2 .eip-image-state__veil--one { transform: translate(18%, 3%) scale(0.72); }
+.eip-image-state--2 .eip-image-state__veil--two { transform: translate(-22%, -10%) scale(0.64); }
+.eip-image-state--3 .eip-image-state__veil--one { transform: translate(44%, 20%) scale(0.54); }
+.eip-image-state--3 .eip-image-state__veil--two { transform: translate(-35%, -24%) scale(0.5); }
+.eip-image-state--4 .eip-image-state__veil--one { transform: translate(64%, -16%) scale(0.46); }
+.eip-image-state--4 .eip-image-state__veil--two { transform: translate(72%, 22%) scale(0.42); }
+.eip-image-state--5 .eip-image-state__veil--one { transform: translate(8%, 7%) scale(0.92); }
+.eip-image-state--5 .eip-image-state__veil--two { transform: translate(-5%, -10%) scale(0.82); }
+
+.eip-image-state__tile {
+  width: 18%;
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in oklab, var(--landing-accent) 28%, var(--landing-line));
+  background: color-mix(in oklab, var(--landing-accent) 6%, var(--landing));
+  opacity: var(--eip-tile-opacity);
+  transform: scale(0.72);
+  animation: eipTileIn 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.eip-image-state__tile--one { top: 18%; left: 15%; animation-delay: 80ms; }
+.eip-image-state__tile--two { top: 41%; right: 16%; animation-delay: 160ms; }
+.eip-image-state__tile--three { right: 33%; bottom: 16%; animation-delay: 240ms; }
+
+.eip-image-state__node {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--landing-accent);
+  opacity: var(--eip-node-opacity);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--landing-accent) 22%, transparent);
+  animation: eipNodePulse 1.8s ease-in-out infinite;
+}
+
+.eip-image-state__node--one { top: 22%; left: 23%; }
+.eip-image-state__node--two { top: 51%; left: 50%; animation-delay: 160ms; }
+.eip-image-state__node--three { right: 18%; bottom: 24%; animation-delay: 320ms; }
+
+.eip-image-state__ring {
+  inset: 18%;
+  border: 1px solid color-mix(in oklab, var(--landing-accent) 38%, transparent);
+  opacity: var(--eip-ring-opacity);
+  animation: eipProtectPulse 1.8s ease-out infinite;
+}
+
+.eip-image-state__ring--two {
+  inset: 8%;
+  animation-delay: 360ms;
 }
 
 .eip-image-state__veil--one {
@@ -2746,11 +2909,14 @@
   right: 18%;
   height: 1px;
   background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--landing-accent) 55%, transparent), transparent);
+  opacity: var(--eip-line-opacity);
+  transform: scaleX(0.5);
+  animation: eipLineIn 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.eip-image-state__line--one { top: 34%; }
-.eip-image-state__line--two { top: 50%; }
-.eip-image-state__line--three { top: 66%; }
+.eip-image-state__line--one { top: 34%; animation-delay: 70ms; }
+.eip-image-state__line--two { top: 50%; animation-delay: 140ms; }
+.eip-image-state__line--three { top: 66%; animation-delay: 210ms; }
 
 .eip-image-state__scan {
   top: 18%;
@@ -2758,7 +2924,41 @@
   left: 22%;
   width: 1px;
   background: linear-gradient(180deg, transparent, var(--landing-accent), transparent);
-  animation: eipScanLine 4s ease-in-out infinite;
+  opacity: var(--eip-scan-opacity);
+  animation: eipScanLine 3.4s ease-in-out infinite;
+}
+
+.eip-image-state__channel {
+  right: 9%;
+  width: 28%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--landing-accent) 70%, transparent));
+  opacity: var(--eip-channel-opacity);
+  transform-origin: right;
+  animation: eipChannelSend 1.4s ease-out both;
+}
+
+.eip-image-state__channel::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -0.22rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--landing-accent);
+}
+
+.eip-image-state__channel--one { top: 30%; animation-delay: 80ms; }
+.eip-image-state__channel--two { top: 50%; animation-delay: 180ms; }
+.eip-image-state__channel--three { top: 70%; animation-delay: 280ms; }
+
+.eip-image-state--1 .eip-image-state__scan,
+.eip-image-state--1 .eip-image-state__channel,
+.eip-image-state--1 .eip-image-state__node,
+.eip-image-state--1 .eip-image-state__ring,
+.eip-image-state--1 .eip-image-state__tile {
+  animation: none;
 }
 
 .eip-image-state__badge {
@@ -2919,6 +3119,35 @@
   50% { transform: translateX(220px); opacity: 1; }
 }
 
+@keyframes eipSurfaceIn {
+  from { opacity: 0; transform: translate(var(--eip-surface-x), calc(var(--eip-surface-y) + 12px)) rotate(var(--eip-surface-rotate)) scale(0.96); }
+  to { opacity: 1; transform: translate(var(--eip-surface-x), var(--eip-surface-y)) rotate(var(--eip-surface-rotate)) scale(var(--eip-surface-scale)); }
+}
+
+@keyframes eipLineIn {
+  from { opacity: 0; transform: scaleX(0.18); }
+  to { opacity: var(--eip-line-opacity); transform: scaleX(1); }
+}
+
+@keyframes eipTileIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.72); }
+  to { opacity: var(--eip-tile-opacity); transform: translateY(0) scale(1); }
+}
+
+@keyframes eipNodePulse {
+  50% { box-shadow: 0 0 0 0.75rem color-mix(in oklab, var(--landing-accent) 0%, transparent); }
+}
+
+@keyframes eipProtectPulse {
+  from { transform: scale(0.82); opacity: var(--eip-ring-opacity); }
+  to { transform: scale(1.04); opacity: 0; }
+}
+
+@keyframes eipChannelSend {
+  from { transform: scaleX(0.12); opacity: 0; }
+  to { transform: scaleX(1); opacity: var(--eip-channel-opacity); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .eip-audience-card,
   .eip-audience-card::before,
@@ -2926,6 +3155,12 @@
   .eip-audience-card__arrow,
   .eip-image-state__scan,
   .eip-image-state__veil,
+  .eip-image-state__surface,
+  .eip-image-state__line,
+  .eip-image-state__tile,
+  .eip-image-state__node,
+  .eip-image-state__ring,
+  .eip-image-state__channel,
   .eip-lifecycle-stage__arrow {
     transition: none;
     animation: none;
