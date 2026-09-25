@@ -1,0 +1,11 @@
+REVOKE EXECUTE ON FUNCTION public.eip_worker_claim(text,text,int,int,int) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_worker_update(text,text,uuid,jsonb,jsonb) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_worker_claim_reevals(text,text,int,int,int) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_worker_update_reeval(text,text,uuid,text,text,text,jsonb) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_worker_report(text,jsonb,jsonb) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_worker_idle(text,boolean) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_worker_token_valid(text) FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_request_is_worker() FROM authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_arm_worker() FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_jobs_guard() FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.eip_append_only() FROM anon, authenticated;
