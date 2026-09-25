@@ -13,6 +13,7 @@ import {
   fetchEipJobs,
   fetchEvaluations,
   summarize,
+  isActive,
   type EipJob,
 } from "@/lib/eip/eip-data";
 import { EipStatusBadge, JobResult, Thumb } from "./EipParts";
