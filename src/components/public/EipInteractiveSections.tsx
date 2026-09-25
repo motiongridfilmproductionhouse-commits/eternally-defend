@@ -3,14 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type AudienceVisual = "person" | "organization" | "presence";
-
 type AudienceCard = {
   number: string;
   title: string;
   label: string;
   description: string;
-  visual: AudienceVisual;
 };
 
 const audiences: AudienceCard[] = [
@@ -20,7 +17,6 @@ const audiences: AudienceCard[] = [
     label: "Identity exposure",
     description:
       "Protection designed for people whose face, name and public identity may appear across large volumes of online content.",
-    visual: "person",
   },
   {
     number: "02",
@@ -28,7 +24,6 @@ const audiences: AudienceCard[] = [
     label: "Organizational identity",
     description:
       "Protection for organizations whose executives, representatives, brands or visual assets may be reproduced, manipulated or misrepresented.",
-    visual: "organization",
   },
   {
     number: "03",
@@ -36,7 +31,6 @@ const audiences: AudienceCard[] = [
     label: "Public presence",
     description:
       "Protection for creators, executives, professionals and other individuals whose identity has a meaningful public digital footprint.",
-    visual: "presence",
   },
 ];
 
@@ -84,68 +78,12 @@ const lifecycleStages = [
   },
 ] as const;
 
-function AudienceIllustration({ type }: { type: AudienceVisual }) {
-  if (type === "organization") {
-    return (
-      <svg viewBox="0 0 320 170" role="presentation" focusable="false">
-        <g className="eip-card-art__trace">
-          <path d="M72 86H135M185 86H248M160 61V35M160 111V137" />
-          <path d="M89 86 122 48M231 86l-33-38M89 86l33 38M231 86l-33 38" />
-        </g>
-        <g className="eip-card-art__nodes">
-          <rect x="137" y="63" width="46" height="46" rx="8" />
-          <circle cx="72" cy="86" r="14" />
-          <circle cx="248" cy="86" r="14" />
-          <circle cx="160" cy="28" r="10" />
-          <circle cx="160" cy="144" r="10" />
-          <circle cx="116" cy="43" r="7" />
-          <circle cx="204" cy="43" r="7" />
-          <circle cx="116" cy="129" r="7" />
-          <circle cx="204" cy="129" r="7" />
-        </g>
-        <path className="eip-card-art__shield" d="M160 74l14 6v11c0 10-6 17-14 21-8-4-14-11-14-21V80l14-6Z" />
-      </svg>
-    );
-  }
-
-  if (type === "presence") {
-    return (
-      <svg viewBox="0 0 320 170" role="presentation" focusable="false">
-        <g className="eip-card-art__surfaces">
-          <rect x="52" y="45" width="79" height="92" rx="9" />
-          <rect x="120" y="26" width="82" height="118" rx="10" />
-          <rect x="191" y="48" width="77" height="88" rx="9" />
-        </g>
-        <g className="eip-card-art__trace">
-          <path d="M91 91h29M202 91h28" />
-          <path d="M161 58c17 0 30 14 30 31 0 16-13 30-30 30s-30-14-30-30c0-17 13-31 30-31Z" />
-        </g>
-        <circle className="eip-card-art__identity" cx="161" cy="82" r="10" />
-        <path className="eip-card-art__identity" d="M143 108c3-12 11-18 18-18s15 6 18 18" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 320 170" role="presentation" focusable="false">
-      <rect className="eip-card-art__frame" x="92" y="20" width="136" height="130" rx="14" />
-      <path className="eip-card-art__corners" d="M80 56V25h31M240 56V25h-31M80 114v31h31M240 114v31h-31" />
-      <circle className="eip-card-art__identity" cx="160" cy="72" r="23" />
-      <path className="eip-card-art__identity" d="M119 130c7-28 22-42 41-42s34 14 41 42" />
-      <path className="eip-card-art__scan" d="M101 84h118" />
-    </svg>
-  );
-}
-
 function AudienceCardView({ card }: { card: AudienceCard }) {
   return (
     <article className="eip-audience-card" tabIndex={0}>
       <div className="eip-audience-card__meta">
         <span>{card.number}</span>
         <span>{card.label}</span>
-      </div>
-      <div className="eip-card-art">
-        <AudienceIllustration type={card.visual} />
       </div>
       <h3>{card.title}</h3>
       <p>{card.description}</p>
