@@ -13,6 +13,7 @@ import {
   fetchEipJobs,
   fetchEvaluations,
   summarize,
+  isActive,
   type EipJob,
 } from "@/lib/eip/eip-data";
 import { EipStatusBadge, JobResult, Thumb } from "./EipParts";
@@ -57,7 +58,9 @@ export function EipWorkspace() {
   const data = useEipData("mine");
   const [wizard, setWizard] = useState(false);
   const [openJob, setOpenJob] = useState<EipJob | null>(null);
-  const [proc, setProc] = useState<{ job: EipJob; file: File } | null>(null);
+  const [proc, setProc] = useState<{ job: EipJob; file: File | null } | null>(null);
+  const openAny = (j: EipJob) =>
+    isActive(j.status) ? setProc({ job: j, file: null }) : setOpenJob(j);
   const [tab, setTab] = useState<"overview" | "assets">("overview");
 
   if (access.loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
@@ -160,7 +163,7 @@ export function EipWorkspace() {
               {jobs.slice(0, 5).map((j) => (
                 <li key={j.id} className="flex items-center gap-3 py-3">
                   <Thumb path={j.storage_path} />
-                  <button className="min-w-0 flex-1 text-left" onClick={() => setOpenJob(j)}>
+                  <button className="min-w-0 flex-1 text-left" onClick={() => openAny(j)}>
                     <div className="text-sm font-medium truncate">{j.image_name}</div>
                     <div className="text-xs text-muted-foreground">
                       {j.current_stage ?? new Date(j.created_at).toLocaleString()}
@@ -173,7 +176,7 @@ export function EipWorkspace() {
           )}
         </PageCard>
       ) : (
-        <AssetsTable jobs={jobs} onOpen={setOpenJob} onReeval={reeval} />
+        <AssetsTable jobs={jobs} onOpen={openAny} onReeval={reeval} />
       )}
 
       <Dialog open={wizard} onOpenChange={setWizard}>
