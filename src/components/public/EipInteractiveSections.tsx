@@ -175,7 +175,6 @@ export function EipIdentityProtectionSection() {
 
 export function EipImageLifecycleSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const stageRefs = useRef<Array<HTMLLIElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isInView, setIsInView] = useState(false);
 
@@ -190,47 +189,10 @@ export function EipImageLifecycleSection() {
       { rootMargin: "20% 0px", threshold: 0.05 },
     );
     visibilityObserver.observe(section);
-
-    let frame = 0;
-    const updateFromScroll = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        if (window.innerWidth < 768) {
-          const center = window.innerHeight * 0.52;
-          let closestIndex = 0;
-          let closestDistance = Number.POSITIVE_INFINITY;
-          stageRefs.current.forEach((node, index) => {
-            if (!node) return;
-            const bounds = node.getBoundingClientRect();
-            const distance = Math.abs(bounds.top + bounds.height / 2 - center);
-            if (distance < closestDistance) {
-              closestDistance = distance;
-              closestIndex = index;
-            }
-          });
-          setActiveIndex(closestIndex);
-          return;
-        }
-        const bounds = section.getBoundingClientRect();
-        const travel = Math.max(bounds.height - window.innerHeight * 0.45, 1);
-        const progress = Math.min(1, Math.max(0, (window.innerHeight * 0.58 - bounds.top) / travel));
-        setActiveIndex(Math.min(lifecycleStages.length - 1, Math.floor(progress * lifecycleStages.length)));
-      });
-    };
-
-    const onScroll = () => {
-      if (isInView) updateFromScroll();
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", updateFromScroll);
-    updateFromScroll();
     return () => {
       visibilityObserver.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", updateFromScroll);
-      window.cancelAnimationFrame(frame);
     };
-  }, [isInView]);
+  }, []);
 
   return (
     <section ref={sectionRef} className={cn("eip-lifecycle-section border-t border-landing-line", isInView && "is-in-view")} aria-labelledby="eip-lifecycle-heading">
@@ -259,7 +221,7 @@ export function EipImageLifecycleSection() {
 
           <ol className="eip-lifecycle-stages" style={{ "--eip-progress": `${(activeIndex / (lifecycleStages.length - 1)) * 100}%` } as React.CSSProperties}>
             {lifecycleStages.map((stage, index) => (
-              <li key={stage.number} ref={(node) => { stageRefs.current[index] = node; }} className={cn("eip-lifecycle-stage", index === activeIndex && "is-active", index < activeIndex && "is-complete")}>
+              <li key={stage.number} className={cn("eip-lifecycle-stage", index === activeIndex && "is-active", index < activeIndex && "is-complete")}>
                 <Button
                   type="button"
                   variant="ghost"
