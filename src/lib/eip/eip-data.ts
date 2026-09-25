@@ -4,7 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 /** Untyped handle so new EIP tables work before generated types refresh. */
 export const eipDb = supabase as unknown as SupabaseClient;
 
-export type EipStatus = "QUEUED" | "PROCESSING" | "PASS" | "LIMITED" | "FAIL" | "SYSTEM_ERROR";
+export type EipStatus =
+  | "QUEUED" | "PROCESSING" | "VALIDATING" | "IMMUNIZING" | "EVALUATING" | "FINALIZING"
+  | "PASS" | "LIMITED" | "FAIL" | "CANCELLED" | "SYSTEM_ERROR";
+export const ACTIVE_STATUSES: EipStatus[] = ["QUEUED", "PROCESSING", "VALIDATING", "IMMUNIZING", "EVALUATING", "FINALIZING"];
+export const isActive = (s: EipStatus) => ACTIVE_STATUSES.includes(s);
 
 export type EipJob = {
   id: string;
@@ -27,6 +31,13 @@ export type EipJob = {
   certificate_id: string | null;
   reason_codes: string[];
   error_message: string | null;
+  error_code: string | null;
+  engine_job_id: string | null;
+  research_base_version: string | null;
+  evaluation_version: string | null;
+  heartbeat_at: string | null;
+  attempt_count: number;
+  worker_id: string | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -37,7 +48,7 @@ export type EipEvaluation = {
   job_id: string;
   evaluation_version: string;
   is_initial: boolean;
-  status: Exclude<EipStatus, "QUEUED" | "PROCESSING">;
+  status: "PASS" | "LIMITED" | "FAIL" | "SYSTEM_ERROR";
   visual_quality: string | null;
   transformation_robustness: string | null;
   identity_evaluation: string | null;
@@ -109,10 +120,10 @@ export function summarize(jobs: EipJob[], evals: EipEvaluation[]) {
     : 0;
   return {
     protected: jobs.filter((j) => j.status === "PASS").length,
-    processing: jobs.filter((j) => j.status === "QUEUED" || j.status === "PROCESSING").length,
+    processing: jobs.filter((j) => isActive(j.status)).length,
     limited: jobs.filter((j) => j.status === "LIMITED").length,
     needsReeval,
-    latest: jobs.find((j) => !["QUEUED", "PROCESSING"].includes(j.status)) ?? null,
+    latest: jobs.find((j) => !isActive(j.status)) ?? null,
   };
 }
 
@@ -127,7 +138,11 @@ export const STATUS_STYLE: Record<EipStatus, string> = {
   FAIL: "bg-danger/15 text-danger border-danger/30",
   SYSTEM_ERROR: "bg-muted text-foreground border-border",
   QUEUED: "bg-info/15 text-info border-info/30",
-  PROCESSING: "bg-info/15 text-info border-info/30",
+  PROCESSING: "bg-info/15 text-info border-info/30",  VALIDATING: "bg-info/15 text-info border-info/30",
+  IMMUNIZING: "bg-info/15 text-info border-info/30",
+  EVALUATING: "bg-info/15 text-info border-info/30",
+  FINALIZING: "bg-info/15 text-info border-info/30",
+  CANCELLED: "bg-muted text-muted-foreground border-border",
 };
 export const STATUS_LABEL: Record<EipStatus, string> = {
   PASS: "PASS",
@@ -135,5 +150,9 @@ export const STATUS_LABEL: Record<EipStatus, string> = {
   FAIL: "FAIL",
   SYSTEM_ERROR: "SYSTEM ERROR",
   QUEUED: "PROCESSING",
-  PROCESSING: "PROCESSING",
+  PROCESSING: "PROCESSING",  VALIDATING: "PROCESSING",
+  IMMUNIZING: "PROCESSING",
+  EVALUATING: "PROCESSING",
+  FINALIZING: "PROCESSING",
+  CANCELLED: "CANCELLED",
 };

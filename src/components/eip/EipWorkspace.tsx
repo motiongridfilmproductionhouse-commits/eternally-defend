@@ -212,7 +212,7 @@ export function AssetsTable({
   showClient?: boolean;
 }) {
   return (
-    <PageCard title="Protected Assets">
+    <PageCard title={showClient ? "Jobs" : "Protected Assets"}>
       {jobs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No EIP assets yet.</p>
       ) : (

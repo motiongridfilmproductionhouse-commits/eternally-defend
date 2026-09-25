@@ -6,6 +6,7 @@ import {
   STATUS_LABEL,
   STATUS_STYLE,
   eipDb,
+  isActive,
   reasonLabel,
   type EipEvaluation,
   type EipJob,
@@ -104,7 +105,8 @@ export function JobResult({
 }) {
   const [showCert, setShowCert] = useState(false);
   const protectedUrl = useSignedUrl(job.protected_storage_path);
-  if (job.status === "QUEUED" || job.status === "PROCESSING") return <StageProgress job={job} />;
+  if (isActive(job.status)) return <StageProgress job={job} />;
+  if (job.status === "CANCELLED") return <p className="text-sm text-muted-foreground">Processing was cancelled.</p>;
   const o = OUTCOME[job.status];
   const initial = evaluations.find((e) => e.is_initial) ?? evaluations[0];
 
@@ -120,7 +122,7 @@ export function JobResult({
               "The image showed measurable protection but did not meet all full PASS criteria."}
             {job.status === "FAIL" && "The image did not meet the EIP protection requirements."}
             {job.status === "SYSTEM_ERROR" &&
-              "This is an operational failure, not a protection result. No evaluation was recorded."}
+              `${job.error_message ?? "EIP processing could not complete."} This is an operational failure, not a protection result.`}
           </p>
         </div>
       </div>
