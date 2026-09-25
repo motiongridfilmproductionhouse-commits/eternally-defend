@@ -6,7 +6,7 @@ import { verifyInviteCode, signUpWithInvite } from "@/lib/invites/invites.functi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { agentAccess, claimAssessment, previewAssessment } from "@/lib/agent/assessment.functions";
-import { ShieldHalf, KeyRound, Fingerprint } from "lucide-react";
+import { ShieldHalf, KeyRound } from "lucide-react";
 
 /**
  * True when the account holds the `staff` role (own-row read under RLS). Only
@@ -49,11 +49,6 @@ function AuthPage() {
     () => new URLSearchParams(window.location.search).get("agent") === "1",
   );
   const redirected = useRef(false);
-  // Only allow-listed internal destinations (prevents open redirects).
-  const [returnTo] = useState(() => {
-    const r = new URLSearchParams(window.location.search).get("redirect");
-    return r === "/eip" ? "/eip" : null;
-  });
   const [assessmentToken] = useState(() => {
     const token = new URLSearchParams(window.location.search).get("assessment");
     if (token && /^[A-Za-z0-9_-]{43}$/.test(token))
@@ -129,10 +124,6 @@ function AuthPage() {
         setHandoffNeedsClient(true);
         return;
       }
-      if (returnTo) {
-        navigate({ to: returnTo });
-        return;
-      }
       // Staff accounts open the Staff Intelligence Scan (role-based, server-checked there).
       if (await holdsStaffRole(data.session.user.id)) {
         navigate({ to: "/staff" });
@@ -146,7 +137,7 @@ function AuthPage() {
         .maybeSingle();
       navigate({ to: profile?.onboarding_completed ? "/dashboard" : "/onboarding" });
     });
-  }, [navigate, agentMode, assessmentToken, checkAgent, returnTo]);
+  }, [navigate, agentMode, assessmentToken, checkAgent]);
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,11 +185,6 @@ function AuthPage() {
           return;
         }
         await finishAssessment();
-        if (returnTo) {
-          redirected.current = true;
-          navigate({ to: returnTo });
-          return;
-        }
         if (await holdsStaffRole(data.user.id)) {
           redirected.current = true;
           navigate({ to: "/staff" });
@@ -242,14 +228,14 @@ function AuthPage() {
             Own it. Protect it. Defend it.
           </h1>
           <p className="mt-5 text-white/80 leading-relaxed">
-            AI-powered identity protection, image immunization, content fingerprinting and
-            enforcement across major digital platforms.
+            AI-powered enforcement across 12+ platforms. Content fingerprinting, identity
+            verification, and automated takedowns in one dashboard.
           </p>
           <ul className="mt-8 space-y-2.5 text-white/90 text-sm">
             {[
-              "Eterna Image Immunization",
               "SHA-256 + perceptual content fingerprints",
-              "Identity protection and enforcement",
+              "Immutable ownership certificates",
+              "AI co-pilot for DMCA & legal drafting",
             ].map((line) => (
               <li key={line} className="flex items-center gap-2">
                 <span className="text-white/70">✓</span>
@@ -430,36 +416,6 @@ function AuthPage() {
             className="block min-h-11 text-center text-sm font-medium text-blue-600"
           >
             {agentMode ? "Client login" : "Agent Access →"}
-          </a>
-          <a
-            href="/eip"
-            aria-label="Open Eterna Image Immunization Platform"
-            className="group block rounded-xl border border-blue-100 bg-blue-50/30 p-4 transition hover:border-blue-300 hover:bg-blue-50/70 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            <div className="flex items-center gap-3">
-              <div className="size-9 shrink-0 rounded-lg grid place-items-center bg-blue-100 text-blue-600">
-                <Fingerprint className="size-5" aria-hidden />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[9px] font-semibold tracking-[0.18em] text-blue-500">
-                  IMAGE IMMUNIZATION
-                </div>
-                <div className="text-sm font-semibold text-blue-700">EIP Platform</div>
-                <div className="text-[11px] text-muted-foreground">
-                  Image Immunization & Identity Protection
-                </div>
-              </div>
-              <span
-                aria-hidden
-                className="text-blue-600 transition-transform group-hover:translate-x-1"
-              >
-                →
-              </span>
-            </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              Access authorized image protection, validation, certificates and protected asset
-              management.
-            </p>
           </a>
           <div className="pt-4 border-t border-border">
             <a
