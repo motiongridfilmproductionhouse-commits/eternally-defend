@@ -11588,6 +11588,20 @@ export type Database = {
           invite_id: string
         }[]
       }
+      eip_admin_list_access: {
+        Args: never
+        Returns: {
+          email: string
+          enabled: boolean
+          requested_at: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      eip_admin_set_access: {
+        Args: { _enabled: boolean; _user: string }
+        Returns: string
+      }
       eip_enabled: { Args: { _uid: string }; Returns: boolean }
       eip_request_is_worker: { Args: never; Returns: boolean }
       eip_worker_claim: {
