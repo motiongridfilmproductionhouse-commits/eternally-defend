@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -58,9 +58,27 @@ export function EipWorkspace() {
   const data = useEipData("mine");
   const [wizard, setWizard] = useState(false);
   const [openJob, setOpenJob] = useState<EipJob | null>(null);
-  const [proc, setProc] = useState<{ job: EipJob; file: File | null } | null>(null);
+  const [proc, setProcRaw] = useState<{ job: EipJob; file: File | null } | null>(null);
+  const setProc = (p: { job: EipJob; file: File | null } | null) => {
+    setProcRaw(p);
+    try {
+      if (p) sessionStorage.setItem("eip-open-job", p.job.id);
+      else sessionStorage.removeItem("eip-open-job");
+    } catch {}
+  };
   const openAny = (j: EipJob) =>
     isActive(j.status) ? setProc({ job: j, file: null }) : setOpenJob(j);
+  const restoreJobs = data.data?.jobs;
+  useEffect(() => {
+    if (proc || !restoreJobs) return;
+    let id: string | null = null;
+    try {
+      id = sessionStorage.getItem("eip-open-job");
+    } catch {}
+    const j = id ? restoreJobs.find((x) => x.id === id) : undefined;
+    if (j) setProcRaw({ job: j, file: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoreJobs]);
   const [tab, setTab] = useState<"overview" | "assets">("overview");
 
   if (access.loading) return <div className="text-sm text-muted-foreground">Loading…</div>;

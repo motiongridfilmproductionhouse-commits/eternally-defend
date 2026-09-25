@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UploadCloud, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -61,6 +61,7 @@ export function ImmunizeWizard({
   const [preview, setPreview] = useState<string | null>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const startLock = useRef(false);
 
   useEffect(() => {
     if (!file) return;
@@ -109,6 +110,8 @@ export function ImmunizeWizard({
 
   async function start() {
     if (!file || !dims || !session || !rec) return;
+    if (startLock.current) return;
+    startLock.current = true;
     setBusy(true);
     try {
       const hash = await sha256Hex(file);
@@ -139,6 +142,7 @@ export function ImmunizeWizard({
       onCreated(data as EipJob, file);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start immunization");
+      startLock.current = false;
     } finally {
       setBusy(false);
     }
