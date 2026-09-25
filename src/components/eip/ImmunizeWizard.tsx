@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UploadCloud, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,28 @@ export function ImmunizeWizard({
   const { session } = useSession();
   const authz = useAuthorization();
   const qc = useQueryClient();
-  const rec = (authz.state?.authorization ?? null) as { id: string; legal_name?: string } | null;
-  const authorized =
+  const signed = useQuery({
+    queryKey: ["eip-client-authorization", session?.user.id],
+    enabled: !!session,
+    queryFn: async () => {
+      const { data } = await eipDb
+        .from("client_authorizations")
+        .select("id, auth_number, status, expiry_date, snapshot")
+        .eq("user_id", session!.user.id)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as { id: string; auth_number: string | null; status: string; expiry_date: string | null; snapshot: Record<string, unknown> | null } | null;
+    },
+  });
+  const ca = signed.data;
+  const legacy = (authz.state?.authorization ?? null) as { id: string; legal_name?: string } | null;
+  const caValid = !!ca && ca.status === "ACTIVE" && (!ca.expiry_date || Date.parse(ca.expiry_date) > Date.now());
+  const snapName = (ca?.snapshot?.["legal_name"] ?? ca?.snapshot?.["full_name"] ?? null) as string | null;
+  const rec = caValid
+    ? { id: ca!.auth_number ?? ca!.id, legal_name: snapName ?? legacy?.legal_name ?? undefined }
+    : legacy;
+  const authorized = caValid || (!!legacy && authz.completed);
     !!rec &&
     (authz.status === "authorized" ||
       authz.status === "enterprise_authorized" ||
@@ -136,7 +156,7 @@ export function ImmunizeWizard({
       {step === 1 && (
         <section className="space-y-4">
           <h3 className="font-display text-lg font-bold">Confirm Authorization</h3>
-          {authz.loading ? (
+          {authz.loading || signed.isLoading ? (
             <p className="text-sm text-muted-foreground">Checking authorization…</p>
           ) : authorized ? (
             <dl className="grid grid-cols-[160px_minmax(0,1fr)] gap-y-1.5 text-sm">
