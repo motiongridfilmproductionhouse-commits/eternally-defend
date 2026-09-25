@@ -25,6 +25,7 @@ import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
 import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
 import { Route as EternaAiRouteImport } from './routes/eterna-ai'
+import { Route as EipRouteImport } from './routes/eip'
 import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -220,6 +221,11 @@ const IdentityResponseObservatoryRoute =
 const EternaAiRoute = EternaAiRouteImport.update({
   id: '/eterna-ai',
   path: '/eterna-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EipRoute = EipRouteImport.update({
+  id: '/eip',
+  path: '/eip',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeepfakeProtectionRoute = DeepfakeProtectionRouteImport.update({
@@ -864,6 +870,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
+  '/eip': typeof EipRoute
   '/eterna-ai': typeof EternaAiRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
@@ -994,6 +1001,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
+  '/eip': typeof EipRoute
   '/eterna-ai': typeof EternaAiRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
@@ -1125,6 +1133,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
+  '/eip': typeof EipRoute
   '/eterna-ai': typeof EternaAiRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
@@ -1257,6 +1266,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
+    | '/eip'
     | '/eterna-ai'
     | '/identity-response-observatory'
     | '/image-immunization'
@@ -1387,6 +1397,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
+    | '/eip'
     | '/eterna-ai'
     | '/identity-response-observatory'
     | '/image-immunization'
@@ -1517,6 +1528,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
+    | '/eip'
     | '/eterna-ai'
     | '/identity-response-observatory'
     | '/image-immunization'
@@ -1650,6 +1662,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
   DeepfakeProtectionRoute: typeof DeepfakeProtectionRoute
+  EipRoute: typeof EipRoute
   EternaAiRoute: typeof EternaAiRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
   ImageImmunizationRoute: typeof ImageImmunizationRoute
@@ -1833,6 +1846,13 @@ declare module '@tanstack/react-router' {
       path: '/eterna-ai'
       fullPath: '/eterna-ai'
       preLoaderRoute: typeof EternaAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eip': {
+      id: '/eip'
+      path: '/eip'
+      fullPath: '/eip'
+      preLoaderRoute: typeof EipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deepfake-protection': {
@@ -2792,6 +2812,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
   DeepfakeProtectionRoute: DeepfakeProtectionRoute,
+  EipRoute: EipRoute,
   EternaAiRoute: EternaAiRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
   ImageImmunizationRoute: ImageImmunizationRoute,
