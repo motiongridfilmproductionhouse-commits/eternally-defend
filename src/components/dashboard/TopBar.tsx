@@ -34,23 +34,23 @@ export function TopBar() {
   const { hidden, toggleHidden } = useSidebarLayout();
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 px-8 py-5 bg-background/80 backdrop-blur border-b border-border">
+    <header className="sticky top-0 z-30 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 bg-background/80 backdrop-blur border-b border-border sm:gap-4 sm:px-6 lg:flex lg:px-8 lg:py-5">
       <button
         onClick={toggleHidden}
         title={hidden ? "Show sidebar (⌘/Ctrl+B)" : "Hide sidebar (⌘/Ctrl+B)"}
         aria-label={hidden ? "Show sidebar" : "Hide sidebar"}
-        className="size-9 grid place-items-center rounded-lg border border-border bg-card hover:border-primary/30 transition text-foreground/70"
+        className="size-9 shrink-0 grid place-items-center rounded-lg border border-border bg-card hover:border-primary/30 transition text-foreground/70"
       >
         {hidden ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
       </button>
       <div className="min-w-0">
-        <h1 className="text-[22px] font-display font-bold tracking-tight text-foreground">
+        <h1 className="truncate text-[18px] font-display font-bold tracking-tight text-foreground sm:text-[22px]">
           {meta.title}
         </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{meta.sub}</p>
+        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground sm:line-clamp-1">{meta.sub}</p>
       </div>
 
-      <div className="flex-1 max-w-xl ml-auto">
+      <div className="col-span-3 row-start-2 min-w-0 lg:col-span-1 lg:row-auto lg:ml-auto lg:flex-1 lg:max-w-xl">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
@@ -60,8 +60,10 @@ export function TopBar() {
         </div>
       </div>
 
-      <StatusPill summary={summary} loading={summaryQuery.isLoading} />
-      <AuthorizationBadge />
+      <div className="hidden items-center gap-3 xl:flex">
+        <StatusPill summary={summary} loading={summaryQuery.isLoading} />
+        <AuthorizationBadge />
+      </div>
 
       <NotificationsBell />
       {DEMO_MODE && session?.user.email?.toLowerCase() === DEMO_USER_EMAIL && <DemoBadge />}
