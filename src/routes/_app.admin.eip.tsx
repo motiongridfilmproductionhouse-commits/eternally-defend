@@ -32,12 +32,14 @@ function EipOps() {
   const access = useQuery({
     queryKey: ["eip-access-all"],
     queryFn: async () => {
-      const { data, error } = await eipDb
-        .from("eip_account_access")
-        .select("*")
-        .order("updated_at", { ascending: false });
+      const { data, error } = await eipDb.rpc("eip_admin_list_access");
       if (error) throw error;
-      return (data ?? []) as { user_id: string; enabled: boolean; requested_at: string | null }[];
+      return (data ?? []) as {
+        user_id: string;
+        email: string | null;
+        enabled: boolean;
+        requested_at: string | null;
+      }[];
     },
   });
   const engine = useQuery({
@@ -84,15 +86,15 @@ function EipOps() {
     NOT_CONFIGURED: "Not configured",
   };
 
-  const setEnabled = async (user_id: string, enabled: boolean) => {
-    const { error } = await eipDb.from("eip_account_access").upsert({
-      user_id,
-      enabled,
-      updated_by: session?.user.id,
-      updated_at: new Date().toISOString(),
-    });
-    if (error) return toast.error(error.message);
+  const setEnabled = async (user: string, enabled: boolean) => {
+    const { error } = await eipDb.rpc("eip_admin_set_access", { _user: user, _enabled: enabled });
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
+    toast.success(enabled ? "Image Immunization enabled" : "Image Immunization disabled");
     qc.invalidateQueries({ queryKey: ["eip-access-all"] });
+    return true;
   };
   const retry = async (j: EipJob) => {
     const { error } = await eipDb.from("eip_jobs").update({ status: "QUEUED" }).eq("id", j.id);
