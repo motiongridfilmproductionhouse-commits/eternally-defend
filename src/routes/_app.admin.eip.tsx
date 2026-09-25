@@ -182,12 +182,12 @@ function EipOps() {
           <input
             value={newUser}
             onChange={(e) => setNewUser(e.target.value)}
-            placeholder="User ID to enable"
+            placeholder="Account email or user ID"
             className="flex-1 min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm"
           />
           <Button
             disabled={!newUser.trim()}
-            onClick={() => setEnabled(newUser.trim(), true).then(() => setNewUser(""))}
+            onClick={() => setEnabled(newUser.trim(), true).then((ok) => ok !== false && setNewUser(""))}
           >
             Enable EIP
           </Button>
@@ -199,7 +199,8 @@ function EipOps() {
             {access.data!.map((a) => (
               <li key={a.user_id} className="flex items-center justify-between gap-3 py-2 text-sm">
                 <div className="min-w-0">
-                  <div className="font-mono text-xs truncate">{a.user_id}</div>
+                  <div className="truncate">{a.email ?? "Unknown account"}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground truncate">{a.user_id}</div>
                   {a.requested_at && !a.enabled && (
                     <div className="text-xs text-warning">
                       Requested {new Date(a.requested_at).toLocaleString()}
