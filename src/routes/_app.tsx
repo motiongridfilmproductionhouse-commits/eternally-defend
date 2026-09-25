@@ -82,10 +82,14 @@ function AppShell() {
   const { hidden } = useSidebarLayout();
   return (
     <div className="min-h-screen flex bg-background">
-      {!hidden && <Sidebar />}
+      {!hidden && (
+        <div className="hidden lg:contents">
+          <Sidebar />
+        </div>
+      )}
       <main className="flex-1 min-w-0 flex flex-col">
         <TopBar />
-        <div className="flex-1 px-8 pt-8 pb-10 min-w-0">
+        <div className="flex-1 px-4 pt-5 pb-8 min-w-0 sm:px-6 lg:px-8 lg:pt-8 lg:pb-10">
           <Outlet />
         </div>
       </main>
