@@ -17,6 +17,7 @@ import {
 } from "@/lib/eip/eip-data";
 import { EipStatusBadge, JobResult, Thumb } from "./EipParts";
 import { ImmunizeWizard } from "./ImmunizeWizard";
+import { EipProcessingOverlay } from "./EipProcessingOverlay";
 
 export function useEipData(scope: "mine" | "all") {
   const { session, ready } = useSession();
@@ -56,6 +57,7 @@ export function EipWorkspace() {
   const data = useEipData("mine");
   const [wizard, setWizard] = useState(false);
   const [openJob, setOpenJob] = useState<EipJob | null>(null);
+  const [proc, setProc] = useState<{ job: EipJob; file: File } | null>(null);
   const [tab, setTab] = useState<"overview" | "assets">("overview");
 
   if (access.loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
@@ -181,13 +183,25 @@ export function EipWorkspace() {
           </DialogHeader>
           <ImmunizeWizard
             onCancel={() => setWizard(false)}
-            onCreated={(j) => {
+            onCreated={(j, f) => {
               setWizard(false);
-              setOpenJob(j);
+              setProc({ job: j, file: f });
             }}
           />
         </DialogContent>
       </Dialog>
+
+      {proc && (
+        <EipProcessingOverlay
+          job={jobs.find((j) => j.id === proc.job.id) ?? proc.job}
+          file={proc.file}
+          onClose={() => setProc(null)}
+          onViewResult={() => {
+            setOpenJob(proc.job);
+            setProc(null);
+          }}
+        />
+      )}
 
       <Dialog open={!!current} onOpenChange={(o) => !o && setOpenJob(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
