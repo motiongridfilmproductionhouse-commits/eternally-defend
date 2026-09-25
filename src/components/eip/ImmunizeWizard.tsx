@@ -19,7 +19,7 @@ export function ImmunizeWizard({
   onCreated,
   onCancel,
 }: {
-  onCreated: (j: EipJob) => void;
+  onCreated: (j: EipJob, file: File) => void;
   onCancel: () => void;
 }) {
   const { session } = useSession();
@@ -36,22 +36,26 @@ export function ImmunizeWizard({
         .order("version", { ascending: false })
         .limit(1)
         .maybeSingle();
-      return data as { id: string; auth_number: string | null; status: string; expiry_date: string | null; snapshot: Record<string, unknown> | null } | null;
+      return data as {
+        id: string;
+        auth_number: string | null;
+        status: string;
+        expiry_date: string | null;
+        snapshot: Record<string, unknown> | null;
+      } | null;
     },
   });
   const ca = signed.data;
   const legacy = (authz.state?.authorization ?? null) as { id: string; legal_name?: string } | null;
-  const caValid = !!ca && ca.status === "ACTIVE" && (!ca.expiry_date || Date.parse(ca.expiry_date) > Date.now());
-  const snapName = (ca?.snapshot?.["legal_name"] ?? ca?.snapshot?.["full_name"] ?? null) as string | null;
+  const caValid =
+    !!ca && ca.status === "ACTIVE" && (!ca.expiry_date || Date.parse(ca.expiry_date) > Date.now());
+  const snapName = (ca?.snapshot?.["legal_name"] ?? ca?.snapshot?.["full_name"] ?? null) as
+    | string
+    | null;
   const rec = caValid
     ? { id: ca!.auth_number ?? ca!.id, legal_name: snapName ?? legacy?.legal_name ?? undefined }
     : legacy;
   const authorized = caValid || (!!legacy && authz.completed);
-    !!rec &&
-    (authz.status === "authorized" ||
-      authz.status === "enterprise_authorized" ||
-      authz.state?.clientAuthorizationStatus === "signed" ||
-      authz.completed);
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -132,7 +136,7 @@ export function ImmunizeWizard({
         .single();
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["eip"] });
-      onCreated(data as EipJob);
+      onCreated(data as EipJob, file);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start immunization");
     } finally {
