@@ -3330,10 +3330,11 @@
 .eip-hero-copy h2 {
   margin-top: 0.7rem;
   color: var(--eip-ink);
-  max-width: 11ch;
-  font-size: clamp(2.3rem, 4vw, 3rem);
+  max-width: 12ch;
+  font-size: clamp(2.15rem, 3.35vw, 2.75rem);
   font-weight: 500;
   line-height: 0.98;
+  overflow-wrap: anywhere;
 }
 
 .eip-hero-lead {
