@@ -4192,6 +4192,48 @@ export type Database = {
         }
         Relationships: []
       }
+      eip_engine_status: {
+        Row: {
+          config_sha256: string | null
+          engine_version: string | null
+          error_code: string | null
+          expected_engine_version: string | null
+          id: number
+          last_checked_at: string | null
+          last_ok_at: string | null
+          models_loaded: boolean | null
+          research_base_version: string | null
+          status: string
+          worker_heartbeat_at: string | null
+        }
+        Insert: {
+          config_sha256?: string | null
+          engine_version?: string | null
+          error_code?: string | null
+          expected_engine_version?: string | null
+          id?: number
+          last_checked_at?: string | null
+          last_ok_at?: string | null
+          models_loaded?: boolean | null
+          research_base_version?: string | null
+          status?: string
+          worker_heartbeat_at?: string | null
+        }
+        Update: {
+          config_sha256?: string | null
+          engine_version?: string | null
+          error_code?: string | null
+          expected_engine_version?: string | null
+          id?: number
+          last_checked_at?: string | null
+          last_ok_at?: string | null
+          models_loaded?: boolean | null
+          research_base_version?: string | null
+          status?: string
+          worker_heartbeat_at?: string | null
+        }
+        Relationships: []
+      }
       eip_evaluations: {
         Row: {
           created_at: string
@@ -4244,103 +4286,175 @@ export type Database = {
       }
       eip_jobs: {
         Row: {
+          attempt_count: number
           authorization_ref: string
           authorized_identity: string | null
           certificate_id: string | null
+          claimed_at: string | null
           completed_at: string | null
           config_sha256: string | null
           created_at: string
           current_stage: string | null
+          engine_job_id: string | null
           engine_version: string | null
+          error_code: string | null
           error_message: string | null
+          evaluation_version: string | null
+          heartbeat_at: string | null
           height: number | null
           id: string
           image_name: string
+          manifest: Json | null
           mime_type: string
           original_sha256: string
           protected_sha256: string | null
           protected_storage_path: string | null
           reason_codes: string[]
+          research_base_version: string | null
           size_bytes: number | null
           started_at: string | null
           status: string
           storage_path: string
           user_id: string
           width: number | null
+          worker_id: string | null
         }
         Insert: {
+          attempt_count?: number
           authorization_ref: string
           authorized_identity?: string | null
           certificate_id?: string | null
+          claimed_at?: string | null
           completed_at?: string | null
           config_sha256?: string | null
           created_at?: string
           current_stage?: string | null
+          engine_job_id?: string | null
           engine_version?: string | null
+          error_code?: string | null
           error_message?: string | null
+          evaluation_version?: string | null
+          heartbeat_at?: string | null
           height?: number | null
           id?: string
           image_name: string
+          manifest?: Json | null
           mime_type: string
           original_sha256: string
           protected_sha256?: string | null
           protected_storage_path?: string | null
           reason_codes?: string[]
+          research_base_version?: string | null
           size_bytes?: number | null
           started_at?: string | null
           status?: string
           storage_path: string
           user_id: string
           width?: number | null
+          worker_id?: string | null
         }
         Update: {
+          attempt_count?: number
           authorization_ref?: string
           authorized_identity?: string | null
           certificate_id?: string | null
+          claimed_at?: string | null
           completed_at?: string | null
           config_sha256?: string | null
           created_at?: string
           current_stage?: string | null
+          engine_job_id?: string | null
           engine_version?: string | null
+          error_code?: string | null
           error_message?: string | null
+          evaluation_version?: string | null
+          heartbeat_at?: string | null
           height?: number | null
           id?: string
           image_name?: string
+          manifest?: Json | null
           mime_type?: string
           original_sha256?: string
           protected_sha256?: string | null
           protected_storage_path?: string | null
           reason_codes?: string[]
+          research_base_version?: string | null
           size_bytes?: number | null
           started_at?: string | null
           status?: string
           storage_path?: string
           user_id?: string
           width?: number | null
+          worker_id?: string | null
+        }
+        Relationships: []
+      }
+      eip_ops_log: {
+        Row: {
+          created_at: string
+          detail: string | null
+          error_code: string
+          id: number
+          job_id: string | null
+          reevaluation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          error_code: string
+          id?: number
+          job_id?: string | null
+          reevaluation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          error_code?: string
+          id?: number
+          job_id?: string | null
+          reevaluation_id?: string | null
         }
         Relationships: []
       }
       eip_reevaluation_requests: {
         Row: {
+          attempt_count: number
+          claimed_at: string | null
           created_at: string
+          engine_evaluation_id: string | null
+          error_code: string | null
+          heartbeat_at: string | null
           id: string
           job_id: string
           requested_by: string
           status: string
+          worker_id: string | null
         }
         Insert: {
+          attempt_count?: number
+          claimed_at?: string | null
           created_at?: string
+          engine_evaluation_id?: string | null
+          error_code?: string | null
+          heartbeat_at?: string | null
           id?: string
           job_id: string
           requested_by: string
           status?: string
+          worker_id?: string | null
         }
         Update: {
+          attempt_count?: number
+          claimed_at?: string | null
           created_at?: string
+          engine_evaluation_id?: string | null
+          error_code?: string | null
+          heartbeat_at?: string | null
           id?: string
           job_id?: string
           requested_by?: string
           status?: string
+          worker_id?: string | null
         }
         Relationships: [
           {
@@ -11475,6 +11589,104 @@ export type Database = {
         }[]
       }
       eip_enabled: { Args: { _uid: string }; Returns: boolean }
+      eip_request_is_worker: { Args: never; Returns: boolean }
+      eip_worker_claim: {
+        Args: {
+          _limit: number
+          _max_attempts: number
+          _stale_seconds: number
+          _token: string
+          _worker: string
+        }
+        Returns: {
+          attempt_count: number
+          authorization_ref: string
+          authorized_identity: string | null
+          certificate_id: string | null
+          claimed_at: string | null
+          completed_at: string | null
+          config_sha256: string | null
+          created_at: string
+          current_stage: string | null
+          engine_job_id: string | null
+          engine_version: string | null
+          error_code: string | null
+          error_message: string | null
+          evaluation_version: string | null
+          heartbeat_at: string | null
+          height: number | null
+          id: string
+          image_name: string
+          manifest: Json | null
+          mime_type: string
+          original_sha256: string
+          protected_sha256: string | null
+          protected_storage_path: string | null
+          reason_codes: string[]
+          research_base_version: string | null
+          size_bytes: number | null
+          started_at: string | null
+          status: string
+          storage_path: string
+          user_id: string
+          width: number | null
+          worker_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "eip_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      eip_worker_claim_reevals: {
+        Args: {
+          _limit: number
+          _max_attempts: number
+          _stale_seconds: number
+          _token: string
+          _worker: string
+        }
+        Returns: {
+          engine_evaluation_id: string
+          engine_job_id: string
+          id: string
+          job_id: string
+          protected_sha256: string
+          protected_storage_path: string
+        }[]
+      }
+      eip_worker_idle: {
+        Args: { _force: boolean; _token: string }
+        Returns: boolean
+      }
+      eip_worker_report: {
+        Args: { _log: Json; _status: Json; _token: string }
+        Returns: undefined
+      }
+      eip_worker_token_valid: { Args: { _token: string }; Returns: boolean }
+      eip_worker_update: {
+        Args: {
+          _evaluation: Json
+          _job: string
+          _patch: Json
+          _token: string
+          _worker: string
+        }
+        Returns: undefined
+      }
+      eip_worker_update_reeval: {
+        Args: {
+          _engine_evaluation_id: string
+          _error_code: string
+          _evaluation: Json
+          _id: string
+          _status: string
+          _token: string
+          _worker: string
+        }
+        Returns: undefined
+      }
       get_public_verification: {
         Args: { _slug: string }
         Returns: {
