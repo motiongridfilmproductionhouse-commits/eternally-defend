@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, Fingerprint, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EIP_STAGES, isActive, type EipJob } from "@/lib/eip/eip-data";
+import { useSignedUrl } from "./EipParts";
 
 const RESULT = {
   PASS: { title: "EIP Protection Validated", icon: ShieldCheck, tone: "is-pass", text: "The protected asset and its certificate record are ready." },
@@ -60,7 +61,9 @@ export function EipProcessingOverlay({
   onClose: () => void;
   onViewResult: () => void;
 }) {
-  const [src, setSrc] = useState<string | null>(null);
+  const [localSrc, setSrc] = useState<string | null>(null);
+  const signed = useSignedUrl(file ? null : job.storage_path);
+  const src = localSrc ?? signed;
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   useEffect(() => {
