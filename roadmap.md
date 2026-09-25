@@ -15,4 +15,5 @@
 - [ ] Phase 6 QA gate + written report
 - [x] Redesign Image Immunization dashboard to match the provided clean blue hero-grid reference
 - [x] Image Immunization dashboard: left protected-image visual, right controls/analytics, bottom detail panels
+- [x] Replace the heavy black Image Immunization silhouette with the selected luminous neural mesh
 
