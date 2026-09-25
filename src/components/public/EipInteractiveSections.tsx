@@ -40,6 +40,7 @@ const lifecycleStages = [
     title: "Original image",
     short: "Authorized source image.",
     state: "ORIGINAL",
+    badge: "Source image",
     detail:
       "Standard digital images may carry identity information that machine systems can analyze and reuse.",
   },
@@ -48,6 +49,7 @@ const lifecycleStages = [
     title: "EIP process",
     short: "Image passes through Eterna Image Protection.",
     state: "PROCESSING",
+    badge: "EIP process",
     detail:
       "Eterna applies a defensive transformation to an authorized image before publication.",
   },
@@ -56,6 +58,7 @@ const lifecycleStages = [
     title: "Protected output",
     short: "Human-visible appearance remains visually preserved.",
     state: "EIP PROTECTED",
+    badge: "Protected output",
     detail:
       "The image remains intended for normal human viewing while incorporating the EIP protection layer.",
   },
@@ -64,6 +67,7 @@ const lifecycleStages = [
     title: "Public use",
     short: "Protected image may be used across authorized digital channels.",
     state: "PUBLISHED",
+    badge: "Authorized use",
     detail:
       "The protected version becomes the preferred asset for authorized publishing workflows.",
   },
@@ -73,6 +77,7 @@ const lifecycleStages = [
     short:
       "Designed to make reliable machine identity reuse more difficult across common AI identity workflows.",
     state: "DEFENSIVE SIGNAL",
+    badge: "Defensive layer",
     detail:
       "EIP is designed to reduce reliable machine identity fidelity when the protected image encounters common AI identity pipelines.",
   },
@@ -93,26 +98,38 @@ function AudienceCardView({ card }: { card: AudienceCard }) {
 }
 
 function LifecycleImage({ activeIndex }: { activeIndex: number }) {
-  const state = lifecycleStages[activeIndex]?.state ?? lifecycleStages[0].state;
+  const stage = lifecycleStages[activeIndex] ?? lifecycleStages[0];
   return (
-    <div className={cn("eip-image-state", `eip-image-state--${activeIndex + 1}`)} aria-hidden="true">
+    <div key={activeIndex} className={cn("eip-image-state", `eip-image-state--${activeIndex + 1}`)} aria-hidden="true">
       <div className="eip-image-state__frame">
         <span className="eip-image-state__corner eip-image-state__corner--tl" />
         <span className="eip-image-state__corner eip-image-state__corner--tr" />
         <span className="eip-image-state__corner eip-image-state__corner--bl" />
         <span className="eip-image-state__corner eip-image-state__corner--br" />
-        <span className="eip-image-state__surface" />
+        <span className="eip-image-state__surface">
+          <span className="eip-image-state__tile eip-image-state__tile--one" />
+          <span className="eip-image-state__tile eip-image-state__tile--two" />
+          <span className="eip-image-state__tile eip-image-state__tile--three" />
+          <span className="eip-image-state__node eip-image-state__node--one" />
+          <span className="eip-image-state__node eip-image-state__node--two" />
+          <span className="eip-image-state__node eip-image-state__node--three" />
+          <span className="eip-image-state__ring eip-image-state__ring--one" />
+          <span className="eip-image-state__ring eip-image-state__ring--two" />
+        </span>
         <span className="eip-image-state__veil eip-image-state__veil--one" />
         <span className="eip-image-state__veil eip-image-state__veil--two" />
         <span className="eip-image-state__line eip-image-state__line--one" />
         <span className="eip-image-state__line eip-image-state__line--two" />
         <span className="eip-image-state__line eip-image-state__line--three" />
         <span className="eip-image-state__scan" />
-        <span className="eip-image-state__badge"><ShieldCheck /> Protected state</span>
+        <span className="eip-image-state__channel eip-image-state__channel--one" />
+        <span className="eip-image-state__channel eip-image-state__channel--two" />
+        <span className="eip-image-state__channel eip-image-state__channel--three" />
+        <span className="eip-image-state__badge"><ShieldCheck /> {stage.badge}</span>
       </div>
       <div className="eip-image-state__caption">
-        <span>AUTHORIZED IMAGE · 01</span>
-        <strong>{state}</strong>
+        <span>AUTHORIZED IMAGE · {stage.number}</span>
+        <strong>{stage.state}</strong>
       </div>
     </div>
   );
@@ -158,7 +175,6 @@ export function EipIdentityProtectionSection() {
 
 export function EipImageLifecycleSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const stageRefs = useRef<Array<HTMLLIElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isInView, setIsInView] = useState(false);
 
@@ -173,47 +189,10 @@ export function EipImageLifecycleSection() {
       { rootMargin: "20% 0px", threshold: 0.05 },
     );
     visibilityObserver.observe(section);
-
-    let frame = 0;
-    const updateFromScroll = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        if (window.innerWidth < 768) {
-          const center = window.innerHeight * 0.52;
-          let closestIndex = 0;
-          let closestDistance = Number.POSITIVE_INFINITY;
-          stageRefs.current.forEach((node, index) => {
-            if (!node) return;
-            const bounds = node.getBoundingClientRect();
-            const distance = Math.abs(bounds.top + bounds.height / 2 - center);
-            if (distance < closestDistance) {
-              closestDistance = distance;
-              closestIndex = index;
-            }
-          });
-          setActiveIndex(closestIndex);
-          return;
-        }
-        const bounds = section.getBoundingClientRect();
-        const travel = Math.max(bounds.height - window.innerHeight * 0.45, 1);
-        const progress = Math.min(1, Math.max(0, (window.innerHeight * 0.58 - bounds.top) / travel));
-        setActiveIndex(Math.min(lifecycleStages.length - 1, Math.floor(progress * lifecycleStages.length)));
-      });
-    };
-
-    const onScroll = () => {
-      if (isInView) updateFromScroll();
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", updateFromScroll);
-    updateFromScroll();
     return () => {
       visibilityObserver.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", updateFromScroll);
-      window.cancelAnimationFrame(frame);
     };
-  }, [isInView]);
+  }, []);
 
   return (
     <section ref={sectionRef} className={cn("eip-lifecycle-section border-t border-landing-line", isInView && "is-in-view")} aria-labelledby="eip-lifecycle-heading">
@@ -242,7 +221,7 @@ export function EipImageLifecycleSection() {
 
           <ol className="eip-lifecycle-stages" style={{ "--eip-progress": `${(activeIndex / (lifecycleStages.length - 1)) * 100}%` } as React.CSSProperties}>
             {lifecycleStages.map((stage, index) => (
-              <li key={stage.number} ref={(node) => { stageRefs.current[index] = node; }} className={cn("eip-lifecycle-stage", index === activeIndex && "is-active", index < activeIndex && "is-complete")}>
+              <li key={stage.number} className={cn("eip-lifecycle-stage", index === activeIndex && "is-active", index < activeIndex && "is-complete")}>
                 <Button
                   type="button"
                   variant="ghost"
