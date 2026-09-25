@@ -101,7 +101,7 @@ function LifecycleImage({ activeIndex }: { activeIndex: number }) {
         <span className="eip-image-state__corner eip-image-state__corner--tr" />
         <span className="eip-image-state__corner eip-image-state__corner--bl" />
         <span className="eip-image-state__corner eip-image-state__corner--br" />
-        <span className="eip-image-state__orb" />
+        <span className="eip-image-state__surface" />
         <span className="eip-image-state__veil eip-image-state__veil--one" />
         <span className="eip-image-state__veil eip-image-state__veil--two" />
         <span className="eip-image-state__line eip-image-state__line--one" />
