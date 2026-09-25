@@ -101,19 +101,12 @@ function LifecycleImage({ activeIndex }: { activeIndex: number }) {
         <span className="eip-image-state__corner eip-image-state__corner--tr" />
         <span className="eip-image-state__corner eip-image-state__corner--bl" />
         <span className="eip-image-state__corner eip-image-state__corner--br" />
-        <svg viewBox="0 0 340 300" role="presentation" focusable="false">
-          <path className="eip-image-state__head" d="M170 62c35 0 62 29 62 65s-27 65-62 65-62-29-62-65 27-65 62-65Z" />
-          <path className="eip-image-state__body" d="M72 286c9-57 47-92 98-92s89 35 98 92" />
-          <g className="eip-image-state__mesh">
-            <path d="M111 113h118M117 142h106M131 170h78M143 73l-25 99M170 63v130M197 73l25 99" />
-            <circle cx="117" cy="142" r="3" /><circle cx="170" cy="63" r="3" />
-            <circle cx="223" cy="142" r="3" /><circle cx="170" cy="193" r="3" />
-          </g>
-          <g className="eip-image-state__paths">
-            <path d="M268 78c24 0 33-18 52-18" /><path d="M268 114h57" />
-            <path d="M268 150c24 0 33 18 52 18" />
-          </g>
-        </svg>
+        <span className="eip-image-state__orb" />
+        <span className="eip-image-state__veil eip-image-state__veil--one" />
+        <span className="eip-image-state__veil eip-image-state__veil--two" />
+        <span className="eip-image-state__line eip-image-state__line--one" />
+        <span className="eip-image-state__line eip-image-state__line--two" />
+        <span className="eip-image-state__line eip-image-state__line--three" />
         <span className="eip-image-state__scan" />
         <span className="eip-image-state__badge"><ShieldCheck /> Protected state</span>
       </div>
