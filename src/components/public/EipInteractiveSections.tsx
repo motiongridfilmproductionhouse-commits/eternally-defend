@@ -260,7 +260,6 @@ export function EipImageLifecycleSection() {
                   <ArrowRight className="eip-lifecycle-stage__arrow" aria-hidden="true" />
                 </Button>
                 <div className="eip-lifecycle-stage__mobile-detail">
-                  <LifecycleImage activeIndex={index} />
                   <p>{stage.detail}</p>
                 </div>
               </li>
