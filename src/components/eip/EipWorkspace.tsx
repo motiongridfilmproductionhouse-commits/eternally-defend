@@ -315,6 +315,10 @@ function EipIdentityVisual({
   return (
     <div className="eip-identity-visual" aria-hidden="true">
       <div className="eip-head-silhouette">
+        <span className="eip-mesh-ring eip-mesh-ring--outer" />
+        <span className="eip-mesh-ring eip-mesh-ring--inner" />
+        <span className="eip-mesh-profile" />
+        <span className="eip-mesh-grid" />
         <span className="eip-scan-orbit eip-scan-orbit--one" />
         <span className="eip-scan-orbit eip-scan-orbit--two" />
         <span className="eip-scan-line" />

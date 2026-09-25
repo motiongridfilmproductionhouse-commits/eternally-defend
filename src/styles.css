@@ -3391,40 +3391,96 @@
 
 .eip-head-silhouette {
   position: absolute;
-  left: 7%;
-  bottom: -7%;
-  width: min(32rem, 50%);
-  aspect-ratio: 0.72;
-  border-radius: 49% 51% 42% 44% / 30% 34% 46% 48%;
+  left: 4%;
+  bottom: 8%;
+  width: min(29rem, 49%);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--eip-blue-bright) 34%, transparent);
+  border-radius: 2.25rem;
   background:
-    radial-gradient(circle at 68% 27%, oklch(0.92 0.025 255 / 0.08), transparent 10%),
-    radial-gradient(circle at 38% 33%, oklch(1 0 0 / 0.09), transparent 14%),
-    linear-gradient(100deg, oklch(0.05 0.008 255), oklch(0.12 0.022 255) 55%, oklch(0.035 0.004 255));
-  filter: drop-shadow(0 26px 45px oklch(0.2 0.03 255 / 0.22));
+    radial-gradient(circle at 50% 46%, color-mix(in oklab, var(--eip-blue-bright) 36%, transparent), transparent 34%),
+    radial-gradient(circle at 15% 12%, oklch(1 0 0 / 0.18), transparent 28%),
+    linear-gradient(145deg, color-mix(in oklab, var(--eip-blue-bright) 72%, white), var(--eip-blue) 52%, var(--eip-blue-deep));
+  box-shadow: 0 28px 70px -35px color-mix(in oklab, var(--eip-blue-deep) 72%, transparent);
   animation: eipFloat 7s ease-in-out infinite;
 }
 
 .eip-head-silhouette::before {
   content: "";
   position: absolute;
-  right: -14%;
-  top: 27%;
-  width: 30%;
-  height: 27%;
-  border-radius: 55% 45% 48% 42%;
-  background: inherit;
+  inset: 0;
+  background:
+    linear-gradient(115deg, transparent 18%, oklch(1 0 0 / 0.2) 45%, transparent 67%),
+    radial-gradient(circle at 72% 70%, oklch(0.8 0.14 292 / 0.32), transparent 25%);
+  transform: translateX(-48%);
+  animation: eipMeshShimmer 6s ease-in-out infinite;
 }
 
 .eip-head-silhouette::after {
   content: "";
   position: absolute;
-  right: -20%;
-  bottom: 6%;
-  width: 47%;
-  height: 52%;
-  border-radius: 45% 54% 35% 34%;
-  background: linear-gradient(120deg, oklch(0.07 0.01 255), oklch(0.02 0.003 255));
-  transform: rotate(-10deg);
+  inset: 0;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(oklch(1 0 0 / 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / 0.22) 1px, transparent 1px);
+  background-size: 2rem 2rem;
+  mask-image: radial-gradient(circle, black 10%, transparent 72%);
+}
+
+.eip-mesh-ring,
+.eip-mesh-profile,
+.eip-mesh-grid {
+  position: absolute;
+  z-index: 1;
+}
+
+.eip-mesh-ring {
+  left: 50%;
+  top: 50%;
+  aspect-ratio: 1;
+  border: 1px solid oklch(1 0 0 / 0.3);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.eip-mesh-ring--outer {
+  width: 82%;
+  border-style: dashed;
+  animation: eipMeshSpin 24s linear infinite;
+}
+
+.eip-mesh-ring--inner {
+  width: 59%;
+  border-color: oklch(1 0 0 / 0.42);
+  animation: eipMeshSpinReverse 18s linear infinite;
+}
+
+.eip-mesh-profile {
+  left: 50%;
+  top: 47%;
+  width: 42%;
+  height: 56%;
+  border: 1px solid oklch(1 0 0 / 0.52);
+  border-radius: 46% 54% 48% 52% / 38% 42% 58% 62%;
+  background:
+    radial-gradient(circle at 48% 31%, oklch(1 0 0 / 0.24), transparent 8%),
+    linear-gradient(155deg, oklch(1 0 0 / 0.2), oklch(1 0 0 / 0.035));
+  box-shadow: inset 0 0 3rem oklch(1 0 0 / 0.12), 0 0 2.5rem color-mix(in oklab, var(--eip-blue-bright) 48%, transparent);
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(16px);
+}
+
+.eip-mesh-grid {
+  left: 50%;
+  top: 50%;
+  width: 66%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.58), transparent);
+  box-shadow: 0 -3.75rem 0 oklch(1 0 0 / 0.16), 0 3.75rem 0 oklch(1 0 0 / 0.16);
+  transform: translate(-50%, -50%);
+  animation: eipMeshScan 4.2s ease-in-out infinite;
 }
 
 .eip-scan-orbit,
@@ -3439,8 +3495,9 @@
   width: 3.25rem;
   aspect-ratio: 1;
   border-radius: 999px;
-  background: oklch(0.22 0.03 255 / 0.78);
-  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.13), 0 14px 32px oklch(0.06 0.01 255 / 0.28);
+  background: oklch(1 0 0 / 0.16);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.28), 0 14px 32px color-mix(in oklab, var(--eip-blue-deep) 42%, transparent);
+  backdrop-filter: blur(14px);
 }
 
 .eip-scan-orbit::before {
@@ -3487,7 +3544,7 @@
   position: absolute;
   z-index: 4;
   border: 1px solid oklch(1 0 0 / 0.82);
-  background: oklch(1 0 0 / 0.62);
+  background: oklch(1 0 0 / 0.82);
   box-shadow: 0 20px 50px -28px oklch(0.05 0.02 255 / 0.36);
   backdrop-filter: blur(18px) saturate(130%);
 }
@@ -3526,7 +3583,7 @@
 
 .eip-mini-control {
   left: 8%;
-  right: 48%;
+  right: 49%;
   bottom: 2rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.7fr);
@@ -4073,6 +4130,24 @@
   to { box-shadow: 0 0 0 0.7rem color-mix(in oklab, var(--eip-blue) 0%, transparent); }
 }
 
+@keyframes eipMeshShimmer {
+  0%, 100% { transform: translateX(-48%); opacity: 0.55; }
+  50% { transform: translateX(48%); opacity: 0.9; }
+}
+
+@keyframes eipMeshSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes eipMeshSpinReverse {
+  to { transform: translate(-50%, -50%) rotate(-360deg); }
+}
+
+@keyframes eipMeshScan {
+  0%, 100% { transform: translate(-50%, -4rem); opacity: 0.26; }
+  50% { transform: translate(-50%, 4rem); opacity: 0.85; }
+}
+
 @media (max-width: 1120px) {
   .eip-hero-grid {
     grid-template-columns: 1fr;
@@ -4114,9 +4189,9 @@
   }
 
   .eip-head-silhouette {
-    left: 14%;
+    left: 12%;
     bottom: 5.25rem;
-    width: min(18rem, 72%);
+    width: min(18rem, 76%);
   }
 
   .eip-floating-note--left {
@@ -4189,6 +4264,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .eip-head-silhouette,
+  .eip-head-silhouette::before,
+  .eip-mesh-ring,
+  .eip-mesh-grid,
   .eip-scan-orbit::after,
   .eip-mini-bars span::after,
   .eip-graph-line,
