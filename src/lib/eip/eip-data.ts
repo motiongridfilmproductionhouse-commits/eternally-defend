@@ -5,9 +5,25 @@ import { supabase } from "@/integrations/supabase/client";
 export const eipDb = supabase as unknown as SupabaseClient;
 
 export type EipStatus =
-  | "QUEUED" | "PROCESSING" | "VALIDATING" | "IMMUNIZING" | "EVALUATING" | "FINALIZING"
-  | "PASS" | "LIMITED" | "FAIL" | "CANCELLED" | "SYSTEM_ERROR";
-export const ACTIVE_STATUSES: EipStatus[] = ["QUEUED", "PROCESSING", "VALIDATING", "IMMUNIZING", "EVALUATING", "FINALIZING"];
+  | "QUEUED"
+  | "PROCESSING"
+  | "VALIDATING"
+  | "IMMUNIZING"
+  | "EVALUATING"
+  | "FINALIZING"
+  | "PASS"
+  | "LIMITED"
+  | "FAIL"
+  | "CANCELLED"
+  | "SYSTEM_ERROR";
+export const ACTIVE_STATUSES: EipStatus[] = [
+  "QUEUED",
+  "PROCESSING",
+  "VALIDATING",
+  "IMMUNIZING",
+  "EVALUATING",
+  "FINALIZING",
+];
 export const isActive = (s: EipStatus) => ACTIVE_STATUSES.includes(s);
 
 export type EipJob = {
@@ -138,7 +154,8 @@ export const STATUS_STYLE: Record<EipStatus, string> = {
   FAIL: "bg-danger/15 text-danger border-danger/30",
   SYSTEM_ERROR: "bg-muted text-foreground border-border",
   QUEUED: "bg-info/15 text-info border-info/30",
-  PROCESSING: "bg-info/15 text-info border-info/30",  VALIDATING: "bg-info/15 text-info border-info/30",
+  PROCESSING: "bg-info/15 text-info border-info/30",
+  VALIDATING: "bg-info/15 text-info border-info/30",
   IMMUNIZING: "bg-info/15 text-info border-info/30",
   EVALUATING: "bg-info/15 text-info border-info/30",
   FINALIZING: "bg-info/15 text-info border-info/30",
@@ -150,7 +167,8 @@ export const STATUS_LABEL: Record<EipStatus, string> = {
   FAIL: "FAIL",
   SYSTEM_ERROR: "SYSTEM ERROR",
   QUEUED: "PROCESSING",
-  PROCESSING: "PROCESSING",  VALIDATING: "PROCESSING",
+  PROCESSING: "PROCESSING",
+  VALIDATING: "PROCESSING",
   IMMUNIZING: "PROCESSING",
   EVALUATING: "PROCESSING",
   FINALIZING: "PROCESSING",

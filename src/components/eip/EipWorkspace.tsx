@@ -62,21 +62,28 @@ export function EipWorkspace() {
 
   const header = (
     <div className="max-w-3xl">
-      <div className="text-[10px] tracking-[0.25em] font-semibold text-primary uppercase">Eterna EIP</div>
+      <div className="text-[10px] tracking-[0.25em] font-semibold text-primary uppercase">
+        Eterna EIP
+      </div>
       <h2 className="font-display text-2xl font-bold mt-1">Image Immunization</h2>
-      <p className="text-sm text-foreground mt-1">Pre-publication identity protection for authorized images.</p>
+      <p className="text-sm text-foreground mt-1">
+        Pre-publication identity protection for authorized images.
+      </p>
       <p className="text-sm text-muted-foreground mt-2">
-        Prepare authorized images before publication using Eterna Image Immunization, then validate visual quality,
-        transformation robustness and identity-protection performance before the protected asset is released.
+        Prepare authorized images before publication using Eterna Image Immunization, then validate
+        visual quality, transformation robustness and identity-protection performance before the
+        protected asset is released.
       </p>
     </div>
   );
 
   if (!access.enabled) {
     const request = async () => {
-      const { error } = await eipDb
-        .from("eip_account_access")
-        .upsert({ user_id: session!.user.id, enabled: false, requested_at: new Date().toISOString() });
+      const { error } = await eipDb.from("eip_account_access").upsert({
+        user_id: session!.user.id,
+        enabled: false,
+        requested_at: new Date().toISOString(),
+      });
       if (error) return toast.error(error.message);
       toast.success("Access requested — the Eterna team will be in touch.");
       qc.invalidateQueries({ queryKey: ["eip-access"] });
@@ -115,7 +122,9 @@ export function EipWorkspace() {
         {header}
         <div className="flex gap-2 shrink-0">
           <Button onClick={() => setWizard(true)}>Immunize New Image</Button>
-          <Button variant="outline" onClick={() => setTab("assets")}>View Protected Assets</Button>
+          <Button variant="outline" onClick={() => setTab("assets")}>
+            View Protected Assets
+          </Button>
         </div>
       </div>
 
@@ -141,7 +150,9 @@ export function EipWorkspace() {
       {tab === "overview" ? (
         <PageCard title="Recent jobs">
           {jobs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No images have been submitted for immunization yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No images have been submitted for immunization yet.
+            </p>
           ) : (
             <ul className="divide-y divide-border">
               {jobs.slice(0, 5).map((j) => (
@@ -234,18 +245,31 @@ export function AssetsTable({
             <tbody className="divide-y divide-border">
               {jobs.map((j) => (
                 <tr key={j.id}>
-                  <td className="py-2 pr-3"><Thumb path={j.storage_path} className="size-10" /></td>
+                  <td className="py-2 pr-3">
+                    <Thumb path={j.storage_path} className="size-10" />
+                  </td>
                   <td className="py-2 pr-3 max-w-[180px] truncate">{j.image_name}</td>
-                  <td className="py-2 pr-3">{showClient ? `${j.user_id.slice(0, 8)} · ` : ""}{j.authorized_identity ?? "—"}</td>
+                  <td className="py-2 pr-3">
+                    {showClient ? `${j.user_id.slice(0, 8)} · ` : ""}
+                    {j.authorized_identity ?? "—"}
+                  </td>
                   <td className="py-2 pr-3 font-mono text-xs">{j.authorization_ref.slice(0, 8)}</td>
-                  <td className="py-2 pr-3 whitespace-nowrap">{new Date(j.created_at).toLocaleDateString()}</td>
+                  <td className="py-2 pr-3 whitespace-nowrap">
+                    {new Date(j.created_at).toLocaleDateString()}
+                  </td>
                   <td className="py-2 pr-3">{j.engine_version ?? "—"}</td>
-                  <td className="py-2 pr-3"><EipStatusBadge status={j.status} /></td>
+                  <td className="py-2 pr-3">
+                    <EipStatusBadge status={j.status} />
+                  </td>
                   <td className="py-2 pr-3 font-mono text-xs">{j.certificate_id ?? "—"}</td>
                   <td className="py-2 whitespace-nowrap space-x-1">
-                    <Button size="sm" variant="ghost" onClick={() => onOpen(j)}>View</Button>
+                    <Button size="sm" variant="ghost" onClick={() => onOpen(j)}>
+                      View
+                    </Button>
                     {onReeval && ["PASS", "LIMITED", "FAIL"].includes(j.status) && (
-                      <Button size="sm" variant="ghost" onClick={() => onReeval(j)}>Re-evaluate</Button>
+                      <Button size="sm" variant="ghost" onClick={() => onReeval(j)}>
+                        Re-evaluate
+                      </Button>
                     )}
                   </td>
                 </tr>

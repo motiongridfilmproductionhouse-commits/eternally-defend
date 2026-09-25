@@ -29,7 +29,8 @@ export const NON_RETRYABLE: ReadonlySet<string> = new Set([
   "INPUT_HASH_MISMATCH",
   "AUTHORIZATION_INVALID",
 ]);
-export const isRetryableSystemError = (code: string | null | undefined) => !NON_RETRYABLE.has(code ?? "");
+export const isRetryableSystemError = (code: string | null | undefined) =>
+  !NON_RETRYABLE.has(code ?? "");
 
 /** Clean user-facing wording; technical detail goes only to the admin ops log. */
 export const USER_ERROR_MESSAGE: Record<string, string> = {
@@ -153,8 +154,10 @@ export function checkVersions(
   got: { engineVersion: string; configSha256?: string },
   expected: Expected,
 ): EipErrorCode | null {
-  if (expected.engineVersion && got.engineVersion !== expected.engineVersion) return "ENGINE_VERSION_MISMATCH";
-  if (expected.configSha256 && got.configSha256 !== expected.configSha256) return "CONFIG_INTEGRITY_FAILED";
+  if (expected.engineVersion && got.engineVersion !== expected.engineVersion)
+    return "ENGINE_VERSION_MISMATCH";
+  if (expected.configSha256 && got.configSha256 !== expected.configSha256)
+    return "CONFIG_INTEGRITY_FAILED";
   return null;
 }
 
@@ -170,16 +173,30 @@ export function validateManifest(
   expected: Expected,
 ): ManifestCheck {
   const parsed = ManifestSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, code: "MANIFEST_INVALID", detail: parsed.error.issues.map((i) => i.path.join(".")).join(",") };
+  if (!parsed.success)
+    return {
+      ok: false,
+      code: "MANIFEST_INVALID",
+      detail: parsed.error.issues.map((i) => i.path.join(".")).join(","),
+    };
   const m = parsed.data;
-  if (m.eip_job_id !== job.id) return { ok: false, code: "MANIFEST_INVALID", detail: "job id mismatch" };
-  if (m.authorization_id !== job.authorization_ref) return { ok: false, code: "MANIFEST_INVALID", detail: "authorization mismatch" };
-  if (m.original_asset_sha256 !== job.original_sha256) return { ok: false, code: "INPUT_HASH_MISMATCH", detail: "original hash mismatch" };
-  const v = checkVersions({ engineVersion: m.engine_version, configSha256: m.config_sha256 }, expected);
+  if (m.eip_job_id !== job.id)
+    return { ok: false, code: "MANIFEST_INVALID", detail: "job id mismatch" };
+  if (m.authorization_id !== job.authorization_ref)
+    return { ok: false, code: "MANIFEST_INVALID", detail: "authorization mismatch" };
+  if (m.original_asset_sha256 !== job.original_sha256)
+    return { ok: false, code: "INPUT_HASH_MISMATCH", detail: "original hash mismatch" };
+  const v = checkVersions(
+    { engineVersion: m.engine_version, configSha256: m.config_sha256 },
+    expected,
+  );
   if (v) return { ok: false, code: v, detail: "manifest version/config" };
-  if (pinned.configSha256 && m.config_sha256 !== pinned.configSha256) return { ok: false, code: "CONFIG_INTEGRITY_FAILED", detail: "config changed mid-job" };
-  if (pinned.engineVersion && m.engine_version !== pinned.engineVersion) return { ok: false, code: "ENGINE_VERSION_MISMATCH", detail: "engine changed mid-job" };
-  if (m.decision !== "FAIL" && !m.protected_asset_sha256) return { ok: false, code: "MANIFEST_INVALID", detail: "missing protected hash" };
+  if (pinned.configSha256 && m.config_sha256 !== pinned.configSha256)
+    return { ok: false, code: "CONFIG_INTEGRITY_FAILED", detail: "config changed mid-job" };
+  if (pinned.engineVersion && m.engine_version !== pinned.engineVersion)
+    return { ok: false, code: "ENGINE_VERSION_MISMATCH", detail: "engine changed mid-job" };
+  if (m.decision !== "FAIL" && !m.protected_asset_sha256)
+    return { ok: false, code: "MANIFEST_INVALID", detail: "missing protected hash" };
   return { ok: true, manifest: m };
 }
 
@@ -189,4 +206,10 @@ export function mapDecision(decision: string): "PASS" | "LIMITED" | "FAIL" | nul
 }
 
 /** Preflight failures are legitimate technical FAILs (the image cannot be protected). */
-export const PREFLIGHT_CODES = new Set(["NO_FACE", "MULTIPLE_FACES", "LOW_RESOLUTION", "INVALID_IMAGE", "UNSUPPORTED_FORMAT"]);
+export const PREFLIGHT_CODES = new Set([
+  "NO_FACE",
+  "MULTIPLE_FACES",
+  "LOW_RESOLUTION",
+  "INVALID_IMAGE",
+  "UNSUPPORTED_FORMAT",
+]);

@@ -12,7 +12,8 @@ export const Route = createFileRoute("/api/public/hooks/eip-worker")({
       POST: async ({ request }) => {
         const auth = request.headers.get("authorization") ?? "";
         const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
-        const { verifyEipWorkerToken, readWorkerConfig, httpEngine, dbPort } = await import("@/lib/eip/worker.server");
+        const { verifyEipWorkerToken, readWorkerConfig, httpEngine, dbPort } =
+          await import("@/lib/eip/worker.server");
         if (!token || !(await verifyEipWorkerToken(token))) {
           return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
         }
