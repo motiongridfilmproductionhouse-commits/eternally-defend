@@ -3331,10 +3331,10 @@
   margin-top: 0.7rem;
   color: var(--eip-ink);
   max-width: 12ch;
-  font-size: clamp(2.15rem, 3.35vw, 2.75rem);
+  font-size: clamp(2.15rem, 3vw, 2.35rem);
   font-weight: 500;
   line-height: 0.98;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 .eip-hero-lead {
