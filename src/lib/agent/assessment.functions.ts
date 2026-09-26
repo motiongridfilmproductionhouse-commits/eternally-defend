@@ -230,3 +230,46 @@ export const updateAgentAdmin = createServerFn({ method: "POST" })
     if (error) throw new Error("Could not update agent configuration.");
     return { ok: true };
   });
+
+export const createAgentAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { email: string; password: string }) =>
+    z
+      .object({
+        email: z
+          .string()
+          .trim()
+          .email()
+          .max(254)
+          .transform((value) => value.toLowerCase()),
+        password: z.string().min(8).max(128),
+      })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { db, access } = await import("./assessment.server");
+    const { provisionAgent } = await import("./provision");
+    return provisionAgent(data, {
+      isAdmin: async () => (await access(context.userId)).admin,
+      createUser: async (email, password) => {
+        const { data: created, error } = await db.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+        });
+        if (error || !created.user)
+          throw new Error(
+            "Could not create the account. If the email already exists, enable its existing user ID below.",
+          );
+        return created.user.id;
+      },
+      enable: async (id) => {
+        const { error } = await db.rpc("agent_update_configuration", {
+          p_actor: context.userId,
+          p_change: { kind: "member", user_id: id, active: true },
+        });
+        if (error) throw new Error("Could not enable agent access.");
+      },
+    });
+  });
