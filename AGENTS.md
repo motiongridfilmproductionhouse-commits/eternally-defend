@@ -11,3 +11,4 @@
 
 <!-- LOVABLE:END -->
 - EIP engine integration: the platform only talks to a private engine service via the `/api/public/hooks/eip-worker` worker (token-guarded DB RPCs, no service role); results are accepted only from a validated manifest with matching hashes — why: never fabricate EIP outcomes or expose engine internals. Contract: docs/eip-engine-contract.md.
+- Search discovery (deepfake, pre-enrollment, assessments) uses Firecrawl only, gated by src/lib/scan/search-policy.ts — why: owner decision; no silent fallback to Brave/SerpApi/Google/etc.
