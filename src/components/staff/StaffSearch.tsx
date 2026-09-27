@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, ChevronDown, Search } from "lucide-react";
 import type { StartScanPayload } from "@/lib/prospect/scan.functions";
-import { fmtDate } from "./staff-model";
+import { fmtDate, sanitizeProviderNames } from "./staff-model";
 
 export interface ReadinessFamily {
   key: string;
