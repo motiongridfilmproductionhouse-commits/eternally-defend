@@ -1731,7 +1731,8 @@
 .sx-confirm{width:min(460px,92vw);padding:34px 30px 30px;border-radius:26px;background:linear-gradient(180deg,rgba(20,26,44,.92),rgba(10,14,26,.96));border:1px solid rgba(122,162,255,.22);text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 90px rgba(90,130,255,.12);animation:sxPop .4s cubic-bezier(.2,.9,.3,1.15)}
 .sx-confirm-orb-wrap{position:relative;width:228px;height:228px;margin:0 auto 18px}
 .sx-confirm-ring{position:absolute;inset:-9px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0%,rgba(122,162,255,.9) 12%,transparent 26%,transparent 55%,rgba(140,110,255,.7) 66%,transparent 80%);animation:sxSpin 3.2s linear infinite;filter:blur(1px)}
-.sx-confirm-orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;background:var(--sx-tile-2);border:1px solid rgba(122,162,255,.35);box-shadow:0 0 50px rgba(90,130,255,.3),0 0 0 6px rgba(122,162,255,.06);animation:sxOrbFloat 5s ease-in-out infinite}
+.sx-confirm-ring::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#0d1220}
+.sx-confirm-orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;background:#0d1220;border:1px solid rgba(122,162,255,.35);box-shadow:0 0 50px rgba(90,130,255,.3),0 0 0 6px rgba(122,162,255,.06);animation:sxOrbFloat 5s ease-in-out infinite}
 .sx-confirm-main{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;animation:sxConfirmImg .45s cubic-bezier(.2,.8,.3,1)}
 .sx-confirm-mosaic{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 6px}
 .sx-confirm-mosaic button{width:44px;height:44px;padding:0;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,.18);background:var(--sx-tile-2);cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,opacity .18s ease;opacity:.75}
