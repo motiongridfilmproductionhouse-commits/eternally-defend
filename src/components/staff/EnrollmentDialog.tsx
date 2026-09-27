@@ -108,6 +108,17 @@ export function EnrollmentDialog({
                   </>
                 ) : null}
               </div>
+              <a
+                href={
+                  result.inviteCode
+                    ? `/auth?invite=${encodeURIComponent(result.inviteCode)}`
+                    : "/auth"
+                }
+                className="sx-btn primary"
+                style={{ marginTop: 14, display: "inline-flex" }}
+              >
+                Continue to Eterna sign in
+              </a>
             </div>
           ) : (
             <>
