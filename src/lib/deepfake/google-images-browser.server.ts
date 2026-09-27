@@ -1,3 +1,4 @@
+import { nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
 /**
  * Browser-based Google Images collection client.
  * Calls crawler-service /google-images when configured; falls back to SerpApi.
@@ -62,6 +63,7 @@ function crawlerServiceBase(): string | null {
 }
 
 export function isGoogleImagesBrowserConfigured(): boolean {
+  if (!nonFirecrawlSearchAllowed()) return false;
   return Boolean(crawlerServiceBase() || isCrawl4AiConfigured());
 }
 

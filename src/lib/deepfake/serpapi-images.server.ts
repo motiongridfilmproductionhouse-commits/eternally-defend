@@ -1,3 +1,4 @@
+import { nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
 /**
  * Optional SerpApi Google Images discovery provider.
  *
@@ -72,6 +73,7 @@ export function isSerpApiFaceIdentityRejectionReason(reason: string | null | und
 }
 
 export function isSerpApiConfigured(): boolean {
+  if (!nonFirecrawlSearchAllowed()) return false;
   const key = process.env.SERPAPI_API_KEY?.trim();
   return Boolean(key);
 }

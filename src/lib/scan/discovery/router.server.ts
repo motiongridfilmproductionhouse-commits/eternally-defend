@@ -1,3 +1,4 @@
+import { nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
 /**
  * Web Scan — Discovery Router.
  *
@@ -115,6 +116,8 @@ export class DiscoveryRouter {
     );
 
     for (const adapter of registry) {
+      // Owner policy: Firecrawl is the only search provider.
+      if (!nonFirecrawlSearchAllowed() && !adapter.id.startsWith("firecrawl")) continue;
       if (options.only && !options.only.includes(adapter.id)) continue;
       const forcedOff = disabled.has(adapter.id) || envDisabled.has(adapter.id);
       const configured = !forcedOff && adapter.isConfigured();

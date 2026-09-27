@@ -1,3 +1,4 @@
+import { nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
 /**
  * Multi-provider reference image discovery via SerpApi image engines.
  * Runs providers in parallel; failures never abort the scan.
@@ -182,6 +183,7 @@ async function fetchSerpApiImageEngine(input: {
 }
 
 export function isReferenceImageProviderConfigured(): boolean {
+  if (!nonFirecrawlSearchAllowed()) return false;
   return Boolean(process.env.SERPAPI_API_KEY?.trim());
 }
 
