@@ -118,7 +118,8 @@ export function StaffSearch({
 
   const shown = (confirm?.images ?? [])
     .map((i) => ({ ...i, src: viaProxy(i.url) }))
-    .filter((i): i is typeof i & { src: string } => Boolean(i.src));
+    .filter((i): i is typeof i & { src: string } => Boolean(i.src))
+    .filter((i) => !blurry.has(i.url) && !blurry.has(i.src));
   const main = shown[pick] ?? shown[0];
 
   const available = readiness?.filter((f) => f.state === "available").length ?? 0;
