@@ -1800,3 +1800,64 @@
 .cx-enter:hover{background:rgba(120,120,255,.2);transform:translateY(-1px)}
 @media (max-width:640px){.cx-cap{display:none}}
 @media (prefers-reduced-motion:reduce){.cx,.cx *{animation:none!important;transition:none!important}.cx-in{opacity:1}}
+
+/* Citadel v2: nodes, links, EIP moment, orb, parallax */
+.cx-dust{position:absolute;inset:0;background-image:radial-gradient(rgba(170,160,255,.35) 1px,transparent 1px);background-size:3px 3px;opacity:.05;transform:translate(calc(var(--px,0)*-12px),calc(var(--py,0)*-12px))}
+.cx-parallax{position:absolute;inset:0;transform:translate(calc(var(--px,0)*18px),calc(var(--py,0)*18px));transition:transform .3s ease-out}
+.cx.is-leaving .cx-sphere-wrap{transform:translate(-50%,-50%) translate(-40vw,-44vh) scale(.08);opacity:0;transition:transform 1.1s cubic-bezier(.6,0,.3,1),opacity 1.1s}
+.cx-stage-overview .cx-sphere-wrap.is-on{transform:translate(-50%,-50%) scale(.86)}
+.cx-core-label{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:6px;pointer-events:none}
+.cx-core-label span{font-size:12px;letter-spacing:.4em;color:#dfe2ff;padding-left:.4em;animation:cxIn 1s forwards}
+.cx-core-label small{font-size:11px;letter-spacing:.14em;color:rgba(180,190,240,.6)}
+.cx-links{position:absolute;inset:-6%;width:112%;height:112%;overflow:visible;opacity:0;transition:opacity 1s;pointer-events:none}
+.cx-links.is-on{opacity:1}
+.cx-link{stroke:rgba(150,150,255,.0);stroke-width:.18;stroke-dasharray:1 1.4;transition:stroke 1s}
+.cx-link.is-on{stroke:rgba(150,160,255,.38);animation:cxFlow 3s linear infinite}
+.cx-link.is-eip.is-on{stroke:rgba(190,150,255,.85);stroke-width:.32}
+.cx-link.is-hover{stroke:rgba(210,215,255,.9)}
+@keyframes cxFlow{to{stroke-dashoffset:-12}}
+.cx-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;color:rgba(200,208,255,.45);font:inherit;cursor:default;opacity:0;transform:translateY(8px);filter:blur(4px);transition:opacity .8s,transform .8s,filter .8s,color .4s;z-index:3;translate:-50% -50%}
+.cx-node.is-shown{opacity:.5;transform:none;filter:none}
+.cx-node.is-on{opacity:1;color:#e6e9ff}
+.cx-node.is-muted{opacity:.25}
+.cx-node-dot{width:7px;height:7px;border-radius:50%;background:rgba(150,150,255,.4);box-shadow:0 0 0 0 rgba(150,150,255,.4);transition:background .5s,box-shadow .5s}
+.cx-node.is-on .cx-node-dot{background:#8fa0ff;box-shadow:0 0 12px 2px rgba(120,130,255,.55)}
+.cx-node.is-eip.is-on .cx-node-dot{background:#c7a8ff;box-shadow:0 0 22px 6px rgba(170,120,255,.6);animation:cxBreathe 2.4s ease-in-out infinite}
+.cx-node-label{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;white-space:nowrap}
+.cx-node.is-eip .cx-node-label{font-size:12px;color:#d9c9ff}
+.cx-node b{font-size:9.5px;letter-spacing:.2em;font-weight:600}
+.cx-node b.ok{color:#7fe3c4}.cx-node b.warn{color:#c9b3ff}
+.cx-node-desc{font-size:11px;color:rgba(200,208,255,.7);white-space:nowrap;opacity:0;transform:translateY(-3px);transition:opacity .3s,transform .3s}
+.cx-node:hover .cx-node-desc,.cx-node:focus-visible .cx-node-desc{opacity:1;transform:none}
+.cx-node:hover{color:#fff}
+.n-top{left:50%;top:-4%}.n-right{left:106%;top:42%}.n-br{left:88%;top:98%}.n-bl{left:12%;top:98%}.n-left{left:-6%;top:42%}.n-tl{left:10%;top:6%}
+.cx-eip-state{font-size:13px;letter-spacing:.34em;font-weight:600;margin:4px 0 14px;padding-left:.34em}
+.cx-eip-state.ok{color:#9ff0d6;text-shadow:0 0 18px rgba(120,230,200,.35)}
+.cx-eip-state.warn{color:#cdb8ff}
+.cx-pulse{animation:cxIn 1s forwards,cxBlink 2.2s ease-in-out 1s infinite}
+@keyframes cxBlink{50%{opacity:.45}}
+.cx-step.is-now{color:#fff;text-shadow:0 0 14px rgba(160,140,255,.6)}
+.cx-orb{position:relative;width:160px;height:160px;margin:0 auto 8px}
+.cx-orb-core{position:absolute;inset:18%;border-radius:50%;background:radial-gradient(circle at 38% 34%,#c8c0ff,#6d5cff 38%,#2a1f7a 70%,transparent 72%);box-shadow:0 0 60px rgba(130,100,255,.45);animation:cxBreathe 3s ease-in-out infinite;transition:filter .8s}
+.cx-orb-ring{position:absolute;inset:6%;border-radius:50%;border:1px solid rgba(190,180,255,.0);transition:border-color .6s}
+.cx-orb-lock{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(127,227,196,0);transition:border-color .8s;animation:cxSpin 14s linear infinite}
+.cx-orb-in,.cx-orb-out{position:absolute;top:50%;font-size:20px;color:#dfe2ff;opacity:0;translate:0 -50%;transition:all 1s cubic-bezier(.2,.7,.2,1)}
+.cx-orb-in{left:-40px}.cx-orb-out{right:-10px;color:#9ff0d6}
+.cx-orb.s-0 .cx-orb-in{opacity:1;left:30px}
+.cx-orb.s-1 .cx-orb-ring{border-color:rgba(190,180,255,.6);animation:cxScan 1.1s ease-in-out infinite}
+.cx-orb.s-2 .cx-orb-core{filter:hue-rotate(-20deg) saturate(1.4)}
+.cx-orb.s-3 .cx-orb-lock,.cx-orb.s-4 .cx-orb-lock{border-color:rgba(127,227,196,.55)}
+.cx-orb.s-4 .cx-orb-out{opacity:1;right:-40px}
+@keyframes cxScan{0%{transform:scaleY(.1)}50%{transform:scaleY(1)}100%{transform:scaleY(.1)}}
+@keyframes cxSpin{to{transform:rotate(360deg)}}
+.cx-status-row.is-eip span{color:#d9c9ff}
+.cx-led{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:8px;vertical-align:1px;box-shadow:0 0 8px currentColor}
+.cx-status-row .is-warn{color:#c9b3ff}
+.sx-eip-pill{position:relative;display:inline-flex;align-items:center;gap:6px;font-size:10.5px;letter-spacing:.16em;color:#d9c9ff;padding:4px 10px;border:1px solid rgba(170,140,255,.28);border-radius:999px;background:rgba(120,100,255,.08);cursor:default}
+.sx-eip-pill i{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.sx-eip-pill.ok{color:#9ff0d6}
+.sx-eip-pop{position:absolute;top:calc(100% + 8px);right:0;min-width:230px;padding:12px 14px;border-radius:12px;background:rgba(14,14,28,.96);border:1px solid rgba(150,150,255,.2);font-size:12px;letter-spacing:.02em;color:#dfe2ff;line-height:1.7;opacity:0;pointer-events:none;transform:translateY(-4px);transition:.2s;z-index:20;text-align:left}
+.sx-eip-pill:hover .sx-eip-pop,.sx-eip-pill:focus-within .sx-eip-pop{opacity:1;pointer-events:auto;transform:none}
+.sx-eip-pop a{color:#b9a8ff}
+@media (max-width:640px){.cx-node-label{font-size:9px;letter-spacing:.14em}.cx-node-desc{display:none}}
+@media (prefers-reduced-motion:reduce){.cx-parallax,.cx-dust{transform:none}.cx-link.is-on,.cx-orb-lock,.cx-pulse{animation:none}}
