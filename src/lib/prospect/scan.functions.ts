@@ -684,21 +684,35 @@ export const lookupIdentityImages = createServerFn({ method: "POST" })
     };
     // 1) Wikipedia lead image — usually the highest-resolution public portrait.
     try {
-      const title = encodeURIComponent(data.name.trim().replace(/\s+/g, "_"));
-      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`, {
-        headers: { "User-Agent": "EternaSentinel/1.0 (identity confirmation)" },
-        signal: AbortSignal.timeout(6_000),
-      });
-      if (res.ok) {
-        const j = (await res.json()) as {
-          originalimage?: { source: string };
-          thumbnail?: { source: string };
-          title?: string;
-          content_urls?: { desktop?: { page?: string } };
-        };
-        const page = j.content_urls?.desktop?.page ?? "";
-        if (j.originalimage?.source) push({ url: j.originalimage.source, page, title: j.title ?? data.name });
-        else if (j.thumbnail?.source) push({ url: j.thumbnail.source, page, title: j.title ?? data.name });
+      const cleanName = data.name
+        .trim()
+        .replace(/^(actor|actress|artist|singer|director|producer|politician|dr\.?|mr\.?|ms\.?|mrs\.?)\s+/i, "");
+      // Resolve the best-matching article title first ("actor jayasurya" → "Jayasurya").
+      const search = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=opensearch&limit=1&format=json&origin=*&search=${encodeURIComponent(cleanName)}`,
+        { headers: { "User-Agent": "EternaSentinel/1.0 (identity confirmation)" }, signal: AbortSignal.timeout(6_000) },
+      );
+      let title: string | null = null;
+      if (search.ok) {
+        const s = (await search.json()) as [string, string[]];
+        title = s[1]?.[0] ?? null;
+      }
+      if (title) {
+        const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/\s+/g, "_"))}`, {
+          headers: { "User-Agent": "EternaSentinel/1.0 (identity confirmation)" },
+          signal: AbortSignal.timeout(6_000),
+        });
+        if (res.ok) {
+          const j = (await res.json()) as {
+            originalimage?: { source: string };
+            thumbnail?: { source: string };
+            title?: string;
+            content_urls?: { desktop?: { page?: string } };
+          };
+          const page = j.content_urls?.desktop?.page ?? "";
+          if (j.originalimage?.source) push({ url: j.originalimage.source, page, title: j.title ?? data.name });
+          else if (j.thumbnail?.source) push({ url: j.thumbnail.source, page, title: j.title ?? data.name });
+        }
       }
     } catch {
       /* Wikipedia lookup is best-effort */
