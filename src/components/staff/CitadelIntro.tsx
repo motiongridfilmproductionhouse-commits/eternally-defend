@@ -104,6 +104,7 @@ export function CitadelIntro({
       <div className={`cx${leaving ? " is-leaving" : ""}`} role="dialog" aria-label="Eterna Citadel">
         <div className="cx-center">
           <p className="cx-hello">{hello}</p>
+          <p className="cx-appreciation">Thank you for your dedication and outstanding effort in onboarding Eterna clients.</p>
           <h1 className="cx-title">ETERNA CITADEL</h1>
           {!returning && <p className="cx-sub">EIP is now integrated</p>}
         </div>
@@ -133,7 +134,10 @@ export function CitadelIntro({
             <h1 className="cx-lead cx-in" style={{ animationDelay: "0.9s" }}>
               Welcome to Eterna Citadel
             </h1>
-            <p className="cx-sub cx-in" style={{ animationDelay: "1.5s" }}>
+            <p className="cx-appreciation cx-in" style={{ animationDelay: "1.4s" }}>
+              Thank you for your dedication and outstanding effort in onboarding Eterna clients.
+            </p>
+            <p className="cx-sub cx-in" style={{ animationDelay: "1.8s" }}>
               Eterna’s central protection and intelligence environment.
             </p>
           </div>

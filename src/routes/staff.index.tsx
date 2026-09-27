@@ -32,6 +32,17 @@ const LOGO = "/eterna-icon-512.png";
 const BOOT_KEY = "eterna-staff-booted";
 const CITADEL_INTRO_VERSION = 1;
 
+function staffFirstName(metadata: Record<string, unknown>, email?: string): string {
+  const savedName = [metadata.full_name, metadata.name, metadata.display_name].find(
+    (value) => typeof value === "string" && value.trim(),
+  );
+  if (typeof savedName === "string") return savedName.trim().split(/\s+/)[0] ?? "Staff";
+
+  const accountName = email?.split("@")[0]?.replace(/^hello/i, "").trim();
+  if (!accountName) return "Staff";
+  return accountName.charAt(0).toUpperCase() + accountName.slice(1).toLowerCase();
+}
+
 export const Route = createFileRoute("/staff/")({
   validateSearch: (search: Record<string, unknown>): { scan?: string } => ({
     scan: typeof search.scan === "string" ? search.scan : undefined,
@@ -223,10 +234,7 @@ function StaffHome() {
     // Citadel introduction runs only after the existing boot animation ends.
     void supabase.auth.getUser().then(({ data }) => {
       const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
-      const raw = [meta.full_name, meta.name, meta.display_name].find(
-        (v) => typeof v === "string" && v.trim(),
-      ) as string | undefined;
-      const name = raw ? raw.trim().split(/\s+/)[0]! : null;
+      const name = staffFirstName(meta, data.user?.email);
       const seen = Number(meta.citadel_intro_version ?? 0) >= CITADEL_INTRO_VERSION;
       setIntro({ name, returning: seen });
     });
