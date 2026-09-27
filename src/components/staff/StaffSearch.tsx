@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, ChevronDown, Search } from "lucide-react";
 import type { StartScanPayload } from "@/lib/prospect/scan.functions";
-import { fmtDate } from "./staff-model";
+import { fmtDate, sanitizeProviderNames } from "./staff-model";
 
 export interface ReadinessFamily {
   key: string;
@@ -246,7 +246,11 @@ export function StaffSearch({
             key={f.key}
             className="sx-src"
             data-state={f.state}
-            title={f.reason ?? f.providers.join(" · ")}
+            title={
+              f.reason
+                ? sanitizeProviderNames(f.reason)
+                : sanitizeProviderNames(f.providers.join(" · "))
+            }
           >
             <span className="d" />
             {f.label}

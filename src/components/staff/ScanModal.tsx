@@ -24,6 +24,7 @@ import {
   isFinished,
   joinFindings,
   railStates,
+  sanitizeProviderNames,
   followStage,
   sourceStatusText,
   sourceTypeOf,
@@ -130,9 +131,11 @@ export function ScanModal(props: ScanModalProps) {
                 key={s.family_key}
                 className="sx-src"
                 data-state={s.state}
-                title={[s.failure_reason, (s.providers ?? []).join(" · ")]
-                  .filter(Boolean)
-                  .join("\n")}
+                title={sanitizeProviderNames(
+                  [s.failure_reason, (s.providers ?? []).join(" · ")]
+                    .filter(Boolean)
+                    .join("\n"),
+                )}
               >
                 <span className="d" />
                 {s.family_label}
@@ -267,7 +270,7 @@ export function ScanModal(props: ScanModalProps) {
                     <div key={e.id} className="sx-ev" data-level={e.level}>
                       <span className="d" />
                       <span>
-                        {e.message}
+                        {sanitizeProviderNames(e.message)}
                         <div className="t">
                           {fmtTime(e.created_at)} ·{" "}
                           {String(e.detail?.type ?? "")
@@ -1508,7 +1511,8 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
           label="Failed"
           tone="risk"
           items={groups.failed.map(
-            (s) => `${s.family_label}${s.failure_reason ? ` (${s.failure_reason})` : ""}`,
+            (s) =>
+              `${s.family_label}${s.failure_reason ? ` (${sanitizeProviderNames(s.failure_reason)})` : ""}`,
           )}
         />
         <CoverageGroup
