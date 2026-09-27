@@ -138,7 +138,7 @@ export function StaffSearch({
                     Finding public images…
                   </div>
                 ) : main ? (
-                  <img key={main.url} src={main.src} alt={name} className="sx-confirm-main" />
+                  <img key={main.url} src={main.src} alt={name} className="sx-confirm-main" onLoad={rejectIfSmall(main.url)} />
                 ) : (
                   <div className="sx-confirm-loading">No public image found</div>
                 )}
@@ -154,7 +154,7 @@ export function StaffSearch({
                     aria-pressed={i === pick}
                     onClick={() => setPick(i)}
                   >
-                    <img src={img.src} alt="" loading="lazy" onError={(ev) => ((ev.currentTarget.parentElement as HTMLElement).style.display = "none")} />
+                    <img src={img.src} alt="" loading="lazy" onLoad={rejectIfSmall(img.url)} onError={(ev) => ((ev.currentTarget.parentElement as HTMLElement).style.display = "none")} />
                   </button>
                 ))}
               </div>
