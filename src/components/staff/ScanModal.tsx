@@ -1442,6 +1442,7 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
     return { ok, failed, unavailable, policy };
   }, [snap.sources]);
   const zero = a.counts.relevantItems === 0;
+  const hasIdentityReviewItems = a.counts.identityReviewQueue > 0;
   return (
     <>
       <div className="sx-eyebrow" style={{ color: "var(--sx-ok)" }}>
@@ -1462,7 +1463,11 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
       {zero && isFinished(snap.scan.status) ? (
         <div className="sx-note" style={{ marginBottom: 14 }}>
           <Info size={15} />
-          <span>{zeroFindingsLabel(cov.state)}</span>
+          <span>
+            {hasIdentityReviewItems
+              ? `${a.counts.identityReviewQueue} discovered item${a.counts.identityReviewQueue === 1 ? " is" : "s are"} awaiting identity verification. Confirmed risk totals remain at zero until staff completes that review.`
+              : zeroFindingsLabel(cov.state)}
+          </span>
         </div>
       ) : null}
 
@@ -1480,7 +1485,9 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
               <small>
                 {unavailable
                   ? "analysis unavailable"
-                  : `${s.verified} verified · ${s.awaitingVerification} awaiting`}
+                  : s.pendingIdentity > 0
+                    ? `${s.verified} verified · ${s.pendingIdentity} identity review`
+                    : `${s.verified} verified · ${s.awaitingVerification} awaiting`}
               </small>
             </button>
           );
