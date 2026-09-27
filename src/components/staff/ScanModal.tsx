@@ -1319,6 +1319,8 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
       </h3>
       <div style={{ color: "var(--sx-muted)", fontSize: 15, marginBottom: 18 }}>{name}</div>
 
+      <TargetIdentityCard snap={snap} />
+
       {zero && isFinished(snap.scan.status) ? (
         <div className="sx-note" style={{ marginBottom: 14 }}>
           <Info size={15} />
