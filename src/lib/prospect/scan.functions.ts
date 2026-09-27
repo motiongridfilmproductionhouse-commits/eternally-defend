@@ -726,7 +726,9 @@ export const lookupIdentityImages = createServerFn({ method: "POST" })
       });
       const hits = res.hits
         .map((h) => ({ url: h.image_url, page: h.page_url, title: h.title ?? "" }))
-        .filter((h) => Boolean(h.url));
+        .filter((h) => Boolean(h.url))
+        // Social-platform crawler placeholders never load a real image.
+        .filter((h) => !/lookaside\.(instagram|fbsbx|facebook)\.com/.test(h.url));
       const score = (h: Img) => {
         const u = h.url.toLowerCase();
         if (u.includes("upload.wikimedia.org")) return 0;
