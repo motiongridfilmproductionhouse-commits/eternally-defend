@@ -2380,6 +2380,106 @@ export type Database = {
         }
         Relationships: []
       }
+      client_prospect_findings: {
+        Row: {
+          canonical_url: string | null
+          category: string
+          client_user_id: string
+          confidence: number | null
+          created_at: string
+          detection_reason: string
+          discovery_method: string | null
+          enforcement_eligible: boolean
+          evidence_refs: Json
+          finding_state: string
+          id: string
+          identity_confidence: number | null
+          package_id: string
+          platform: string | null
+          prospect_finding_id: string
+          prospect_scan_id: string
+          review_status: string
+          severity: string | null
+          source_url: string
+          stage_key: string
+          title: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          canonical_url?: string | null
+          category: string
+          client_user_id: string
+          confidence?: number | null
+          created_at?: string
+          detection_reason: string
+          discovery_method?: string | null
+          enforcement_eligible?: boolean
+          evidence_refs?: Json
+          finding_state: string
+          id?: string
+          identity_confidence?: number | null
+          package_id: string
+          platform?: string | null
+          prospect_finding_id: string
+          prospect_scan_id: string
+          review_status?: string
+          severity?: string | null
+          source_url: string
+          stage_key: string
+          title?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          canonical_url?: string | null
+          category?: string
+          client_user_id?: string
+          confidence?: number | null
+          created_at?: string
+          detection_reason?: string
+          discovery_method?: string | null
+          enforcement_eligible?: boolean
+          evidence_refs?: Json
+          finding_state?: string
+          id?: string
+          identity_confidence?: number | null
+          package_id?: string
+          platform?: string | null
+          prospect_finding_id?: string
+          prospect_scan_id?: string
+          review_status?: string
+          severity?: string | null
+          source_url?: string
+          stage_key?: string
+          title?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_prospect_findings_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_enrollment_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_prospect_findings_prospect_finding_id_fkey"
+            columns: ["prospect_finding_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_prospect_findings_prospect_scan_id_fkey"
+            columns: ["prospect_scan_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_email_otps: {
         Row: {
           attempts: number
@@ -7706,6 +7806,82 @@ export type Database = {
             foreignKeyName: "prospect_discovery_observations_scan_id_fkey"
             columns: ["scan_id"]
             isOneToOne: false
+            referencedRelation: "prospect_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospect_enrollment_packages: {
+        Row: {
+          account_type: string | null
+          applied_at: string | null
+          assigned_email: string | null
+          client_user_id: string | null
+          created_at: string
+          created_by: string
+          findings_imported: number
+          id: string
+          identity_snapshot: Json
+          invite_id: string | null
+          linked_at: string | null
+          profile_prefilled_at: string | null
+          prospect_id: string
+          scan_id: string
+          status: string
+        }
+        Insert: {
+          account_type?: string | null
+          applied_at?: string | null
+          assigned_email?: string | null
+          client_user_id?: string | null
+          created_at?: string
+          created_by: string
+          findings_imported?: number
+          id?: string
+          identity_snapshot: Json
+          invite_id?: string | null
+          linked_at?: string | null
+          profile_prefilled_at?: string | null
+          prospect_id: string
+          scan_id: string
+          status?: string
+        }
+        Update: {
+          account_type?: string | null
+          applied_at?: string | null
+          assigned_email?: string | null
+          client_user_id?: string | null
+          created_at?: string
+          created_by?: string
+          findings_imported?: number
+          id?: string
+          identity_snapshot?: Json
+          invite_id?: string | null
+          linked_at?: string | null
+          profile_prefilled_at?: string | null
+          prospect_id?: string
+          scan_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_enrollment_packages_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "signup_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_enrollment_packages_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospect_identities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_enrollment_packages_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: true
             referencedRelation: "prospect_scans"
             referencedColumns: ["id"]
           },
