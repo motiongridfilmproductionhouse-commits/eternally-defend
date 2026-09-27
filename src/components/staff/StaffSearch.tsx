@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, ChevronDown, Search } from "lucide-react";
-import type { StartScanPayload } from "@/lib/prospect/scan.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { lookupIdentityImages, type StartScanPayload } from "@/lib/prospect/scan.functions";
+import { viaProxy } from "@/lib/media-utils";
 import { fmtDate, sanitizeProviderNames } from "./staff-model";
 
 export interface ReadinessFamily {
@@ -66,9 +68,28 @@ export function StaffSearch({
   const [handles, setHandles] = useState("");
   const [ambiguous, setAmbiguous] = useState(false);
 
-  const submit = (e: FormEvent) => {
+  const lookup = useServerFn(lookupIdentityImages);
+  const [confirm, setConfirm] = useState<null | {
+    loading: boolean;
+    images: Array<{ url: string; page: string; title: string }>;
+  }>(null);
+  const [pick, setPick] = useState(0);
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (name.trim().length < 2 || starting) return;
+    if (name.trim().length < 2 || starting || confirm) return;
+    setPick(0);
+    setConfirm({ loading: true, images: [] });
+    try {
+      const res = await lookup({ data: { name: name.trim(), hint: profession || null } });
+      setConfirm({ loading: false, images: res.images });
+    } catch {
+      setConfirm({ loading: false, images: [] });
+    }
+  };
+
+  const launch = () => {
+    setConfirm(null);
     onStart({
       name: name.trim(),
       identityType: type,
@@ -85,10 +106,64 @@ export function StaffSearch({
     });
   };
 
+  const shown = (confirm?.images ?? [])
+    .map((i) => ({ ...i, src: viaProxy(i.url) }))
+    .filter((i): i is typeof i & { src: string } => Boolean(i.src));
+  const main = shown[pick] ?? shown[0];
+
   const available = readiness?.filter((f) => f.state === "available").length ?? 0;
 
   return (
     <form className="sx-hero" onSubmit={submit} noValidate>
+      {confirm ? (
+        <div className="sx-confirm-backdrop" role="dialog" aria-modal="true" aria-label="Confirm identity">
+          <div className="sx-confirm">
+            <div className="sx-confirm-orb">
+              {confirm.loading ? (
+                <div className="sx-confirm-loading">Finding public images…</div>
+              ) : main ? (
+                <>
+                  <img src={main.src} alt={name} className="sx-confirm-main" />
+                  <div className="sx-confirm-mosaic">
+                    {shown.slice(0, 8).map((img, i) => (
+                      <button
+                        key={img.url}
+                        type="button"
+                        aria-label={`Use image ${i + 1}`}
+                        aria-pressed={i === pick}
+                        onClick={() => setPick(i)}
+                      >
+                        <img src={img.src} alt="" loading="lazy" onError={(ev) => ((ev.currentTarget.parentElement as HTMLElement).style.display = "none")} />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="sx-confirm-loading">No public image found</div>
+              )}
+            </div>
+            <div className="sx-eyebrow">Confirm identity</div>
+            <h2 className="sx-confirm-title">Is this who you mean?</h2>
+            <p className="sx-confirm-name">{name.trim()}</p>
+            <p className="sx-confirm-note">
+              Images are for confirmation only and are not used as evidence.
+            </p>
+            <div className="sx-confirm-actions">
+              <button type="button" className="sx-btn ghost" onClick={() => setConfirm(null)}>
+                Not this person
+              </button>
+              <button
+                type="button"
+                className="sx-btn primary"
+                disabled={confirm.loading || starting}
+                onClick={launch}
+              >
+                Confirm &amp; start scan <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="sx-eyebrow">Pre-enrollment · Public-source intelligence</div>
       <h1 className="sx-display">Identity Intelligence Scan</h1>
       <p>Search an artist, public figure, executive, organization or brand before enrollment.</p>
@@ -108,9 +183,9 @@ export function StaffSearch({
           <button
             type="submit"
             className="sx-btn primary lg"
-            disabled={name.trim().length < 2 || starting}
+            disabled={name.trim().length < 2 || starting || Boolean(confirm?.loading)}
           >
-            {starting ? "Starting…" : "Start Live Scan"}
+            {starting ? "Starting…" : confirm?.loading ? "Finding…" : "Start Live Scan"}
             <ArrowRight size={17} />
           </button>
         </div>

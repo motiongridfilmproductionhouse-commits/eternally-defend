@@ -1725,3 +1725,22 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Identity confirmation popup */
+.sx-confirm-backdrop{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(3,5,10,.72);backdrop-filter:blur(10px);animation:sxFade .25s ease}
+.sx-confirm{width:min(440px,92vw);padding:28px;border-radius:24px;background:var(--sx-glass);border:1px solid var(--sx-line-2);text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:sxPop .35s cubic-bezier(.2,.9,.3,1.2)}
+.sx-confirm-orb{position:relative;width:240px;height:240px;margin:0 auto 22px;border-radius:50%;overflow:hidden;background:var(--sx-tile-2);border:1px solid var(--sx-line-2);box-shadow:0 0 60px rgba(90,130,255,.25)}
+.sx-confirm-main{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;animation:sxFade .4s ease}
+.sx-confirm-mosaic{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:5px;flex-wrap:wrap;padding:0 26px}
+.sx-confirm-mosaic button{width:30px;height:30px;padding:0;border-radius:8px;overflow:hidden;border:2px solid rgba(255,255,255,.5);background:none;cursor:pointer;transition:transform .2s}
+.sx-confirm-mosaic button:hover{transform:translateY(-2px)}
+.sx-confirm-mosaic button[aria-pressed="true"]{border-color:#7aa2ff}
+.sx-confirm-mosaic img{width:100%;height:100%;object-fit:cover}
+.sx-confirm-loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--sx-ink-2);font-size:14px}
+.sx-confirm-title{margin:8px 0 4px;font-size:26px;color:var(--sx-ink)}
+.sx-confirm-name{margin:0;font-size:18px;color:var(--sx-ink-2)}
+.sx-confirm-note{margin:10px 0 20px;font-size:12px;color:var(--sx-ink-2);opacity:.7}
+.sx-confirm-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+@keyframes sxFade{from{opacity:0}to{opacity:1}}
+@keyframes sxPop{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sx-confirm,.sx-confirm-backdrop,.sx-confirm-main{animation:none}}
