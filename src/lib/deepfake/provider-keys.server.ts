@@ -1,3 +1,4 @@
+import { nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
 /**
  * Server-only: canonical resolution of external discovery provider keys.
  *
@@ -17,6 +18,7 @@ function firstNonEmpty(...values: Array<string | undefined>): string | null {
 }
 
 export function serpApiKey(): string | null {
+  if (!nonFirecrawlSearchAllowed()) return null;
   return firstNonEmpty(
     process.env.SERPAPI_API_KEY,
     process.env.SERP_API_KEY,
@@ -26,6 +28,7 @@ export function serpApiKey(): string | null {
 }
 
 export function braveApiKey(): string | null {
+  if (!nonFirecrawlSearchAllowed()) return null;
   return firstNonEmpty(process.env.BRAVE_API_KEY, process.env["brave_api_key"]);
 }
 

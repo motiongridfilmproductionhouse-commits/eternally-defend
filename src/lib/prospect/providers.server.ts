@@ -13,7 +13,11 @@ import type { DiscoveryHit } from "@/lib/scan/discovery/types";
 import { googleProvider } from "@/lib/scan/discovery/google-provider.server";
 import { serpapiProvider } from "@/lib/scan/discovery/serpapi-provider.server";
 import { braveProvider } from "@/lib/scan/discovery/brave-provider.server";
-import { firecrawlProvider } from "@/lib/scan/discovery/firecrawl-provider.server";
+import {
+  firecrawlProvider,
+  makeFirecrawlProvider,
+} from "@/lib/scan/discovery/firecrawl-provider.server";
+import { FIRECRAWL_ONLY_SEARCH } from "@/lib/scan/search-policy";
 import { geminiGroundingProvider } from "@/lib/scan/discovery/gemini-grounding-provider.server";
 import { ddgHtmlProvider } from "@/lib/scan/discovery/ddg-provider.server";
 import { wikipediaProvider } from "@/lib/scan/discovery/wikipedia-provider.server";
@@ -217,19 +221,52 @@ const factCheckExecutor: ProviderExecutor = {
   },
 };
 
-/** Every executor, per family. Families with no entry here cannot be scanned. */
+/**
+ * Every executor, per family. Families with no entry here cannot be scanned.
+ * Owner policy: Firecrawl is the ONLY search provider (see search-policy.ts).
+ * Fact checks have no Firecrawl route and show as unavailable.
+ */
 export function productionExecutors(): ProviderExecutor[] {
+  if (FIRECRAWL_ONLY_SEARCH) {
+    return [
+      adapterExecutor(
+        makeFirecrawlProvider({ id: "firecrawl_google", sources: ["web"] }),
+        "google_search",
+        "WEB_SEARCH",
+        "Firecrawl (web search)",
+      ),
+      adapterExecutor(firecrawlProvider, "web_general", "WEB_SEARCH", "Firecrawl"),
+      adapterExecutor(
+        makeFirecrawlProvider({ id: "firecrawl_news", sources: ["news"] }),
+        "news",
+        "WEB_SEARCH",
+        "Firecrawl (news)",
+      ),
+      adapterExecutor(
+        makeFirecrawlProvider({ id: "firecrawl_youtube", sources: ["web"], querySuffix: "site:youtube.com" }),
+        "youtube",
+        "WEB_SEARCH",
+        "Firecrawl (YouTube pages)",
+      ),
+      adapterExecutor(
+        makeFirecrawlProvider({ id: "firecrawl_images", sources: ["images"] }),
+        "images",
+        "IMAGE_SEARCH",
+        "Firecrawl (images)",
+      ),
+      adapterExecutor(
+        makeFirecrawlProvider({ id: "firecrawl_reference", sources: ["web"], querySuffix: "site:wikipedia.org" }),
+        "encyclopaedic",
+        "WEB_SEARCH",
+        "Firecrawl (reference pages)",
+      ),
+    ];
+  }
   return [
-    // Google results: Custom Search JSON API (off unless SCAN_ENABLE_GOOGLE_CSE=true) or SerpApi.
     adapterExecutor(googleProvider, "google_search", "WEB_SEARCH", "Google Custom Search"),
     adapterExecutor(serpapiProvider, "google_search", "WEB_SEARCH", "SerpApi (Google results)"),
     adapterExecutor(braveProvider, "web_general", "WEB_SEARCH", "Brave Search"),
-    adapterExecutor(
-      geminiGroundingProvider,
-      "web_general",
-      "WEB_SEARCH",
-      "Gemini (Google-grounded)",
-    ),
+    adapterExecutor(geminiGroundingProvider, "web_general", "WEB_SEARCH", "Gemini (Google-grounded)"),
     adapterExecutor(firecrawlProvider, "web_general", "WEB_SEARCH", "Firecrawl"),
     adapterExecutor(ddgHtmlProvider, "web_general", "WEB_SEARCH", "Public web (keyless)"),
     adapterExecutor(braveProvider, "news", "WEB_SEARCH", "Brave Search (news queries)"),
