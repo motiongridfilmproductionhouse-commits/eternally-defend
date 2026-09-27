@@ -801,7 +801,7 @@ function DeepfakeView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => vo
 function ReputationView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => void }) {
   const joined = joinFindings(snap, "harmful_content");
   const all = matchedOnly(joined);
-  const pending = pendingIdentityOnly(joined);
+  const pending = pendingIdentityOnly(joined, snap);
   const stats = snap.analysis.stages.harmful_content;
   const types = ["Articles", "Videos", "Social posts", "Forums", "Other web pages"] as const;
   const byType = new Map<string, number>();
@@ -911,7 +911,7 @@ function ImpersonationView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) 
 function PrivacyView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => void }) {
   const joined = joinFindings(snap, "privacy_exposure");
   const all = matchedOnly(joined);
-  const pending = pendingIdentityOnly(joined);
+  const pending = pendingIdentityOnly(joined, snap);
   const stats = snap.analysis.stages.privacy_exposure;
   return (
     <>
