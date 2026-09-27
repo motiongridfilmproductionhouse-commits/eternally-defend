@@ -410,6 +410,49 @@ describe("runProspectScan", () => {
     expect(state.capabilities.get("ai_manipulation")!.status).toBe("ran");
   });
 
+  it("analyses unresolved media but keeps it outside matched risk totals", async () => {
+    const { store, state } = memoryStore();
+    const detector: ManipulationDetector = {
+      name: "Test detector",
+      isConfigured: () => true,
+      analyse: async () => ({ status: "completed", score: 91, detail: "synthetic signal" }),
+    };
+    await runProspectScan(
+      {
+        store,
+        executors: [
+          executor(
+            "firecrawl_images",
+            "images",
+            () => [
+              {
+                url: "https://images.example/anand-varghese.jpg",
+                title: "Anand Varghese portrait",
+                mediaKind: "image",
+                thumbnailUrl: "https://images.example/anand-varghese.jpg",
+              },
+            ],
+            "IMAGE_SEARCH",
+          ),
+        ],
+        fetchPage: async () => null,
+        detector,
+      },
+      { target },
+    );
+    expect(state.discoveries[0]!.identity_bucket).toBe("POSSIBLE_MATCH");
+    expect(state.capabilities.get("ai_manipulation")!.status).toBe("ran");
+    expect(state.findings.some((f) => f.stage_key === "ai_manipulation")).toBe(true);
+    const analysis = analyseScan({
+      sources: Array.from(state.sources.values()),
+      discoveries: state.discoveries,
+      findings: state.findings,
+      capabilities: Array.from(state.capabilities.values()),
+    });
+    expect(analysis.counts.mediaCandidates).toBe(0);
+    expect(analysis.counts.totalRelevantSignals).toBe(0);
+  });
+
   it("keeps a same-name stranger out of the matched totals", async () => {
     const { store, state } = memoryStore();
     await runProspectScan(

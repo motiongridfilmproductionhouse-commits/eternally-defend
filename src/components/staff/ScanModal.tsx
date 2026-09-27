@@ -591,7 +591,11 @@ function matchedOnly(list: JoinedFinding[]) {
 
 function DeepfakeView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => void }) {
   const signals = matchedOnly(joinFindings(snap, "ai_manipulation"));
-  const media = snap.discoveries.filter((d) => d.media_kind && d.identity_bucket === "MATCHED");
+  const media = snap.discoveries.filter(
+    (d) => d.media_kind && d.identity_bucket !== "UNRELATED",
+  );
+  const matchedMedia = media.filter((d) => d.identity_bucket === "MATCHED");
+  const identityPending = media.length - matchedMedia.length;
   const cap = snap.capabilities.find((x) => x.analysis_key === "ai_manipulation");
   const stats = snap.analysis.stages.ai_manipulation;
   return (
@@ -607,7 +611,7 @@ function DeepfakeView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => vo
       <div className="sx-kpis">
         <div className="sx-kpi">
           <b>{media.length}</b>
-          <span>identity-matched media candidates discovered</span>
+          <span>relevant media candidates discovered</span>
         </div>
         <div className="sx-kpi">
           <b>{cap?.status === "ran" ? stats.relevant : "—"}</b>
@@ -628,6 +632,16 @@ function DeepfakeView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => vo
           <span>
             {media.length} media candidate{media.length === 1 ? "" : "s"} discovered · AI
             manipulation analysis unavailable ({cap.reason}). Candidates are not deepfake findings.
+          </span>
+        </div>
+      ) : null}
+      {identityPending > 0 ? (
+        <div className="sx-note warn" style={{ marginBottom: 14 }}>
+          <UserCheck size={15} />
+          <span>
+            {identityPending} analysed media candidate{identityPending === 1 ? " is" : "s are"}
+            awaiting identity review. They remain excluded from findings and risk totals until staff
+            confirms the identity.
           </span>
         </div>
       ) : null}
