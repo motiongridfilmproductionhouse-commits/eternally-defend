@@ -7556,6 +7556,7 @@ export type Database = {
           identity_explanation: string | null
           identity_factors: Json
           media_hash: string | null
+          media_kind: string | null
           original_url: string
           page_excerpt: string | null
           platform: string | null
@@ -7564,6 +7565,7 @@ export type Database = {
           retrieved_at: string
           scan_id: string
           snippet: string | null
+          thumbnail_url: string | null
           title: string | null
         }
         Insert: {
@@ -7584,6 +7586,7 @@ export type Database = {
           identity_explanation?: string | null
           identity_factors?: Json
           media_hash?: string | null
+          media_kind?: string | null
           original_url: string
           page_excerpt?: string | null
           platform?: string | null
@@ -7592,6 +7595,7 @@ export type Database = {
           retrieved_at?: string
           scan_id: string
           snippet?: string | null
+          thumbnail_url?: string | null
           title?: string | null
         }
         Update: {
@@ -7612,6 +7616,7 @@ export type Database = {
           identity_explanation?: string | null
           identity_factors?: Json
           media_hash?: string | null
+          media_kind?: string | null
           original_url?: string
           page_excerpt?: string | null
           platform?: string | null
@@ -7620,6 +7625,7 @@ export type Database = {
           retrieved_at?: string
           scan_id?: string
           snippet?: string | null
+          thumbnail_url?: string | null
           title?: string | null
         }
         Relationships: [
@@ -7643,10 +7649,12 @@ export type Database = {
         Row: {
           created_at: string
           discovery_id: string
+          discovery_method: string | null
           family_key: string
           id: string
           provider: string
           provider_result_id: string | null
+          query_purpose: string | null
           query_used: string | null
           raw_excerpt: string | null
           raw_url: string
@@ -7657,10 +7665,12 @@ export type Database = {
         Insert: {
           created_at?: string
           discovery_id: string
+          discovery_method?: string | null
           family_key: string
           id?: string
           provider: string
           provider_result_id?: string | null
+          query_purpose?: string | null
           query_used?: string | null
           raw_excerpt?: string | null
           raw_url: string
@@ -7671,10 +7681,12 @@ export type Database = {
         Update: {
           created_at?: string
           discovery_id?: string
+          discovery_method?: string | null
           family_key?: string
           id?: string
           provider?: string
           provider_result_id?: string | null
+          query_purpose?: string | null
           query_used?: string | null
           raw_excerpt?: string | null
           raw_url?: string
@@ -8225,6 +8237,8 @@ export type Database = {
           started_at: string | null
           status: Database["public"]["Enums"]["prospect_scan_status"]
           updated_at: string
+          worker_lease_id: string | null
+          worker_lease_until: string | null
         }
         Insert: {
           aliases_used?: string[]
@@ -8249,6 +8263,8 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["prospect_scan_status"]
           updated_at?: string
+          worker_lease_id?: string | null
+          worker_lease_until?: string | null
         }
         Update: {
           aliases_used?: string[]
@@ -8273,6 +8289,8 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["prospect_scan_status"]
           updated_at?: string
+          worker_lease_id?: string | null
+          worker_lease_until?: string | null
         }
         Relationships: [
           {
