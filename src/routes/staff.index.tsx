@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   advanceScan,
   beginClientEnrollment,
+  getCitadelStatus,
   getDiscoveryReadiness,
   getFindingEvidence,
   getProspectScan,
@@ -19,6 +20,7 @@ import {
   type StartScanPayload,
 } from "@/lib/prospect/scan.functions";
 import { StaffBoot } from "@/components/staff/StaffBoot";
+import { CitadelIntro } from "@/components/staff/CitadelIntro";
 import { StaffSearch, type RecentScan } from "@/components/staff/StaffSearch";
 import { ScanModal } from "@/components/staff/ScanModal";
 import { ScanShell } from "@/components/staff/ScanShell";
@@ -28,6 +30,7 @@ import { isFinished } from "@/components/staff/staff-model";
 
 const LOGO = "/eterna-icon-512.png";
 const BOOT_KEY = "eterna-staff-booted";
+const CITADEL_INTRO_VERSION = 1;
 
 export const Route = createFileRoute("/staff/")({
   validateSearch: (search: Record<string, unknown>): { scan?: string } => ({
@@ -49,6 +52,8 @@ function StaffHome() {
   const navigate = useNavigate({ from: "/staff/" });
   const qc = useQueryClient();
   const [booted, setBooted] = useState(alreadyBooted);
+  const [intro, setIntro] = useState<null | { name: string | null; returning: boolean }>(null);
+  const citadelFn = useServerFn(getCitadelStatus);
   const [findingId, setFindingId] = useState<string | null>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollResult, setEnrollResult] = useState<EnrollmentResult | null>(null);
@@ -215,8 +220,36 @@ function StaffHome() {
     } catch {
       /* private mode: boot shows again next time */
     }
+    // Citadel introduction runs only after the existing boot animation ends.
+    void supabase.auth.getUser().then(({ data }) => {
+      const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+      const raw = [meta.full_name, meta.name, meta.display_name].find(
+        (v) => typeof v === "string" && v.trim(),
+      ) as string | undefined;
+      const name = raw ? raw.trim().split(/\s+/)[0]! : null;
+      const seen = Number(meta.citadel_intro_version ?? 0) >= CITADEL_INTRO_VERSION;
+      setIntro({ name, returning: seen });
+    });
+  };
+
+  const finishIntro = () => {
+    if (intro && !intro.returning) {
+      void supabase.auth.updateUser({ data: { citadel_intro_version: CITADEL_INTRO_VERSION } });
+    }
+    setIntro(null);
     setBooted(true);
   };
+
+  if (intro) {
+    return (
+      <CitadelIntro
+        name={intro.name}
+        returning={intro.returning}
+        loadStatus={async () => (await citadelFn()).systems}
+        onDone={finishIntro}
+      />
+    );
+  }
 
   if (!booted) {
     return (
@@ -257,7 +290,7 @@ function StaffHome() {
               <img src={LOGO} alt="" />
             </span>
             <span className="sx-brand-name">ETERNA</span>
-            <span className="sx-chip c-violet">Staff · Identity Intelligence</span>
+            <span className="sx-chip c-violet">Citadel · Identity Intelligence</span>
           </div>
           <button
             type="button"
