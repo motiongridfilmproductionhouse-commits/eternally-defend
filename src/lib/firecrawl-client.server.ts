@@ -40,7 +40,7 @@ export function firecrawlEnvironmentDiagnostic(): {
   lovable_api_key_length: number;
   configured: boolean;
 } {
-  const fcKey = process.env.FIRECRAWL_API_KEY?.trim() ?? "";
+  const fcKey = firecrawlApiKey();
   const lovableKey = process.env.LOVABLE_API_KEY?.trim() ?? "";
   const mode = !fcKey ? "missing" : fcKey.startsWith("lovc_") ? "lovable_gateway" : "direct";
   const gatewayRequired = mode === "lovable_gateway";
@@ -67,7 +67,7 @@ export async function firecrawlFetch(
   body: unknown,
   options?: FirecrawlFetchOptions,
 ): Promise<Response> {
-  const fcKey = process.env.FIRECRAWL_API_KEY?.trim();
+  const fcKey = firecrawlApiKey() || undefined;
   const lovableKey = process.env.LOVABLE_API_KEY?.trim();
 
   if (!fcKey && !lovableKey) {
