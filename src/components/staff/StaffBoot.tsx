@@ -222,11 +222,6 @@ export function StaffBoot({
           <span>{error ? `UNAVAILABLE · ${error.toUpperCase()}` : STATUS[statusIdx]}</span>
         </div>
       </div>
-      {!error ? (
-        <button type="button" className="sx-boot-skip" onClick={finish}>
-          SKIP
-        </button>
-      ) : null}
     </div>
   );
 }
