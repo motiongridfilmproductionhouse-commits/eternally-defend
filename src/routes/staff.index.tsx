@@ -200,7 +200,13 @@ function StaffHome() {
       enrollFn({
         data: { scanId: scanId!, findingIds: v.findingIds, clientEmail: v.clientEmail || null },
       }),
-    onSuccess: (res) => setEnrollResult(res),
+    onSuccess: (res) => {
+      setEnrollResult(res);
+      // Hand off to the Eterna sign-in screen so the client can redeem the
+      // invitation (or sign in to the linked existing account).
+      const code = res.inviteCode?.trim();
+      window.location.assign(code ? `/auth?invite=${encodeURIComponent(code)}` : "/auth");
+    },
   });
 
   const finishBoot = () => {
