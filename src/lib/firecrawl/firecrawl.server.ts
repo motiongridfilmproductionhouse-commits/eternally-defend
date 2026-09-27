@@ -14,6 +14,8 @@
 const DIRECT_BASE = "https://api.firecrawl.dev/v2";
 const GATEWAY_BASE = "https://connector-gateway.lovable.dev/firecrawl/v2";
 
+import { firecrawlApiKey } from "@/lib/firecrawl-client.server";
+
 export type FirecrawlErrorCode =
   | "AUTH_ERROR"
   | "RATE_LIMITED"

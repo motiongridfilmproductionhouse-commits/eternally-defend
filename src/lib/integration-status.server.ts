@@ -28,7 +28,7 @@ export function getIntegrationDiagnostics(): IntegrationDiagnostics {
         : "not configured";
 
   // Firecrawl
-  const firecrawl = env.FIRECRAWL_API_KEY ? "configured" : "not configured";
+  const firecrawl = env.FIRECRAWL_API_KEY || env.FIRECRAWL_API_KEY_1 ? "configured" : "not configured";
 
   // YouTube
   const youtube = env.YOUTUBE_API_KEY ? "configured" : "not configured";
