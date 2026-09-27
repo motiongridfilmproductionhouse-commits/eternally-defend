@@ -590,12 +590,41 @@ function matchedOnly(list: JoinedFinding[]) {
   return list.filter((f) => f.discovery?.identity_bucket === "MATCHED" && f.state !== "REJECTED");
 }
 
-function pendingIdentityOnly(list: JoinedFinding[]) {
+const normName = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "");
+
+/** Target names: display name plus approved aliases, normalised for comparison. */
+function targetNames(snap: Snap): string[] {
+  const id = (snap.identity ?? {}) as Record<string, unknown>;
+  const aliases = Array.isArray(id.aliases) ? (id.aliases as unknown[]) : [];
+  return [id.display_name, ...aliases]
+    .map((v) => normName(String(v ?? "")))
+    .filter((v) => v.length >= 3);
+}
+
+/** True only when the item's own title or text excerpt names the target person. */
+function mentionsTarget(f: JoinedFinding, names: string[]): boolean {
+  if (!names.length) return false;
+  const d = (f.discovery ?? {}) as Record<string, unknown>;
+  const fr = f as unknown as Record<string, unknown>;
+  const text = [d.title, d.snippet, d.description, d.excerpt, fr.excerpt, fr.evidence_excerpt]
+    .filter((v) => typeof v === "string")
+    .join(" ");
+  const hay = normName(text);
+  return names.some((n) => hay.includes(n));
+}
+
+function pendingIdentityOnly(list: JoinedFinding[], snap: Snap) {
+  const names = targetNames(snap);
   return list.filter(
     (f) =>
       f.state !== "REJECTED" &&
       (f.discovery?.identity_bucket === "POSSIBLE_MATCH" ||
-        f.discovery?.identity_bucket === "NEEDS_IDENTITY_REVIEW"),
+        f.discovery?.identity_bucket === "NEEDS_IDENTITY_REVIEW") &&
+      mentionsTarget(f, names),
   );
 }
 
