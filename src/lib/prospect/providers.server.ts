@@ -234,37 +234,39 @@ const factCheckExecutor: ProviderExecutor = {
  */
 export function productionExecutors(): ProviderExecutor[] {
   if (FIRECRAWL_ONLY_SEARCH) {
+    // Neutral executor labels only: vendor/service names must never surface in
+    // staff-visible events, failure reasons or readiness chips.
     return [
       adapterExecutor(
         makeFirecrawlProvider({ id: "firecrawl_google", sources: ["web"] }),
         "google_search",
         "WEB_SEARCH",
-        "Firecrawl (web search)",
+        "Web search",
       ),
-      adapterExecutor(firecrawlProvider, "web_general", "WEB_SEARCH", "Firecrawl"),
+      adapterExecutor(firecrawlProvider, "web_general", "WEB_SEARCH", "Web search"),
       adapterExecutor(
         makeFirecrawlProvider({ id: "firecrawl_news", sources: ["news"] }),
         "news",
         "WEB_SEARCH",
-        "Firecrawl (news)",
+        "News search",
       ),
       adapterExecutor(
         makeFirecrawlProvider({ id: "firecrawl_youtube", sources: ["web"], querySuffix: "site:youtube.com" }),
         "youtube",
         "WEB_SEARCH",
-        "Firecrawl (YouTube pages)",
+        "YouTube page search",
       ),
       adapterExecutor(
         makeFirecrawlProvider({ id: "firecrawl_images", sources: ["images"] }),
         "images",
         "IMAGE_SEARCH",
-        "Firecrawl (images)",
+        "Image search",
       ),
       adapterExecutor(
         makeFirecrawlProvider({ id: "firecrawl_reference", sources: ["web"], querySuffix: "site:wikipedia.org" }),
         "encyclopaedic",
         "WEB_SEARCH",
-        "Firecrawl (reference pages)",
+        "Reference page search",
       ),
     ];
   }
@@ -273,7 +275,7 @@ export function productionExecutors(): ProviderExecutor[] {
     adapterExecutor(serpapiProvider, "google_search", "WEB_SEARCH", "SerpApi (Google results)"),
     adapterExecutor(braveProvider, "web_general", "WEB_SEARCH", "Brave Search"),
     adapterExecutor(geminiGroundingProvider, "web_general", "WEB_SEARCH", "Gemini (Google-grounded)"),
-    adapterExecutor(firecrawlProvider, "web_general", "WEB_SEARCH", "Firecrawl"),
+    adapterExecutor(firecrawlProvider, "web_general", "WEB_SEARCH", "Web search"),
     adapterExecutor(ddgHtmlProvider, "web_general", "WEB_SEARCH", "Public web (keyless)"),
     adapterExecutor(braveProvider, "news", "WEB_SEARCH", "Brave Search (news queries)"),
     youtubeExecutor,

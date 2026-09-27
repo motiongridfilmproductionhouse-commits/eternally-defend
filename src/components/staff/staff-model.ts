@@ -115,6 +115,26 @@ export function humanProviderStatus(status: string): string {
   );
 }
 
+/**
+ * Hide third-party search-service names from staff-visible text. Internal
+ * event messages and failure reasons may name the underlying provider; the
+ * UI always shows a neutral description instead.
+ */
+const PROVIDER_NAME_NEUTRAL: Array<[RegExp, string]> = [
+  [/firecrawl\s*\(web search\)/gi, "Web search"],
+  [/firecrawl\s*\(news\)/gi, "News search"],
+  [/firecrawl\s*\(youtube pages\)/gi, "YouTube page search"],
+  [/firecrawl\s*\(images\)/gi, "Image search"],
+  [/firecrawl\s*\(reference pages\)/gi, "Reference page search"],
+  [/firecrawl/gi, "Web search"],
+];
+
+export function sanitizeProviderNames(text: string): string {
+  let out = text;
+  for (const [pattern, neutral] of PROVIDER_NAME_NEUTRAL) out = out.replace(pattern, neutral);
+  return out;
+}
+
 export function hostOf(url: string | null | undefined): string {
   if (!url) return "";
   try {
