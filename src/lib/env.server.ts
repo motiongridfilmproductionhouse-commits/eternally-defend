@@ -11,6 +11,7 @@ const serverEnvSchema = z.object({
 
   // Optional integrations
   FIRECRAWL_API_KEY: z.string().optional(),
+  FIRECRAWL_API_KEY_1: z.string().optional(),
   SERPAPI_API_KEY: z.string().optional(),
   serp_api: z.string().optional(),
   BRAVE_API_KEY: z.string().optional(),

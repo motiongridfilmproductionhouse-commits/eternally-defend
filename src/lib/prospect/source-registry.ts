@@ -71,7 +71,7 @@ export const SOURCE_FAMILIES: readonly SourceFamily[] = [
     policyEnabled: true,
     providers: ["brave", "firecrawl", "gemini_grounding", "ddg_html"],
     requiresSecrets: [],
-    requiresAnySecret: ["BRAVE_API_KEY", "FIRECRAWL_API_KEY", "GEMINI_API_KEY"],
+    requiresAnySecret: ["BRAVE_API_KEY", "FIRECRAWL_API_KEY", "FIRECRAWL_API_KEY_1", "GEMINI_API_KEY"],
     weightClass: "major",
   },
   {
@@ -81,7 +81,7 @@ export const SOURCE_FAMILIES: readonly SourceFamily[] = [
     policyEnabled: true,
     providers: ["brave", "google", "firecrawl"],
     requiresSecrets: [],
-    requiresAnySecret: ["BRAVE_API_KEY", "GOOGLE_SEARCH_API_KEY", "FIRECRAWL_API_KEY"],
+    requiresAnySecret: ["BRAVE_API_KEY", "GOOGLE_SEARCH_API_KEY", "FIRECRAWL_API_KEY", "FIRECRAWL_API_KEY_1"],
     weightClass: "supporting",
   },
   {
@@ -101,7 +101,7 @@ export const SOURCE_FAMILIES: readonly SourceFamily[] = [
     policyEnabled: true,
     providers: ["brave_images", "google_images"],
     requiresSecrets: [],
-    requiresAnySecret: ["BRAVE_API_KEY", "GOOGLE_SEARCH_API_KEY", "FIRECRAWL_API_KEY"],
+    requiresAnySecret: ["BRAVE_API_KEY", "GOOGLE_SEARCH_API_KEY", "FIRECRAWL_API_KEY", "FIRECRAWL_API_KEY_1"],
     weightClass: "supporting",
   },
   {

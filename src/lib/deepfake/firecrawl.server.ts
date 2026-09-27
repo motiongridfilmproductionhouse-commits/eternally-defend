@@ -141,7 +141,7 @@ export async function firecrawlSearch(
     softDeadlineMs?: number;
   },
 ): Promise<FirecrawlSearchHit[]> {
-  if (!process.env.FIRECRAWL_API_KEY) {
+  if (!(process.env.FIRECRAWL_API_KEY ?? process.env.FIRECRAWL_API_KEY_1)) {
     throw new Error("FIRECRAWL_API_KEY is missing");
   }
 

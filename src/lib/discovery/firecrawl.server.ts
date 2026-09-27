@@ -35,10 +35,10 @@ interface FirecrawlScrapeResponse {
   error?: string;
 }
 
-import { firecrawlFetch } from "@/lib/firecrawl-client.server";
+import { firecrawlApiKey, firecrawlFetch } from "@/lib/firecrawl-client.server";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  if (!process.env.FIRECRAWL_API_KEY) {
+  if (!firecrawlApiKey()) {
     throw new Error("FIRECRAWL_API_KEY is not configured");
   }
   const res = await firecrawlFetch(path, body);
