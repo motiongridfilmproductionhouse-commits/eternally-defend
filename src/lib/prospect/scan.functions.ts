@@ -655,3 +655,35 @@ export const getDiscoveryReadiness = createServerFn({ method: "GET" })
     const detector = productionDetector();
     return { families, detector: detector?.name ?? null, checkedAt: new Date().toISOString() };
   });
+
+/**
+ * Presentation-only identity confirmation: public images for a name so staff
+ * can confirm "Is this who you mean?" before a scan starts. Never stored as
+ * evidence, never used for matching or risk.
+ */
+export const lookupIdentityImages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { name: string; hint?: string | null }) =>
+    z
+      .object({ name: z.string().trim().min(2).max(120), hint: z.string().trim().max(120).nullish() })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { assertStaff } = await import("./snapshot.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await assertStaff(context.supabase as any, context.userId);
+    const { searchFirecrawlImagesBatch } = await import("@/lib/deepfake/firecrawl-images.server");
+    const q = [data.name, data.hint].filter(Boolean).join(" ");
+    try {
+      const res = await searchFirecrawlImagesBatch({
+        queries: [`${q} photo`],
+        maxImages: 9,
+        softDeadlineMs: 15_000,
+      });
+      return {
+        images: res.hits.map((h) => ({ url: h.image_url, page: h.page_url, title: h.title })),
+      };
+    } catch {
+      return { images: [] as Array<{ url: string; page: string; title: string }> };
+    }
+  });
