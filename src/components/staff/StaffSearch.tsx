@@ -246,7 +246,11 @@ export function StaffSearch({
             key={f.key}
             className="sx-src"
             data-state={f.state}
-            title={f.reason ?? f.providers.join(" · ")}
+            title={
+              f.reason
+                ? sanitizeProviderNames(f.reason)
+                : sanitizeProviderNames(f.providers.join(" · "))
+            }
           >
             <span className="d" />
             {f.label}
