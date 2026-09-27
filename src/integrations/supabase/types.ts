@@ -11729,6 +11729,10 @@ export type Database = {
       }
     }
     Functions: {
+      _prospect_import_package_findings: {
+        Args: { _package_id: string }
+        Returns: number
+      }
       acquire_deepfake_scan_continuation: {
         Args: { p_scan_id: string }
         Returns: {
@@ -11920,6 +11924,7 @@ export type Database = {
         Returns: boolean
       }
       is_prospect_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_prospect_worker: { Args: never; Returns: boolean }
       join_waitlist: {
         Args: {
           p_email: string
@@ -11954,6 +11959,33 @@ export type Database = {
           result_status: string
           result_waitlist_id: string
         }[]
+      }
+      prospect_claim_my_packages: {
+        Args: never
+        Returns: {
+          id: string
+          identity_snapshot: Json
+          profile_prefilled_at: string
+          scan_id: string
+          status: string
+        }[]
+      }
+      prospect_import_my_findings: { Args: never; Returns: number }
+      prospect_import_package_findings: {
+        Args: { _package_id: string }
+        Returns: number
+      }
+      prospect_link_package_to_client_email: {
+        Args: { _email: string; _package_id: string }
+        Returns: string
+      }
+      prospect_mark_my_package_prefilled: {
+        Args: { _package_id: string }
+        Returns: boolean
+      }
+      prospect_worker_token_valid: {
+        Args: { _token: string }
+        Returns: boolean
       }
       record_route_outcome: {
         Args: { p_domain: string; p_outcome: string }
