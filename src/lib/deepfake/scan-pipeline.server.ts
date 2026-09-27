@@ -1,3 +1,4 @@
+import { nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
 import { isFirecrawlConfigured } from "../firecrawl-client.server";
 import { filterDeepfakeCandidates } from "./filter.server";
 import { generateDeepfakeQueries } from "./query-generator.server";
@@ -1616,6 +1617,7 @@ export async function executeInterleavedDeepfakePipeline(input: {
 
     if (
       !checkpoint.youtube_done &&
+      nonFirecrawlSearchAllowed() &&
       canStartProviderCall(
         budget,
         Math.max(checkpoint.average_provider_latency_ms, MIN_PROVIDER_TIME_MS),
