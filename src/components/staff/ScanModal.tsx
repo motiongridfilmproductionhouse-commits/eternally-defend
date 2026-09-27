@@ -24,6 +24,7 @@ import {
   isFinished,
   joinFindings,
   railStates,
+  sanitizeProviderNames,
   followStage,
   sourceStatusText,
   sourceTypeOf,
