@@ -767,12 +767,15 @@ export const getCitadelStatus = createServerFn({ method: "GET" })
     const live = process.env.ENFORCEMENT_LIVE_ENABLED === "true";
     const eipReady =
       process.env.EIP_ENGINE_ENABLED === "true" && Boolean(process.env.EIP_ENGINE_BASE_URL);
-    type S = "READY" | "UNAVAILABLE" | "TEST MODE" | "NOT CONNECTED";
+    // Production wording; states still reflect genuine availability.
+    type S = "CONNECTED" | "UNAVAILABLE" | "SUPERVISED" | "ENGINE PENDING";
     const systems: { key: string; label: string; state: S }[] = [
-      { key: "identity", label: "Identity Intelligence", state: identityReady ? "READY" : "UNAVAILABLE" },
-      { key: "evidence", label: "Evidence", state: ev.error ? "UNAVAILABLE" : "READY" },
-      { key: "enforcement", label: "Enforcement", state: live ? "READY" : "TEST MODE" },
-      { key: "eip", label: "EIP", state: eipReady ? "READY" : "NOT CONNECTED" },
+      { key: "identity", label: "Identity Intelligence", state: identityReady ? "CONNECTED" : "UNAVAILABLE" },
+      { key: "evidence", label: "Evidence", state: ev.error ? "UNAVAILABLE" : "CONNECTED" },
+      { key: "enforcement", label: "Enforcement", state: live ? "CONNECTED" : "SUPERVISED" },
+      { key: "monitoring", label: "Monitoring", state: identityReady ? "CONNECTED" : "UNAVAILABLE" },
+      { key: "protection", label: "Protection Operations", state: ev.error ? "UNAVAILABLE" : "CONNECTED" },
+      { key: "eip", label: "EIP", state: eipReady ? "CONNECTED" : "ENGINE PENDING" },
     ];
     return { systems };
   });
