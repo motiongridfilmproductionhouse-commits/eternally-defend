@@ -590,6 +590,44 @@ function matchedOnly(list: JoinedFinding[]) {
   return list.filter((f) => f.discovery?.identity_bucket === "MATCHED" && f.state !== "REJECTED");
 }
 
+function pendingIdentityOnly(list: JoinedFinding[]) {
+  return list.filter(
+    (f) =>
+      f.state !== "REJECTED" &&
+      (f.discovery?.identity_bucket === "POSSIBLE_MATCH" ||
+        f.discovery?.identity_bucket === "NEEDS_IDENTITY_REVIEW"),
+  );
+}
+
+function PendingFindingCards({
+  findings,
+  onOpen,
+}: {
+  findings: JoinedFinding[];
+  onOpen: (id: string) => void;
+}) {
+  if (!findings.length) return null;
+  return (
+    <>
+      <div className="sx-eyebrow" style={{ margin: "22px 0 10px" }}>
+        Awaiting identity verification · {findings.length}
+      </div>
+      <div className="sx-note warn" style={{ marginBottom: 12 }}>
+        <UserCheck size={15} />
+        <span>
+          These are real discovered results, but they are not included in confirmed totals or risk
+          scores until staff confirms the identity.
+        </span>
+      </div>
+      <div className="sx-cards">
+        {findings.map((f, i) => (
+          <FindingCard key={f.id} f={f} onOpen={onOpen} index={i} />
+        ))}
+      </div>
+    </>
+  );
+}
+
 /* ── 01 Deepfake ────────────────────────────────────────────────────────── */
 
 function DeepfakeView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => void }) {
@@ -732,7 +770,9 @@ function DeepfakeView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => vo
 /* ── 02 Reputation ──────────────────────────────────────────────────────── */
 
 function ReputationView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => void }) {
-  const all = matchedOnly(joinFindings(snap, "harmful_content"));
+  const joined = joinFindings(snap, "harmful_content");
+  const all = matchedOnly(joined);
+  const pending = pendingIdentityOnly(joined);
   const stats = snap.analysis.stages.harmful_content;
   const types = ["Articles", "Videos", "Social posts", "Forums", "Other web pages"] as const;
   const byType = new Map<string, number>();
@@ -784,12 +824,15 @@ function ReputationView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => 
         </div>
       ) : (
         <div className="sx-empty">
-          <b>No potentially harmful references discovered</b>
-          {railStates(snap).harmful_content === "done"
-            ? "in the scanned sources."
-            : "yet — items appear as they are classified."}
+          <b>No identity-confirmed harmful references yet</b>
+          {pending.length
+            ? `${pending.length} classified result${pending.length === 1 ? " is" : "s are"} waiting for identity verification.`
+            : railStates(snap).harmful_content === "done"
+              ? "No relevant references were classified in the scanned sources."
+              : "Items appear as they are classified."}
         </div>
       )}
+      <PendingFindingCards findings={pending} onOpen={onOpen} />
     </>
   );
 }
@@ -837,7 +880,9 @@ function ImpersonationView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) 
 /* ── 04 Privacy ─────────────────────────────────────────────────────────── */
 
 function PrivacyView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => void }) {
-  const all = matchedOnly(joinFindings(snap, "privacy_exposure"));
+  const joined = joinFindings(snap, "privacy_exposure");
+  const all = matchedOnly(joined);
+  const pending = pendingIdentityOnly(joined);
   const stats = snap.analysis.stages.privacy_exposure;
   return (
     <>
@@ -862,10 +907,13 @@ function PrivacyView({ snap, onOpen }: { snap: Snap; onOpen: (id: string) => voi
         </div>
       ) : (
         <div className="sx-empty">
-          <b>No public privacy-exposure signals discovered</b>
-          in the scanned sources.
+          <b>No identity-confirmed privacy-exposure signals yet</b>
+          {pending.length
+            ? `${pending.length} classified result${pending.length === 1 ? " is" : "s are"} waiting for identity verification.`
+            : "No relevant signals were classified in the scanned sources."}
         </div>
       )}
+      <PendingFindingCards findings={pending} onOpen={onOpen} />
       <div className="sx-note info" style={{ marginTop: 14 }}>
         <ShieldCheck size={15} />
         <span>Potential privacy findings require verification before any response action.</span>
@@ -1394,6 +1442,7 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
     return { ok, failed, unavailable, policy };
   }, [snap.sources]);
   const zero = a.counts.relevantItems === 0;
+  const hasIdentityReviewItems = a.counts.identityReviewQueue > 0;
   return (
     <>
       <div className="sx-eyebrow" style={{ color: "var(--sx-ok)" }}>
@@ -1414,7 +1463,11 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
       {zero && isFinished(snap.scan.status) ? (
         <div className="sx-note" style={{ marginBottom: 14 }}>
           <Info size={15} />
-          <span>{zeroFindingsLabel(cov.state)}</span>
+          <span>
+            {hasIdentityReviewItems
+              ? `${a.counts.identityReviewQueue} discovered item${a.counts.identityReviewQueue === 1 ? " is" : "s are"} awaiting identity verification. Confirmed risk totals remain at zero until staff completes that review.`
+              : zeroFindingsLabel(cov.state)}
+          </span>
         </div>
       ) : null}
 
@@ -1432,7 +1485,9 @@ function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "revi
               <small>
                 {unavailable
                   ? "analysis unavailable"
-                  : `${s.verified} verified · ${s.awaitingVerification} awaiting`}
+                  : s.pendingIdentity > 0
+                    ? `${s.verified} verified · ${s.pendingIdentity} identity review`
+                    : `${s.verified} verified · ${s.awaitingVerification} awaiting`}
               </small>
             </button>
           );
