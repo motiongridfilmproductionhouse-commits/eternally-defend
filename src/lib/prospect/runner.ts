@@ -1025,11 +1025,15 @@ export async function runProspectScanStep(
   /* ── 01 Deepfake & AI manipulation ─────────────────────────────────────── */
   const discoveriesNow = await store.listDiscoveries();
   const byId = new Map(discoveriesNow.map((d) => [d.id, d]));
+  // Analyse every media item that has not been ruled unrelated. Identity
+  // review remains a separate gate: only MATCHED discoveries contribute to
+  // stage totals or either risk score, and unresolved detector signals stay
+  // hidden from the confirmed-findings list until staff resolves identity.
   const media = discoveriesNow
     .filter(
       (d) =>
         d.media_kind &&
-        d.identity_bucket === "MATCHED" &&
+        d.identity_bucket !== "UNRELATED" &&
         !isHostDisabledForFeature("deepfake_intel", d.original_url),
     )
     .sort((a, b) => a.id.localeCompare(b.id));
@@ -1048,7 +1052,7 @@ export async function runProspectScanStep(
           type: "STAGE_STARTED",
           stage: "ai_manipulation",
           level: "info",
-          message: `Analysing ${toAnalyse.length} identity-matched media candidate${toAnalyse.length === 1 ? "" : "s"} with ${ports.detector!.name}`,
+          message: `Analysing ${toAnalyse.length} relevant media candidate${toAnalyse.length === 1 ? "" : "s"} with ${ports.detector!.name}`,
         });
       }
       let analysed = 0;
@@ -1151,7 +1155,7 @@ export async function runProspectScanStep(
                 ? ` · capped at ${limits.maxDetectorItems}`
                 : "")
             : media.length === 0
-              ? "No identity-matched media candidates to analyse"
+              ? "No relevant media candidates to analyse"
               : `${ports.detector!.name} could not analyse any candidate (${noMedia} without accessible media, ${errors} error(s))`,
         candidates_considered: media.length,
       });

@@ -55,6 +55,7 @@ export interface FirecrawlSearchResultItem {
   date?: string;
   publishedDate?: string;
   ogImage?: string;
+  imageUrl?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -329,6 +330,9 @@ export async function firecrawlSearch(opts: FirecrawlSearchOptions): Promise<Fir
       const title = String(rec.title ?? metadata.title ?? metadata["og:title"] ?? "").trim();
       const description = String(rec.description ?? rec.snippet ?? metadata.description ?? "").trim();
       const markdown = typeof rec.markdown === "string" ? rec.markdown : undefined;
+      const imageUrl = String(
+        rec.imageUrl ?? rec.image_url ?? rec.thumbnail ?? metadata.imageUrl ?? metadata.ogImage ?? "",
+      ).trim();
 
       if (!uniqueMap.has(url)) {
         uniqueMap.set(url, {
@@ -340,7 +344,9 @@ export async function firecrawlSearch(opts: FirecrawlSearchOptions): Promise<Fir
           author: typeof rec.author === "string" ? rec.author : (metadata.author as string | undefined),
           date: typeof rec.date === "string" ? rec.date : (metadata.publishedTime as string | undefined),
           publishedDate: typeof rec.publishedDate === "string" ? rec.publishedDate : (metadata.publishedTime as string | undefined),
-          ogImage: typeof metadata.ogImage === "string" ? metadata.ogImage : undefined,
+          ogImage:
+            imageUrl || (typeof metadata.ogImage === "string" ? metadata.ogImage : undefined),
+          imageUrl: imageUrl || undefined,
           metadata,
         });
       }

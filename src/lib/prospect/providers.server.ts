@@ -33,7 +33,11 @@ import type { DiscoveryMethod } from "./events";
 
 const HITS_PER_QUERY = 10;
 
-function hitToNormalized(hit: DiscoveryHit, rank: number): NormalizedHit | null {
+function hitToNormalized(
+  hit: DiscoveryHit,
+  rank: number,
+  familyKey: SourceFamilyKey,
+): NormalizedHit | null {
   if (!hit.url || typeof hit.url !== "string") return null;
   return {
     url: hit.url,
@@ -52,6 +56,8 @@ function hitToNormalized(hit: DiscoveryHit, rank: number): NormalizedHit | null 
           ? hit.date
           : null,
     thumbnailUrl: hit.media?.thumbnail ?? null,
+    mediaKind:
+      familyKey === "images" ? "image" : familyKey === "youtube" ? "video" : null,
     rank,
   };
 }
@@ -76,7 +82,7 @@ function adapterExecutor(
     async search(query, signal) {
       const hits = await adapter.search(query.query, HITS_PER_QUERY, signal);
       return hits
-        .map((h, i) => hitToNormalized(h, i + 1))
+        .map((h, i) => hitToNormalized(h, i + 1, familyKey))
         .filter((h): h is NormalizedHit => Boolean(h));
     },
   };
