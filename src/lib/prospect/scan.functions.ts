@@ -681,7 +681,7 @@ export const lookupIdentityImages = createServerFn({ method: "POST" })
         softDeadlineMs: 15_000,
       });
       return {
-        images: res.hits.map((h) => ({ url: h.image_url, page: h.page_url, title: h.title })),
+        images: res.hits.map((h) => ({ url: h.image_url, page: h.page_url, title: h.title ?? "" })),
       };
     } catch {
       return { images: [] as Array<{ url: string; page: string; title: string }> };
