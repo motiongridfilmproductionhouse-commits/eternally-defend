@@ -29,14 +29,16 @@ export const Route = createFileRoute("/staff")({
 
 function StaffLayout() {
   const access = useServerFn(getStaffAccess);
+  const { user } = Route.useRouteContext();
+  // Key by user so a cached staff result never carries over to another account.
   const q = useQuery({
-    queryKey: ["staff-access"],
+    queryKey: ["staff-access", user.id],
     queryFn: () => access(),
-    staleTime: 60_000,
+    staleTime: 0,
     retry: 1,
   });
 
-  if (q.isLoading) return <div className="sx" />;
+  if (q.isPending || q.isFetching && !q.data?.isStaff) return <div className="sx" />;
   if (q.isError || !q.data?.isStaff) {
     return (
       <div className="sx" style={{ display: "grid", placeItems: "center", padding: 24 }}>
