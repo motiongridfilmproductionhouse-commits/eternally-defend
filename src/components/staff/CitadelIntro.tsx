@@ -59,36 +59,36 @@ export function CitadelIntro({
 
   useEffect(() => {
     if (reduced) {
-      const t = setTimeout(finish, 2600);
+      const t = setTimeout(finish, 3400);
       return () => clearTimeout(t);
     }
     let cancelled = false;
     (async () => {
-      await sleep(2600);
+      await sleep(3400);
       if (cancelled) return;
       setStage("citadel");
-      await sleep(1400);
+      await sleep(1800);
       for (let i = 0; i < CAPS.length; i++) {
         if (cancelled) return;
         setCap(i);
-        await sleep(returning ? 450 : 900);
+        await sleep(returning ? 650 : 1150);
       }
       setCap(-1);
-      await sleep(500);
+      await sleep(800);
       if (cancelled) return;
       if (!returning) {
         setStage("eip");
-        await sleep(2200);
+        await sleep(2800);
         for (let i = 0; i < EIP_STEPS.length; i++) {
           if (cancelled) return;
           setStep(i);
-          await sleep(650);
+          await sleep(850);
         }
-        await sleep(1800);
+        await sleep(2400);
         if (cancelled) return;
       }
       setStage("online");
-      await sleep(4200);
+      await sleep(5600);
       if (!cancelled) finish();
     })();
     return () => {
@@ -114,10 +114,6 @@ export function CitadelIntro({
 
   return (
     <div className={`cx${leaving ? " is-leaving" : ""}`} role="dialog" aria-label="Eterna Citadel">
-      <button type="button" className="cx-skip" onClick={finish}>
-        Skip →
-      </button>
-
       <div className={`cx-sphere-wrap${stage === "welcome" ? "" : " is-on"}${stage === "eip" ? " is-dim" : ""}`}>
         <CitadelSphere />
         {CAPS.map((c, i) => (
