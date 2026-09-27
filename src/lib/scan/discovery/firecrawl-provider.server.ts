@@ -17,7 +17,7 @@ export function makeFirecrawlProvider(opts?: {
   querySuffix?: string;
 }): SearchProviderAdapter {
   return {
-    id: opts?.id ?? "firecrawl",
+    id: (opts?.id ?? "firecrawl") as SearchProviderAdapter["id"],
     label: opts?.label ?? "Firecrawl",
 
     isConfigured() {
