@@ -30,7 +30,7 @@ import { isFinished } from "@/components/staff/staff-model";
 
 const LOGO = "/eterna-icon-512.png";
 const BOOT_KEY = "eterna-staff-booted";
-const CITADEL_INTRO_VERSION = 1;
+const CITADEL_INTRO_VERSION = 2;
 
 function staffFirstName(metadata: Record<string, unknown>, email?: string): string {
   const savedName = [metadata.full_name, metadata.name, metadata.display_name].find(
@@ -65,6 +65,12 @@ function StaffHome() {
   const [booted, setBooted] = useState(alreadyBooted);
   const [intro, setIntro] = useState<null | { name: string | null; returning: boolean }>(null);
   const citadelFn = useServerFn(getCitadelStatus);
+  const citadel = useQuery({
+    queryKey: ["citadel-status"],
+    queryFn: () => citadelFn(),
+    enabled: booted,
+    staleTime: 60_000,
+  });
   const [findingId, setFindingId] = useState<string | null>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollResult, setEnrollResult] = useState<EnrollmentResult | null>(null);
@@ -299,6 +305,38 @@ function StaffHome() {
             </span>
             <span className="sx-brand-name">ETERNA</span>
             <span className="sx-chip c-violet">Citadel · Identity Intelligence</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto", marginRight: 10 }}>
+            {citadel.data && (() => {
+              const eip = citadel.data.systems.find((s) => s.key === "eip");
+              const ok = eip?.state === "CONNECTED";
+              return (
+                <span className={`sx-eip-pill${ok ? " ok" : ""}`} tabIndex={0}>
+                  <i /> EIP {ok ? "CONNECTED" : "ENGINE PENDING"}
+                  <span className="sx-eip-pop">
+                    <b>Eterna Image Immunization</b>
+                    <br />
+                    Status: {ok ? "Connected" : "Engine link pending"}
+                    <br />
+                    Citadel Integration: Active
+                    <br />
+                    <a href="/admin/eip">Open EIP Operations →</a>
+                  </span>
+                </span>
+              );
+            })()}
+            <button
+              type="button"
+              className="sx-btn ghost sm"
+              onClick={() => {
+                void supabase.auth.getUser().then(({ data }) => {
+                  const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+                  setIntro({ name: staffFirstName(meta, data.user?.email), returning: false });
+                });
+              }}
+            >
+              What’s new in Citadel
+            </button>
           </div>
           <button
             type="button"
