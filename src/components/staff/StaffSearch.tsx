@@ -74,17 +74,27 @@ export function StaffSearch({
     images: Array<{ url: string; page: string; title: string }>;
   }>(null);
   const [pick, setPick] = useState(0);
+  const [blurry, setBlurry] = useState<Set<string>>(new Set());
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (name.trim().length < 2 || starting || confirm) return;
     setPick(0);
+    setBlurry(new Set());
     setConfirm({ loading: true, images: [] });
     try {
       const res = await lookup({ data: { name: name.trim(), hint: profession || null } });
       setConfirm({ loading: false, images: res.images });
     } catch {
       setConfirm({ loading: false, images: [] });
+    }
+  };
+
+  // Drop images that load below a clear-resolution threshold.
+  const rejectIfSmall = (url: string) => (ev: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = ev.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalWidth < 240) {
+      setBlurry((prev) => (prev.has(url) ? prev : new Set(prev).add(url)));
     }
   };
 
