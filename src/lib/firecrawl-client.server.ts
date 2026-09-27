@@ -13,6 +13,20 @@
 const DIRECT_BASE = "https://api.firecrawl.dev/v2";
 const GATEWAY_BASE = "https://connector-gateway.lovable.dev/firecrawl/v2";
 
+/**
+ * Resolve the Firecrawl connection key. When more than one Firecrawl
+ * connection is linked, additional keys land in FIRECRAWL_API_KEY_1, _2, …
+ * Prefer the first configured key so a re-linked working connection is used
+ * even if an older exhausted key is still present.
+ */
+export function firecrawlApiKey(): string {
+  for (const name of ["FIRECRAWL_API_KEY", "FIRECRAWL_API_KEY_1", "FIRECRAWL_API_KEY_2"]) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
 export function isFirecrawlConfigured(): boolean {
   return firecrawlEnvironmentDiagnostic().configured;
 }
