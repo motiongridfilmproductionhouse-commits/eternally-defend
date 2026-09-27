@@ -1759,3 +1759,43 @@
 @keyframes sxConfirmImg{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:scale(1)}}
 @keyframes sxDotPulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
 @media (prefers-reduced-motion:reduce){.sx-confirm,.sx-confirm-backdrop,.sx-confirm-main,.sx-confirm-ring,.sx-confirm-orb,.sx-confirm-dots i{animation:none}}
+
+/* ---------- Eterna Citadel introduction ---------- */
+.cx{position:fixed;inset:0;z-index:60;background:radial-gradient(ellipse at 50% 45%,#0b0c1a 0%,#050509 60%,#020203 100%);color:#e8ebff;display:grid;place-items:center;overflow:hidden;transition:opacity .7s ease,filter .7s ease}
+.cx.is-leaving{opacity:0;filter:blur(6px)}
+.cx-skip{position:absolute;top:22px;right:26px;z-index:3;background:none;border:0;color:rgba(200,208,255,.55);font-size:12px;letter-spacing:.14em;cursor:pointer;transition:color .2s}
+.cx-skip:hover{color:#fff}
+.cx-center{position:relative;z-index:2;text-align:center;padding:24px;display:flex;flex-direction:column;align-items:center}
+.cx-center>div{display:flex;flex-direction:column;align-items:center}
+.cx-overlay{min-height:min(62vmin,520px);justify-content:center}
+.cx-in{opacity:0;animation:cxIn 1s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes cxIn{from{opacity:0;transform:translateY(10px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+.cx-hello{font-size:15px;letter-spacing:.06em;color:rgba(200,210,255,.75);margin:0 0 14px}
+.cx-lead{font-size:clamp(26px,3.4vw,38px);font-weight:500;letter-spacing:-.01em;margin:0 0 12px}
+.cx-title{font-size:clamp(26px,3.6vw,42px);font-weight:600;letter-spacing:.32em;margin:0 0 12px;padding-left:.32em;background:linear-gradient(180deg,#fff,#b7c0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cx-sub{font-size:14px;line-height:1.6;color:rgba(190,198,240,.7);margin:0}
+.cx-eyebrow{font-size:11px;letter-spacing:.3em;color:#a99cff;margin:0 0 14px}
+.cx-sphere-wrap{position:absolute;width:min(62vmin,520px);aspect-ratio:1;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);opacity:0;transition:opacity 1.6s ease,transform 1.8s cubic-bezier(.2,.7,.2,1)}
+.cx-sphere-wrap.is-on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.cx-sphere-wrap.is-dim{opacity:.22}
+.cx-sphere{width:100%;height:100%;display:block}
+.cx-glow{position:absolute;inset:14%;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(80,110,255,.22),rgba(120,80,230,.14) 45%,rgba(190,70,200,.06) 65%,transparent 72%);filter:blur(18px);animation:cxBreathe 7s ease-in-out infinite}
+@keyframes cxBreathe{50%{transform:scale(1.05);opacity:.8}}
+.cx-cap{position:absolute;font-size:10.5px;letter-spacing:.24em;color:rgba(205,212,255,.85);white-space:nowrap;opacity:0;transform:translateY(6px);filter:blur(4px);transition:opacity .6s,transform .6s,filter .6s}
+.cx-cap.is-on{opacity:1;transform:none;filter:none}
+.cx-cap-0{top:4%;left:50%;translate:-50% 0}.cx-cap-1{top:24%;right:-14%}.cx-cap-2{bottom:24%;right:-10%}
+.cx-cap-3{bottom:4%;left:50%;translate:-50% 0}.cx-cap-4{bottom:24%;left:-6%}.cx-cap-5{top:24%;left:-22%}
+.cx-steps{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 4px;margin:28px 0 16px;max-width:720px}
+.cx-step{font-size:12.5px;letter-spacing:.04em;color:rgba(190,198,240,.25);transition:color .6s}
+.cx-step.is-on{color:#dfe4ff}
+.cx-arrow{font-style:normal;margin:0 8px;color:rgba(140,130,255,.6)}
+.cx-note{font-size:12.5px;color:rgba(190,198,240,.6);opacity:0;transition:opacity .8s}
+.cx-note.is-on{opacity:1}
+.cx-status{list-style:none;padding:0;margin:26px 0 22px;display:grid;gap:8px;min-width:300px}
+.cx-status-row{display:flex;justify-content:space-between;gap:24px;font-size:11px;letter-spacing:.18em;color:rgba(200,208,245,.7)}
+.cx-status-row b{font-weight:600}
+.cx-status-row .is-ready{color:#7fe3c4}.cx-status-row .is-warn{color:#f0c47a}
+.cx-enter{background:rgba(120,120,255,.1);border:1px solid rgba(150,150,255,.35);color:#eef0ff;padding:10px 22px;border-radius:999px;font-size:13px;letter-spacing:.08em;cursor:pointer;transition:background .25s,transform .2s}
+.cx-enter:hover{background:rgba(120,120,255,.2);transform:translateY(-1px)}
+@media (max-width:640px){.cx-cap{display:none}}
+@media (prefers-reduced-motion:reduce){.cx,.cx *{animation:none!important;transition:none!important}.cx-in{opacity:1}}

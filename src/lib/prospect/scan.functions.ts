@@ -742,3 +742,37 @@ export const lookupIdentityImages = createServerFn({ method: "POST" })
     }
     return { images: images.slice(0, 9) };
   });
+
+/**
+ * Citadel intro status. Each system reports READY only when the backend can
+ * actually serve it right now; otherwise an honest non-ready state.
+ */
+export const getCitadelStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertStaff } = await import("./snapshot.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = context.supabase as any;
+    await assertStaff(sb, context.userId);
+    const { SOURCE_FAMILIES } = await import("./source-registry");
+    const { productionExecutors } = await import("./providers.server");
+    const executors = productionExecutors();
+    const identityReady = SOURCE_FAMILIES.some(
+      (f) =>
+        f.policyEnabled &&
+        f.directAccess &&
+        executors.some((e) => e.familyKey === f.key && e.isConfigured()),
+    );
+    const ev = await sb.from("prospect_finding_evidence").select("id", { head: true, count: "exact" }).limit(1);
+    const live = process.env.ENFORCEMENT_LIVE_ENABLED === "true";
+    const eipReady =
+      process.env.EIP_ENGINE_ENABLED === "true" && Boolean(process.env.EIP_ENGINE_BASE_URL);
+    type S = "READY" | "UNAVAILABLE" | "TEST MODE" | "NOT CONNECTED";
+    const systems: { key: string; label: string; state: S }[] = [
+      { key: "identity", label: "Identity Intelligence", state: identityReady ? "READY" : "UNAVAILABLE" },
+      { key: "evidence", label: "Evidence", state: ev.error ? "UNAVAILABLE" : "READY" },
+      { key: "enforcement", label: "Enforcement", state: live ? "READY" : "TEST MODE" },
+      { key: "eip", label: "EIP", state: eipReady ? "READY" : "NOT CONNECTED" },
+    ];
+    return { systems };
+  });
