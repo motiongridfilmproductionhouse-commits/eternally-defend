@@ -1280,6 +1280,79 @@ function ReviewView({
 
 /* ── 07 Summary ─────────────────────────────────────────────────────────── */
 
+/** Target person details — rendered only from the stored identity record. */
+function TargetIdentityCard({ snap }: { snap: Snap }) {
+  const id = (snap.identity ?? {}) as Record<string, unknown>;
+  const list = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : [];
+  const text = (v: unknown): string => (typeof v === "string" && v.trim() ? v.trim() : "");
+  const typeLabel =
+    (
+      {
+        celebrity: "Celebrity",
+        public_figure: "Public figure",
+        individual: "Individual",
+        executive: "Executive",
+        brand: "Brand",
+        company: "Company",
+        organization: "Organization",
+      } as Record<string, string>
+    )[text(id.identity_type)] ?? (text(id.identity_type) || "Not provided");
+  const rows: Array<{ label: string; value: string }> = [
+    { label: "Identity type", value: typeLabel },
+    { label: "Profession", value: text(id.profession) || "Not provided" },
+    { label: "Organization", value: text(id.organization) || "Not provided" },
+    { label: "Country / region", value: text(id.country_region) || "Not provided" },
+    { label: "Also known as", value: list(id.aliases).join(", ") || "Not provided" },
+    { label: "Known works / titles", value: list(id.known_works).join(", ") || "Not provided" },
+    { label: "Linked entities", value: list(id.linked_entities).join(", ") || "Not provided" },
+    { label: "Known handles", value: list(id.known_handles).join(", ") || "Not provided" },
+    { label: "Known profile", value: text(id.known_profile_url) || "Not provided" },
+    { label: "Known website", value: text(id.known_website) || "Not provided" },
+  ];
+  return (
+    <div className="sx-panel" style={{ marginBottom: 14 }}>
+      <div className="sx-eyebrow" style={{ marginBottom: 10 }}>
+        Target identity · as recorded for this scan
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+          gap: "10px 18px",
+        }}
+      >
+        {rows.map((r) => (
+          <div key={r.label} style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, color: "var(--sx-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              {r.label}
+            </div>
+            <div
+              style={{
+                fontSize: 13.5,
+                marginTop: 3,
+                color: r.value === "Not provided" ? "var(--sx-faint)" : undefined,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {r.value}
+            </div>
+          </div>
+        ))}
+      </div>
+      {id.name_is_ambiguous ? (
+        <div className="sx-note" style={{ marginTop: 12 }}>
+          <Info size={14} />
+          <span>
+            This name is marked as ambiguous — identity corroboration is required before any item
+            counts toward risk totals.
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function SummaryView({ snap, onJump }: { snap: Snap; onJump: (k: RailKey | "review") => void }) {
   const a = snap.analysis;
   const cov = a.coverage;
