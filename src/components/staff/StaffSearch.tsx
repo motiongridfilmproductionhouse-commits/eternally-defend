@@ -118,30 +118,36 @@ export function StaffSearch({
       {confirm ? (
         <div className="sx-confirm-backdrop" role="dialog" aria-modal="true" aria-label="Confirm identity">
           <div className="sx-confirm">
-            <div className="sx-confirm-orb">
-              {confirm.loading ? (
-                <div className="sx-confirm-loading">Finding public images…</div>
-              ) : main ? (
-                <>
-                  <img src={main.src} alt={name} className="sx-confirm-main" />
-                  <div className="sx-confirm-mosaic">
-                    {shown.slice(0, 8).map((img, i) => (
-                      <button
-                        key={img.url}
-                        type="button"
-                        aria-label={`Use image ${i + 1}`}
-                        aria-pressed={i === pick}
-                        onClick={() => setPick(i)}
-                      >
-                        <img src={img.src} alt="" loading="lazy" onError={(ev) => ((ev.currentTarget.parentElement as HTMLElement).style.display = "none")} />
-                      </button>
-                    ))}
+            <div className="sx-confirm-orb-wrap">
+              <div className="sx-confirm-ring" aria-hidden="true" />
+              <div className="sx-confirm-orb">
+                {confirm.loading ? (
+                  <div className="sx-confirm-loading">
+                    <span className="sx-confirm-dots" aria-hidden="true"><i /><i /><i /></span>
+                    Finding public images…
                   </div>
-                </>
-              ) : (
-                <div className="sx-confirm-loading">No public image found</div>
-              )}
+                ) : main ? (
+                  <img key={main.url} src={main.src} alt={name} className="sx-confirm-main" />
+                ) : (
+                  <div className="sx-confirm-loading">No public image found</div>
+                )}
+              </div>
             </div>
+            {!confirm.loading && shown.length > 1 ? (
+              <div className="sx-confirm-mosaic" role="group" aria-label="Choose a different photo">
+                {shown.slice(0, 6).map((img, i) => (
+                  <button
+                    key={img.url}
+                    type="button"
+                    aria-label={`Use image ${i + 1}`}
+                    aria-pressed={i === pick}
+                    onClick={() => setPick(i)}
+                  >
+                    <img src={img.src} alt="" loading="lazy" onError={(ev) => ((ev.currentTarget.parentElement as HTMLElement).style.display = "none")} />
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="sx-eyebrow">Confirm identity</div>
             <h2 className="sx-confirm-title">Is this who you mean?</h2>
             <p className="sx-confirm-name">{name.trim()}</p>
