@@ -674,16 +674,55 @@ export const lookupIdentityImages = createServerFn({ method: "POST" })
     await assertStaff(context.supabase as any, context.userId);
     const { searchFirecrawlImagesBatch } = await import("@/lib/deepfake/firecrawl-images.server");
     const q = [data.name, data.hint].filter(Boolean).join(" ");
+    type Img = { url: string; page: string; title: string };
+    const images: Img[] = [];
+    const seen = new Set<string>();
+    const push = (img: Img | null) => {
+      if (!img || seen.has(img.url)) return;
+      seen.add(img.url);
+      images.push(img);
+    };
+    // 1) Wikipedia lead image — usually the highest-resolution public portrait.
+    try {
+      const title = encodeURIComponent(data.name.trim().replace(/\s+/g, "_"));
+      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`, {
+        headers: { "User-Agent": "EternaSentinel/1.0 (identity confirmation)" },
+        signal: AbortSignal.timeout(6_000),
+      });
+      if (res.ok) {
+        const j = (await res.json()) as {
+          originalimage?: { source: string };
+          thumbnail?: { source: string };
+          title?: string;
+          content_urls?: { desktop?: { page?: string } };
+        };
+        const page = j.content_urls?.desktop?.page ?? "";
+        if (j.originalimage?.source) push({ url: j.originalimage.source, page, title: j.title ?? data.name });
+        else if (j.thumbnail?.source) push({ url: j.thumbnail.source, page, title: j.title ?? data.name });
+      }
+    } catch {
+      /* Wikipedia lookup is best-effort */
+    }
+    // 2) Image search, preferring full-size sources over small thumbnails.
     try {
       const res = await searchFirecrawlImagesBatch({
         queries: [`${q} photo`],
         maxImages: 9,
         softDeadlineMs: 15_000,
       });
-      return {
-        images: res.hits.map((h) => ({ url: h.image_url, page: h.page_url, title: h.title ?? "" })),
+      const hits = res.hits
+        .map((h) => ({ url: h.image_url, page: h.page_url, title: h.title ?? "" }))
+        .filter((h) => Boolean(h.url));
+      const score = (h: Img) => {
+        const u = h.url.toLowerCase();
+        if (u.includes("upload.wikimedia.org")) return 0;
+        if (u.includes("wikipedia")) return 1;
+        if (/thumb|thumbnail|small|_s\.|\/s\d+\//.test(u)) return 3;
+        return 2;
       };
+      hits.sort((a, b) => score(a) - score(b)).forEach(push);
     } catch {
-      return { images: [] as Array<{ url: string; page: string; title: string }> };
+      /* image search is best-effort */
     }
+    return { images: images.slice(0, 9) };
   });
