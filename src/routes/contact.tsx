@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Handshake, LifeBuoy, Mail, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ContactForm } from "@/components/public/ContactForm";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
@@ -53,6 +54,13 @@ function ContactPage() {
       intro="Protection requests, business enquiries, media, partnerships and support go through different channels so they reach the right people faster."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />
+      <section className="border-y border-landing-line bg-landing-soft py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="overflow-hidden border border-landing-line bg-landing shadow-[0_30px_70px_-55px_color-mix(in_oklab,var(--landing-ink)_45%,transparent)]">
+            <ContactForm />
+          </div>
+        </div>
+      </section>
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-5xl px-6">
           <div className="grid gap-px overflow-hidden border border-landing-line bg-landing-line md:grid-cols-2">

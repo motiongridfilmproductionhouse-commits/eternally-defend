@@ -1,6 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Check, Loader2, LockKeyhole, Send } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -297,7 +297,7 @@ function Field({
   label: string;
   error?: string;
   required?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
