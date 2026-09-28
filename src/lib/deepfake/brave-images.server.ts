@@ -1,4 +1,4 @@
-import { nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
+import { BRAVE_SEARCH_ALLOWED, nonFirecrawlSearchAllowed } from "@/lib/scan/search-policy";
 /**
  * Brave Image Search provider for reference image collection.
  * Uses the Brave Search API images endpoint; failures never abort the scan.
@@ -83,7 +83,7 @@ function parseBraveImageHits(payload: unknown, query: string): ReferenceImageHit
 }
 
 export function isBraveImageSearchConfigured(): boolean {
-  if (!nonFirecrawlSearchAllowed()) return false;
+  if (!nonFirecrawlSearchAllowed() && !BRAVE_SEARCH_ALLOWED) return false;
   return Boolean(process.env.BRAVE_API_KEY?.trim());
 }
 
