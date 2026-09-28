@@ -130,24 +130,37 @@ async function firecrawlRequest(
   let lastText = "";
   const startTime = Date.now();
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries + 1; attempt++) {
+    await acquirePacingSlot();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } finally {
+        releasePacingSlot();
+      }
       clearTimeout(timer);
 
       lastStatus = res.status;
       lastText = await res.text().catch(() => "");
 
-      // 408 / 429 / 5xx error retry with exponential backoff
-      if ((res.status === 408 || res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+      // 429: honour the provider's retry window and pause all searches.
+      if (res.status === 429 && attempt <= maxRetries) {
+        const m = /retry after (\d+)\s*s/i.exec(lastText);
+        const waitMs = Math.min(Math.max((m ? Number(m[1]) : 8) * 1000, 3000), 20000);
+        pauseUntil = Math.max(pauseUntil, Date.now() + waitMs);
+        continue;
+      }
+      // 408 / 5xx error retry with exponential backoff
+      if ((res.status === 408 || res.status >= 500) && attempt < maxRetries) {
         const backoffMs = (attempt + 1) * 1200;
         await new Promise((r) => setTimeout(r, backoffMs));
         continue;
