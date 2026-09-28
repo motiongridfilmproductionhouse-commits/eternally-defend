@@ -115,11 +115,6 @@ const navigationCategories: NavCategory[] = [
         description: "Research and response intelligence.",
       },
       {
-        label: "Case Studies",
-        to: "/case-studies" as const,
-        description: "Protection scenarios and operating examples.",
-      },
-      {
         label: "Newsroom",
         to: "/newsroom" as const,
         description: "Guides, announcements and analysis.",
@@ -652,7 +647,6 @@ export function PublicFooter() {
         { label: "Protection", href: "/#solutions" },
         { label: "Image Immunization (EIP)", to: "/image-immunization" as const },
         { label: "How It Works", href: "/#how-it-works" },
-        { label: "Case Studies", to: "/case-studies" as const },
         { label: "Identity Response Observatory", to: "/identity-response-observatory" as const },
       ],
     },
