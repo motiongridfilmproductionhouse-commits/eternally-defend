@@ -3032,7 +3032,7 @@ function PersistedResults({
         const pb = b.published_at ? new Date(b.published_at).getTime() : 0;
         return pb - pa;
       });
-  }, [items, source, timeWindow, quickFilter]);
+  }, [items, source, timeWindow, quickFilter, hiddenFilter]);
 
   // Counts are keyed by canonical source_type and derived from `items` (the currently
   // loaded, already server-filtered page(s)) — so with a source selected, every count
