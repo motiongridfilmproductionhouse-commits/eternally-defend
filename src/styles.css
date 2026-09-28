@@ -67,6 +67,8 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --font-landing-serif: "Playfair Display", Georgia, serif;
+  --font-contact-display: "Instrument Serif", Georgia, serif;
+  --font-contact-body: "Work Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Premium enterprise — light command center (Eterna) */
