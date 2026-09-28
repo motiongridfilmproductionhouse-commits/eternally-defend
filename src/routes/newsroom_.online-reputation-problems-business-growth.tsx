@@ -10,7 +10,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/online-reputation-proble
 const PUBLISHED = "2026-09-19";
 const TITLE = "How Online Reputation Problems Can Affect Business Growth";
 const DESCRIPTION =
-  "Online reputation issues rarely stay contained to one post. Here's how they move through sales, hiring, partnerships and investor trust — and what actually helps.";
+  "Online reputation issues rarely stay contained to one post. Here's how they move through sales, hiring, partnerships and investor trust, and what actually helps.";
 
 export const Route = createFileRoute("/newsroom_/online-reputation-problems-business-growth")({
   head: () => ({
@@ -74,7 +74,7 @@ function schema() {
           name: "Does a single negative article really affect revenue?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "It depends on context — how prominently it surfaces, how much other information a buyer has, and how the business responds. Research on independent restaurants found a measurable link between review ratings and revenue; the underlying dynamic applies more broadly, though the exact size of the effect varies by industry and situation.",
+            text: "It depends on context, how prominently it surfaces, how much other information a buyer has, and how the business responds. Research on independent restaurants found a measurable link between review ratings and revenue; the underlying dynamic applies more broadly, though the exact size of the effect varies by industry and situation.",
           },
         },
         {
@@ -98,7 +98,7 @@ function schema() {
           name: "How is a genuine threat told apart from routine criticism?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "A consistent standard, applied the same way every time, matters more than any single rule — for example, checking whether a claim can be traced to a checkable source, whether it's been independently corroborated, and how it's actually spreading before deciding how seriously to treat it.",
+            text: "A consistent standard, applied the same way every time, matters more than any single rule, for example, checking whether a claim can be traced to a checkable source, whether it's been independently corroborated, and how it's actually spreading before deciding how seriously to treat it.",
           },
         },
       ],
@@ -137,7 +137,7 @@ function ReputationBusinessGrowthPage() {
             little lower than the pipeline predicted, and nobody could say exactly why.
           </p>
           <p>
-            This is the version of reputation risk that doesn't look like a crisis — and it's the
+            This is the version of reputation risk that doesn't look like a crisis, and it's the
             version most businesses are actually exposed to.
           </p>
 
@@ -148,7 +148,7 @@ function ReputationBusinessGrowthPage() {
             It's tempting to file "reputation" under marketing or PR: something the communications
             team manages with a statement and a wait-and-see approach. That framing made sense when
             reputation lived mostly in print coverage and word of mouth. It doesn't hold up once
-            reputation lives primarily in search results, review sites and social feeds — places
+            reputation lives primarily in search results, review sites and social feeds, places
             every part of the business touches, usually before anyone in comms even knows there's an
             issue.
           </p>
@@ -167,7 +167,7 @@ function ReputationBusinessGrowthPage() {
             research before they commit, and what they find shapes the conversation before a
             salesperson says a word. Independent research backs this up directly: Harvard Business
             School economist Michael Luca found that each additional star in an independent
-            restaurant's Yelp rating was associated with a 5–9% change in revenue — an effect that
+            restaurant's Yelp rating was associated with a 5 to 9% change in revenue, an effect that
             held for independent businesses specifically, because customers had no other reference
             point to fall back on. The mechanism generalizes past restaurants: when a buyer has
             limited other information about a vendor, what's visible online carries outsized weight.
@@ -181,7 +181,7 @@ function ReputationBusinessGrowthPage() {
               Recruitment and employee confidence.
             </span>{" "}
             Candidates research employers the same way customers research vendors. Unresolved
-            negative content doesn't just cost a few declined offers — it raises the cost of every
+            negative content doesn't just cost a few declined offers, it raises the cost of every
             offer that does get accepted, because compensation has to work harder to overcome
             hesitation the candidate can't quite articulate. Internally, employees who see the same
             content their friends and family are seeing tend to feel it before leadership addresses
@@ -193,7 +193,7 @@ function ReputationBusinessGrowthPage() {
             </span>{" "}
             Procurement and legal teams at prospective partners routinely run basic diligence
             searches before a deal closes. A partner doesn't need to believe an unresolved claim to
-            decide it's not worth the exposure of being associated with it — "we'll wait and see" is
+            decide it's not worth the exposure of being associated with it, "we'll wait and see" is
             a common, low-friction way to quietly stall a deal.
           </p>
           <p>
@@ -217,7 +217,7 @@ function ReputationBusinessGrowthPage() {
             A single negative post rarely stays a single post. It gets screenshotted, shared into
             group chats and forums, and picked up by search engines independently of the original
             platform. Each new copy is a new entry point for someone searching the company's name
-            later — which is why an incident from months or years ago can still be the first thing a
+            later, which is why an incident from months or years ago can still be the first thing a
             prospective customer sees today. The content doesn't need to keep spreading to keep
             having an effect; it just needs to keep being findable.
           </p>
@@ -230,12 +230,12 @@ function ReputationBusinessGrowthPage() {
               The most common mistake is treating a reputation incident as resolved once the
               original post is taken down or the news cycle moves on. Removal of the original
               doesn't remove the copies, the screenshots or the discussion threads that reference it
-              — and it does nothing about how the incident is indexed in search results, where it
+             , and it does nothing about how the incident is indexed in search results, where it
               can keep surfacing on the exact query (the company's own name) that matters most. The
-              second common mistake is silence by default — sometimes the right call, but it's a
+              second common mistake is silence by default, sometimes the right call, but it's a
               decision that should be made deliberately, not a default that happens because no one
               is monitoring closely enough to know a response is even warranted. The third is
-              waiting for a dedicated crisis before building any process at all — by the time a
+              waiting for a dedicated crisis before building any process at all, by the time a
               crisis is underway, there's no time to set up monitoring, define who owns escalation,
               or agree on what "verified" means before a claim gets treated as fact internally.
             </p>
@@ -246,7 +246,7 @@ function ReputationBusinessGrowthPage() {
             The organizations that handle this well tend to share a few habits: they know what's
             being said about them before a customer or investor brings it up, they distinguish a
             genuine reputational threat from routine criticism instead of reacting to everything
-            equally, and they have already decided — before a crisis, not during one — who is
+            equally, and they have already decided, before a crisis, not during one, who is
             authorized to respond and what evidence is required before a claim gets escalated. None
             of that requires a large team, but it does require the fact-finding to happen
             continuously rather than only after something goes wrong.
@@ -256,12 +256,12 @@ function ReputationBusinessGrowthPage() {
             When professional help may be needed
           </h2>
           <p>
-            Most day-to-day reputation questions don't need outside help — a clear internal process
+            Most day-to-day reputation questions don't need outside help, a clear internal process
             handles them. Outside support tends to matter once an incident is moving across multiple
             platforms at once, involves synthetic or manipulated media, or requires the kind of
             evidence preservation and platform-specific escalation that a small internal team
             doesn't do often enough to have built real expertise in. At that point, the goal isn't
-            just responding faster — it's making sure the response is built on verified facts rather
+            just responding faster, it's making sure the response is built on verified facts rather
             than the first version of the story that circulated.
           </p>
 
@@ -275,7 +275,7 @@ function ReputationBusinessGrowthPage() {
               a clear standard for what counts as a verified issue versus an unconfirmed one, and a
               documented process for escalation so that when something does need a response, it
               doesn't have to be improvised. Organizations working in this space, including Eterna,
-              describe this as pairing technology-assisted monitoring with human review — automated
+              describe this as pairing technology-assisted monitoring with human review, automated
               discovery flags what might matter, and a person decides what actually does, before
               anything is escalated.
             </p>
@@ -288,7 +288,7 @@ function ReputationBusinessGrowthPage() {
                 <span className="font-semibold text-landing-ink">
                   Does a single negative article really affect revenue?
                 </span>{" "}
-                It depends on context — how prominently it surfaces, how much other information a
+                It depends on context, how prominently it surfaces, how much other information a
                 buyer has, and how the business responds. Research on independent restaurants found
                 a measurable link between review ratings and revenue; the underlying dynamic applies
                 more broadly, though the exact size of the effect varies by industry and situation.
@@ -297,7 +297,7 @@ function ReputationBusinessGrowthPage() {
                 <span className="font-semibold text-landing-ink">
                   Is this a marketing problem or a security problem?
                 </span>{" "}
-                Both, which is part of why it gets under-addressed — it doesn't sit neatly inside
+                Both, which is part of why it gets under-addressed, it doesn't sit neatly inside
                 one team's job description. It benefits from continuous monitoring and thoughtful
                 public response.
               </p>

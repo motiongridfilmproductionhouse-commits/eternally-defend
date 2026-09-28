@@ -9,7 +9,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/deepfake-reuploads-after
 const PUBLISHED = "2026-09-19";
 const TITLE = "Deepfake Reuploads: Why Harmful Content Can Return After Removal";
 const DESCRIPTION =
-  "A removed deepfake can reappear, altered just enough to slip past automatic detection. Here's why that happens — and why it isn't a sign the takedown failed.";
+  "A removed deepfake can reappear, altered just enough to slip past automatic detection. Here's why that happens, and why it isn't a sign the takedown failed.";
 
 export const Route = createFileRoute("/newsroom_/deepfake-reuploads-after-removal")({
   head: () => ({
@@ -73,7 +73,7 @@ function schema() {
           name: "Does a reupload mean the original takedown didn't work?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "No. The original removal addressed that specific instance. A reupload is a new, separate instance, often deliberately altered to avoid automatic detection — it doesn't undo the first removal.",
+            text: "No. The original removal addressed that specific instance. A reupload is a new, separate instance, often deliberately altered to avoid automatic detection, it doesn't undo the first removal.",
           },
         },
         {
@@ -81,7 +81,7 @@ function schema() {
           name: "Can platforms automatically catch every reupload?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Not reliably. Automated matching is effective against exact or near-exact copies but can be evaded by even modest alterations — recompression, cropping, re-encoding — which is why manual monitoring still matters.",
+            text: "Not reliably. Automated matching is effective against exact or near-exact copies but can be evaded by even modest alterations, recompression, cropping, re-encoding, which is why manual monitoring still matters.",
           },
         },
         {
@@ -127,15 +127,15 @@ function DeepfakeReuploadsPage() {
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
             A deepfake video gets reported and removed from the platform it first appeared on. Three
-            weeks later, it's back — not on the same platform, not even the same exact file, but
+            weeks later, it's back, not on the same platform, not even the same exact file, but
             close enough that anyone who saw the original would recognize it instantly. Nothing
             about the takedown failed. The video was simply reuploaded, slightly altered, somewhere
             else.
           </p>
           <p>
             Reuploading is one of the most persistent challenges in responding to deepfakes, and
-            understanding why it happens — and why it isn't a sign that the original response didn't
-            work — changes how you plan for it.
+            understanding why it happens, and why it isn't a sign that the original response didn't
+            work, changes how you plan for it.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
@@ -143,7 +143,7 @@ function DeepfakeReuploadsPage() {
           </h2>
           <p>
             Most platforms that remove reported content use some form of automated matching to catch
-            future uploads of the exact same file — comparing a digital fingerprint of newly
+            future uploads of the exact same file, comparing a digital fingerprint of newly
             uploaded content against known removed material. This works well against an identical
             re-upload. It works much less well against content that's been altered even slightly:
             recompressed, cropped, had a filter applied, or re-encoded at a different resolution.
@@ -151,7 +151,7 @@ function DeepfakeReuploadsPage() {
             underlying content slip past detection that would have caught an exact copy.
           </p>
           <p>
-            This isn't a flaw unique to any one platform — it's a structural limitation of
+            This isn't a flaw unique to any one platform, it's a structural limitation of
             fingerprint-based matching in general, and it's why a single successful removal request
             addresses one instance of a problem that can have many instances.
           </p>
@@ -170,8 +170,8 @@ function DeepfakeReuploadsPage() {
               of causing further harm.
             </p>
             <p className="mt-3">
-              That last category is worth calling out specifically: well-meaning resharing — to warn
-              others, to document what happened — is a meaningful source of reuploads, not just
+              That last category is worth calling out specifically: well-meaning resharing, to warn
+              others, to document what happened, is a meaningful source of reuploads, not just
               malicious redistribution.
             </p>
           </ArticleCallout>
@@ -183,8 +183,8 @@ function DeepfakeReuploadsPage() {
             If a single takedown were guaranteed to end the problem, one report would be the whole
             response. Because it usually isn't, an effective response plans for reupload from the
             outset rather than treating the first successful removal as the finish line. That means
-            continued, periodic monitoring for the same content reappearing — under a different
-            filename, on a different platform, in a slightly altered form — rather than assuming the
+            continued, periodic monitoring for the same content reappearing, under a different
+            filename, on a different platform, in a slightly altered form, rather than assuming the
             issue is closed.
           </p>
           <p>
@@ -201,13 +201,13 @@ function DeepfakeReuploadsPage() {
             <p>
               The most common mistake is treating a reupload as evidence that the first response
               failed, which can lead to frustration and a sense that nothing is working. A reupload
-              is a normal, expected part of how content spreads online — not a sign that reporting
+              is a normal, expected part of how content spreads online, not a sign that reporting
               was the wrong approach.
             </p>
             <p className="mt-3">
               A second mistake is not monitoring after the first removal succeeds, on the assumption
-              that the work is done. Ongoing monitoring, even at a basic level — periodic searches
-              for the same content under likely variations — catches reuploads faster than waiting
+              that the work is done. Ongoing monitoring, even at a basic level, periodic searches
+              for the same content under likely variations, catches reuploads faster than waiting
               to be told about them.
             </p>
             <p className="mt-3">
@@ -223,9 +223,9 @@ function DeepfakeReuploadsPage() {
           </h2>
           <p>
             Occasional reuploads with limited reach can often be handled with the same reporting
-            process used the first time. Ongoing or high-volume reupload activity — particularly
+            process used the first time. Ongoing or high-volume reupload activity, particularly
             across multiple platforms, or involving mirror sites that are harder to report through
-            standard channels — tends to benefit from continuous, systematic monitoring rather than
+            standard channels, tends to benefit from continuous, systematic monitoring rather than
             manual, reactive searches, which is where specialized response support becomes more
             useful.
           </p>
@@ -238,7 +238,7 @@ function DeepfakeReuploadsPage() {
                   Does a reupload mean the original takedown didn't work?
                 </span>{" "}
                 No. The original removal addressed that specific instance. A reupload is a new,
-                separate instance, often deliberately altered to avoid automatic detection — it
+                separate instance, often deliberately altered to avoid automatic detection, it
                 doesn't undo the first removal.
               </p>
               <p>
@@ -246,7 +246,7 @@ function DeepfakeReuploadsPage() {
                   Can platforms automatically catch every reupload?
                 </span>{" "}
                 Not reliably. Automated matching is effective against exact or near-exact copies but
-                can be evaded by even modest alterations — recompression, cropping, re-encoding —
+                can be evaded by even modest alterations, recompression, cropping, re-encoding ,
                 which is why manual monitoring still matters.
               </p>
               <p>
@@ -282,7 +282,7 @@ function DeepfakeReuploadsPage() {
               },
               {
                 to: "/newsroom/someone-made-a-deepfake-of-me",
-                title: "Someone Made a Deepfake of Me — What Should I Do?",
+                title: "Someone Made a Deepfake of Me, What Should I Do?",
                 description: "The ordered first steps if this is happening to you right now.",
               },
               {

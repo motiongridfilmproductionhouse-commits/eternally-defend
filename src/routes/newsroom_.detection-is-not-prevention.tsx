@@ -7,13 +7,13 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/detection-is-not-prevent
 export const Route = createFileRoute("/newsroom_/detection-is-not-prevention")({
   head: () => ({
     meta: [
-      { title: "Detection Is Not Prevention — Eterna Sentinel" },
+      { title: "Detection Is Not Prevention, Eterna Sentinel" },
       {
         name: "description",
         content:
           "Monitoring and takedown work after an image has already been misused. Why prevention has to start earlier, and how detection and prevention fit together.",
       },
-      { property: "og:title", content: "Detection Is Not Prevention — Eterna Sentinel" },
+      { property: "og:title", content: "Detection Is Not Prevention, Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -119,7 +119,7 @@ function DetectionIsNotPreventionPage() {
             <ul className="mt-4 space-y-2 text-xs">
               <li>
                 <Link to="/image-immunization" className="landing-link text-landing-ink">
-                  Image Immunization — the complete overview
+                  Image Immunization, the complete overview
                 </Link>
               </li>
               <li>

@@ -153,13 +153,15 @@ export function ContactForm() {
               </span>
             </div>
             <div className="px-5 py-6">
-              <p className="text-[10px] font-semibold uppercase text-landing-muted">Reference</p>
-              <p className="mt-3 font-mono text-sm text-landing-ink">{enquiryId}</p>
+              <p className="text-[10px] font-semibold uppercase text-landing-muted">Next step</p>
+              <p className="mt-3 text-sm leading-6 text-landing-ink">
+                The appropriate Eterna team will review your enquiry.
+              </p>
             </div>
             <div className="grid grid-cols-[4px_1fr] border-t border-landing-line">
               <div className="bg-landing-accent" aria-hidden="true" />
               <p className="px-5 py-5 text-xs leading-5 text-landing-muted">
-                Keep this reference for your records. The team will use it to identify your enquiry.
+                No submitted personal details are displayed on this page.
               </p>
             </div>
           </div>

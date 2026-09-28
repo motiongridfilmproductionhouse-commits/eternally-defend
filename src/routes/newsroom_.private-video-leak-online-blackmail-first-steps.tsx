@@ -11,14 +11,14 @@ const CANONICAL =
 const PUBLISHED = "2026-09-19";
 const TITLE = "Private Video Leaks and Online Blackmail: What to Do First";
 const DESCRIPTION =
-  "If a private video has been leaked and someone is using it to threaten you, here's what actually helps first — and why paying rarely makes it stop.";
+  "If a private video has been leaked and someone is using it to threaten you, here's what actually helps first, and why paying rarely makes it stop.";
 
 export const Route = createFileRoute("/newsroom_/private-video-leak-online-blackmail-first-steps")({
   head: () => ({
     meta: [
       { title: `${TITLE} | Eterna Sentinel` },
       { name: "description", content: DESCRIPTION },
-      { property: "og:title", content: "A Private Video Was Leaked — Here's What Helps First" },
+      { property: "og:title", content: "A Private Video Was Leaked, Here's What Helps First" },
       {
         property: "og:description",
         content:
@@ -91,7 +91,7 @@ function schema() {
           name: "Do I have to know who's doing this to get help?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "No. You can report and use removal tools without knowing who's responsible — identifying them is a separate process that platforms and law enforcement can pursue.",
+            text: "No. You can report and use removal tools without knowing who's responsible, identifying them is a separate process that platforms and law enforcement can pursue.",
           },
         },
         {
@@ -128,14 +128,14 @@ function PrivateVideoLeakPage() {
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
-            A video meant to stay private is suddenly not private anymore — shared without
+            A video meant to stay private is suddenly not private anymore, shared without
             permission, and now someone is using it as leverage: send money, send more images, do
             what they ask, or they'll share it further.
           </p>
           <p>
             If this is happening to you right now, the single most important thing to know is this:
             paying, or complying with what's being demanded, does not reliably make it stop. The
-            FBI's own guidance on this is direct — compliance does not guarantee the material won't
+            FBI's own guidance on this is direct, compliance does not guarantee the material won't
             still be shared. What follows is what actually helps, without requiring you to negotiate
             with whoever is doing this.
           </p>
@@ -144,7 +144,7 @@ function PrivateVideoLeakPage() {
             You are not the one who did something wrong
           </h2>
           <p>
-            Whoever leaked the video or is using it to threaten you is responsible for that — not
+            Whoever leaked the video or is using it to threaten you is responsible for that, not
             you. That's true regardless of how the video originally came to exist, who it was
             originally shared with, or any circumstances around it. This matters because shame is
             exactly what keeps people from reporting and getting help quickly, which is often what
@@ -156,11 +156,11 @@ function PrivateVideoLeakPage() {
           </h2>
           <p>
             If someone is actively threatening you, the instinct to negotiate, plead, or try to
-            reason with them is completely understandable — and it's usually not effective. People
+            reason with them is completely understandable, and it's usually not effective. People
             running this kind of extortion are frequently running the same script against many
             people at once; engaging tends to confirm that you're reachable and responsive, which
-            can invite more demands rather than fewer. This doesn't mean deleting the conversation —
-            it's evidence — it means not continuing to respond while you take the steps below.
+            can invite more demands rather than fewer. This doesn't mean deleting the conversation ,
+            it's evidence, it means not continuing to respond while you take the steps below.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">Preserve the evidence</h2>
@@ -170,7 +170,7 @@ function PrivateVideoLeakPage() {
               messages or posts, the account names or usernames involved, any links, and the dates
               and times. If a payment was demanded, note the amount and the method, even if you
               haven't paid and don't intend to. This documentation is what a platform, an
-              investigator, or law enforcement will actually need — and it's much harder to
+              investigator, or law enforcement will actually need, and it's much harder to
               reconstruct later than to capture now.
             </p>
           </ArticleCallout>
@@ -179,11 +179,11 @@ function PrivateVideoLeakPage() {
             Use the tools built for this specifically
           </h2>
           <p>
-            If the content involves intimate or sexually explicit imagery — real or AI-generated —
+            If the content involves intimate or sexually explicit imagery, real or AI-generated ,
             there are free tools designed exactly for this, and neither requires uploading the
             actual file anywhere. If you were under 18 when the image or video was created, the
             National Center for Missing &amp; Exploited Children's Take It Down tool generates a
-            digital fingerprint on your own device — the file itself never leaves your device —
+            digital fingerprint on your own device, the file itself never leaves your device ,
             which participating platforms use to find and remove matches. If you're 18 or older,
             StopNCII.org works the same way. Both have a real limitation worth knowing: they only
             cover participating platforms and can't guarantee removal everywhere, which is why
@@ -191,7 +191,7 @@ function PrivateVideoLeakPage() {
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
-            Report it — to the platform, and to the right authority
+            Report it, to the platform, and to the right authority
           </h2>
           <p>
             Report the content to the platform it's on, using the specific category for
@@ -199,7 +199,7 @@ function PrivateVideoLeakPage() {
             situation to the FBI's Internet Crime Complaint Center (IC3.gov) if extortion or threats
             are involved, or to local law enforcement. If you're a student, your school's Title IX
             office can also act, independent of any law enforcement process. None of these reports
-            require you to have already resolved the situation yourself — that's the point of
+            require you to have already resolved the situation yourself, that's the point of
             reporting.
           </p>
 
@@ -217,7 +217,7 @@ function PrivateVideoLeakPage() {
           <ArticleCallout kind="mistake">
             <p>
               The most costly mistake is paying, or sending additional content, believing it will
-              end the demands. It frequently doesn't — it can signal that further demands will also
+              end the demands. It frequently doesn't, it can signal that further demands will also
               be paid, and it does nothing to address content that may already be saved or shared
               elsewhere.
             </p>
@@ -240,7 +240,7 @@ function PrivateVideoLeakPage() {
           </h2>
           <p>
             Beyond the platform tools and law enforcement, specialized support exists specifically
-            for this situation — crisis lines, victim advocates, and services that help preserve and
+            for this situation, crisis lines, victim advocates, and services that help preserve and
             document evidence in a way that supports a platform report or a legal process. This kind
             of help becomes especially relevant when content is spreading across multiple platforms,
             when a threat is escalating, or when you need help navigating a school or legal process
@@ -270,7 +270,7 @@ function PrivateVideoLeakPage() {
                 <span className="font-semibold text-landing-ink">
                   Do I have to know who's doing this to get help?
                 </span>{" "}
-                No. You can report and use removal tools without knowing who's responsible —
+                No. You can report and use removal tools without knowing who's responsible ,
                 identifying them is a separate process that platforms and law enforcement can
                 pursue.
               </p>

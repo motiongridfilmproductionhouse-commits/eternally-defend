@@ -10,7 +10,7 @@ const CANONICAL = "https://protectbyeterna.com/student-digital-safety";
 const PUBLISHED = "2026-09-19";
 const TITLE = "A Digital Safety Guide for Students in the Age of Generative AI";
 const DESCRIPTION =
-  "Generative AI has changed how images, video and rumors can be used against students. A clear guide to the landscape — and where to go for your specific situation.";
+  "Generative AI has changed how images, video and rumors can be used against students. A clear guide to the landscape, and where to go for your specific situation.";
 
 export const Route = createFileRoute("/student-digital-safety")({
   head: () => ({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/student-digital-safety")({
       {
         property: "og:description",
         content:
-          "A calm, clear map of how generative AI has changed student digital safety — and the response steps that apply across every situation.",
+          "A calm, clear map of how generative AI has changed student digital safety, and the response steps that apply across every situation.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -84,7 +84,7 @@ function schema() {
           name: "Should I always involve law enforcement?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Not always — many situations are appropriately handled through school reporting channels and platform reports. Law enforcement becomes more relevant when there's a credible legal violation, an active threat, or extortion involved.",
+            text: "Not always, many situations are appropriately handled through school reporting channels and platform reports. Law enforcement becomes more relevant when there's a credible legal violation, an active threat, or extortion involved.",
           },
         },
         {
@@ -92,7 +92,7 @@ function schema() {
           name: "Where should I start if I'm not sure which category applies to my situation?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Start with whichever description below feels closest, and follow its linked guide — most of the immediate first steps (preserve, don't re-share, report, get support) apply regardless of the exact category.",
+            text: "Start with whichever description below feels closest, and follow its linked guide, most of the immediate first steps (preserve, don't re-share, report, get support) apply regardless of the exact category.",
           },
         },
       ],
@@ -123,8 +123,8 @@ function StudentDigitalSafetyPage() {
             A decade ago, the digital-safety conversation on campus was mostly about privacy
             settings and cyberbullying. Both still matter. But generative AI has added a new layer:
             it's now possible to fabricate a convincing image, video or voice recording of a real,
-            identifiable student — without their knowledge, using nothing more than photos they've
-            already posted — and to do it in minutes, at effectively no cost.
+            identifiable student, without their knowledge, using nothing more than photos they've
+            already posted, and to do it in minutes, at effectively no cost.
           </p>
           <p>
             This guide is a starting point for understanding that landscape: what's actually
@@ -145,7 +145,7 @@ function StudentDigitalSafetyPage() {
               Fabrication has replaced editing.
             </span>{" "}
             A convincing fake no longer requires real footage or images of the actual event being
-            depicted — it can be generated from scratch, based on patterns learned from ordinary
+            depicted, it can be generated from scratch, based on patterns learned from ordinary
             photos.
           </p>
           <p>
@@ -158,12 +158,12 @@ function StudentDigitalSafetyPage() {
           <p>
             <span className="font-semibold text-landing-ink">Source material is abundant.</span>{" "}
             Students photograph and video each other constantly, and share it across group chats,
-            social platforms and class projects — all of which can serve as training material
+            social platforms and class projects, all of which can serve as training material
             without anyone involved realizing it.
           </p>
           <p>
-            None of this means the underlying human behavior — the impulse to embarrass, harass,
-            blackmail or spread rumors about someone — is new. It means the tools available to act
+            None of this means the underlying human behavior, the impulse to embarrass, harass,
+            blackmail or spread rumors about someone, is new. It means the tools available to act
             on that impulse have become significantly more powerful and more accessible.
           </p>
 
@@ -222,7 +222,7 @@ function StudentDigitalSafetyPage() {
               >
                 What to Do if Someone Threatens to Publish Your Private Images or Videos
               </Link>{" "}
-              covers this directly — and the single most important thing to know is that paying or
+              covers this directly, and the single most important thing to know is that paying or
               complying does not reliably make it stop.
             </p>
             <p>
@@ -247,7 +247,7 @@ function StudentDigitalSafetyPage() {
             </p>
             <p>
               <span className="font-semibold text-landing-ink">False allegations.</span> Fabricated
-              claims — sometimes paired with manipulated "evidence" — designed to damage someone's
+              claims, sometimes paired with manipulated "evidence", designed to damage someone's
               standing with friends, a partner, or a broader community. See{" "}
               <Link
                 to="/newsroom/false-allegations-online-what-to-do"
@@ -271,7 +271,7 @@ function StudentDigitalSafetyPage() {
             </p>
           </div>
           <p>
-            These categories overlap in practice — a fake account might be used to spread a
+            These categories overlap in practice, a fake account might be used to spread a
             fabricated image, which then gets used in a blackmail attempt. Real incidents rarely fit
             neatly into one box, which is part of why a general understanding of the landscape helps
             more than memorizing a single response for a single scenario.
@@ -288,8 +288,8 @@ function StudentDigitalSafetyPage() {
                 assuming it's "not a big deal" either.
               </li>
               <li>
-                <span className="font-semibold text-landing-ink">Preserve</span> evidence —
-                screenshots, URLs, usernames, timestamps — before content potentially disappears,
+                <span className="font-semibold text-landing-ink">Preserve</span> evidence ,
+                screenshots, URLs, usernames, timestamps, before content potentially disappears,
                 and before you block or delete anything.{" "}
                 <Link
                   to="/methodology"
@@ -301,13 +301,13 @@ function StudentDigitalSafetyPage() {
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">Avoid re-sharing</span>, even with
-                good intentions — every forward, including a forward meant to warn others, creates
+                good intentions, every forward, including a forward meant to warn others, creates
                 another copy outside anyone's control.
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">Report</span> through the
                 platform's specific policy category, and through your school's actual reporting
-                channel — not just informally to friends.
+                channel, not just informally to friends.
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">Get support</span> from a trusted
@@ -315,7 +315,7 @@ function StudentDigitalSafetyPage() {
                 alone, and asking for help is not an overreaction.
               </li>
               <li>
-                <span className="font-semibold text-landing-ink">Escalate when appropriate</span> —
+                <span className="font-semibold text-landing-ink">Escalate when appropriate</span> ,
                 to law enforcement, if there's a credible legal violation or an active threat, or to
                 a specialized response service if the situation is spreading across multiple
                 platforms or your school's process isn't proving to be enough.
@@ -327,7 +327,7 @@ function StudentDigitalSafetyPage() {
             A note for parents and educators
           </h2>
           <p>
-            If you're a parent, the instinct to immediately take over can be strong — but a student
+            If you're a parent, the instinct to immediately take over can be strong, but a student
             who feels heard and supported, rather than managed, tends to engage with the response
             process more openly. If you're faculty or administration,{" "}
             <Link
@@ -340,7 +340,7 @@ function StudentDigitalSafetyPage() {
             preservation, student support, platform response, escalation and continuous education.
           </p>
           <p>
-            None of this — for students, parents or institutions — is a substitute for law
+            None of this, for students, parents or institutions, is a substitute for law
             enforcement, legal counsel, or professional mental-health and safeguarding support when
             a situation calls for it. The guidance across this cluster is meant to help you get to
             the right resource faster, not to replace it.
@@ -356,14 +356,14 @@ function StudentDigitalSafetyPage() {
               that happened in person. The emotional and reputational impact of a convincing
               fabrication, or a widely circulated rumor, is real regardless of how it was made. A
               second common mistake is delaying action out of embarrassment or the hope a situation
-              will resolve itself — evidence is easiest to preserve immediately.
+              will resolve itself, evidence is easiest to preserve immediately.
             </p>
           </ArticleCallout>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">Where to go next</h2>
           <p>
             If something specific has already happened, the fastest path is the article that matches
-            your exact situation — the categories above link directly to each one. If you're here to
+            your exact situation, the categories above link directly to each one. If you're here to
             understand the landscape before anything has happened, that awareness is itself useful:
             knowing the categories, the response arc, and where to go is most of what preparation
             actually looks like.
@@ -391,7 +391,7 @@ function StudentDigitalSafetyPage() {
                 <span className="font-semibold text-landing-ink">
                   Should I always involve law enforcement?
                 </span>{" "}
-                Not always — many situations are appropriately handled through school reporting
+                Not always, many situations are appropriately handled through school reporting
                 channels and platform reports. Law enforcement becomes more relevant when there's a
                 credible legal violation, an active threat, or extortion involved.
               </p>
@@ -429,7 +429,7 @@ function StudentDigitalSafetyPage() {
               {
                 to: "/newsroom/ai-generated-explicit-images-student-safety-guide",
                 title: "AI-Generated Explicit Images Without Consent: A Student Safety Guide",
-                description: "Calm, practical steps — without judgment.",
+                description: "Calm, practical steps, without judgment.",
               },
               {
                 to: "/newsroom/private-video-leak-online-blackmail-first-steps",

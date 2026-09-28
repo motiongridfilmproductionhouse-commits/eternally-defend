@@ -130,7 +130,7 @@ function PreserveDeepfakeEvidencePage() {
             items={[
               {
                 to: "/newsroom/someone-made-a-deepfake-of-me",
-                title: "Someone Made a Deepfake of Me — What Should I Do?",
+                title: "Someone Made a Deepfake of Me, What Should I Do?",
                 description: "Calm first steps after discovering impersonation.",
               },
               {

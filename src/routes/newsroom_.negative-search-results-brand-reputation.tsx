@@ -9,7 +9,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/negative-search-results-
 const PUBLISHED = "2026-09-19";
 const TITLE = "What Happens When Negative Search Results Start Defining Your Brand?";
 const DESCRIPTION =
-  "The results for your company's own name aren't neutral — and negative content can dominate them long after the original story fades. Here's why, and what to do.";
+  "The results for your company's own name aren't neutral, and negative content can dominate them long after the original story fades. Here's why, and what to do.";
 
 export const Route = createFileRoute("/newsroom_/negative-search-results-brand-reputation")({
   head: () => ({
@@ -73,7 +73,7 @@ function schema() {
           name: "Can a negative search result be removed?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Sometimes — if it violates a platform's own policies, there may be grounds for removal at the source. Content that's simply negative but not policy-violating is harder to remove outright and often calls for a different approach.",
+            text: "Sometimes, if it violates a platform's own policies, there may be grounds for removal at the source. Content that's simply negative but not policy-violating is harder to remove outright and often calls for a different approach.",
           },
         },
         {
@@ -97,7 +97,7 @@ function schema() {
           name: "Is this the same as SEO?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "It overlaps with SEO, but the goal is different — SEO usually aims to rank new content higher; reputation-focused search work is also concerned with what's already ranking and why, and whether it's accurate.",
+            text: "It overlaps with SEO, but the goal is different, SEO usually aims to rank new content higher; reputation-focused search work is also concerned with what's already ranking and why, and whether it's accurate.",
           },
         },
       ],
@@ -128,7 +128,7 @@ function NegativeSearchResultsPage() {
           <p>
             Type a company's name into a search engine and the results that come back aren't
             neutral. They're a ranked, editable-by-nobody-in-particular summary of what the internet
-            currently thinks is most relevant about that name — and for a growing number of
+            currently thinks is most relevant about that name, and for a growing number of
             companies, that summary is being written by whichever piece of content happened to rank,
             not by anything the company actually published.
           </p>
@@ -143,16 +143,16 @@ function NegativeSearchResultsPage() {
           </h2>
           <p>
             A company's own website, social accounts and press coverage compete for space on that
-            first page with everything else that mentions its name — review sites, forum threads,
+            first page with everything else that mentions its name, review sites, forum threads,
             news coverage, and any viral post that happened to use the company's name in a way
             search engines found relevant. When something negative ranks well, it isn't because
             search engines are biased against the company. It's usually because that piece of
             content generated more engagement, more links, or more direct searches than anything the
-            company itself published — which negative, emotionally charged content often does,
+            company itself published, which negative, emotionally charged content often does,
             structurally, regardless of what it's about.
           </p>
           <p>
-            The result is a branded search page — the results for the company's own name — that no
+            The result is a branded search page, the results for the company's own name, that no
             longer reflects what the company would choose to show a prospective customer meeting it
             for the first time.
           </p>
@@ -163,14 +163,14 @@ function NegativeSearchResultsPage() {
           <p>
             A single negative review sits inside a review platform, next to other reviews, with
             context. A negative search result sits at the top of the exact query a prospective
-            customer, candidate or journalist runs before forming any other opinion — often before
+            customer, candidate or journalist runs before forming any other opinion, often before
             they've seen anything else the company has to say. It's not competing for attention with
             the company's own narrative; for a moment, it is the company's narrative, because it's
             the only thing visible.
           </p>
           <p>
             This compounds because branded search is disproportionately used by people already close
-            to a decision. Someone searching a company's name isn't casually browsing — they're
+            to a decision. Someone searching a company's name isn't casually browsing, they're
             often verifying something before signing, applying, investing or partnering. A negative
             result at that exact moment carries more weight than the same content would carry almost
             anywhere else.
@@ -183,7 +183,7 @@ function NegativeSearchResultsPage() {
             A single post rarely ranks well on its own the day it's published. What actually pushes
             something to the top of branded search is what happens after: it gets discussed, quoted,
             screenshotted and linked to by other sites, and each of those becomes a separate piece
-            of content search engines can index — all still tied to the same underlying incident.
+            of content search engines can index, all still tied to the same underlying incident.
             This is why an issue from a year or more ago can still dominate a brand's search results
             long after the original conversation has ended: the derivative content (news coverage,
             forum discussion, aggregator sites) often outlives the original post and keeps ranking
@@ -196,7 +196,7 @@ function NegativeSearchResultsPage() {
           <ArticleCallout kind="mistake">
             <p>
               The most common mistake is assuming that getting the original content removed fixes
-              search visibility. It doesn't, automatically — search engines have often indexed
+              search visibility. It doesn't, automatically, search engines have often indexed
               copies, discussions and related coverage independently of the source, and those can
               keep ranking even after the original is gone. The second is assuming that publishing
               more positive content will simply outrank the negative result on its own timeline. It
@@ -211,12 +211,12 @@ function NegativeSearchResultsPage() {
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">What to do about it</h2>
           <p>
             Managing this well starts with knowing what's actually showing up for the company's own
-            name on a regular basis — not just checking once during a crisis. From there, the
+            name on a regular basis, not just checking once during a crisis. From there, the
             response depends on what's actually ranking: content that violates a platform's policies
             can sometimes be reported and removed at the source; content that's simply outdated or
             unrepresentative may call for a longer-term approach involving accurate, substantive
             content that search engines find genuinely relevant to the same query. What matters most
-            is that the response is proportionate to what's actually there — not a reflex to "get it
+            is that the response is proportionate to what's actually there, not a reflex to "get it
             off page one" without understanding why it's ranking in the first place.
           </p>
 
@@ -227,7 +227,7 @@ function NegativeSearchResultsPage() {
             Basic branded-search monitoring is something most companies can do themselves. It
             becomes harder once negative content involves synthetic or manipulated media, spans many
             separate pieces of content across different sites, or requires the kind of sustained,
-            technically informed effort that search visibility work actually takes — work that
+            technically informed effort that search visibility work actually takes, work that
             benefits from experience most internal marketing teams don't build up, because they
             don't face this problem often.
           </p>
@@ -239,7 +239,7 @@ function NegativeSearchResultsPage() {
             <p>
               The organizations that handle this well tend to monitor branded search continuously
               rather than periodically, so they see an emerging issue while it's still one or two
-              pieces of content — not after it's compounded into a dozen. Eterna's own approach
+              pieces of content, not after it's compounded into a dozen. Eterna's own approach
               treats detection as only the first step: findings are verified against a documented
               standard before anything is treated as confirmed, and response happens with human
               authorization rather than automatically, which matters because search visibility work
@@ -254,7 +254,7 @@ function NegativeSearchResultsPage() {
                 <span className="font-semibold text-landing-ink">
                   Can a negative search result be removed?
                 </span>{" "}
-                Sometimes — if it violates a platform's own policies, there may be grounds for
+                Sometimes, if it violates a platform's own policies, there may be grounds for
                 removal at the source. Content that's simply negative but not policy-violating is
                 harder to remove outright and often calls for a different approach.
               </p>
@@ -275,7 +275,7 @@ function NegativeSearchResultsPage() {
               </p>
               <p>
                 <span className="font-semibold text-landing-ink">Is this the same as SEO?</span> It
-                overlaps with SEO, but the goal is different — SEO usually aims to rank new content
+                overlaps with SEO, but the goal is different, SEO usually aims to rank new content
                 higher; reputation-focused search work is also concerned with what's already ranking
                 and why, and whether it's accurate.
               </p>
@@ -293,7 +293,7 @@ function NegativeSearchResultsPage() {
                 to: "/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery",
                 title: "Content Removal vs Search Suppression vs Reputation Recovery",
                 description:
-                  "The difference between removal, suppression and recovery — and which applies when.",
+                  "The difference between removal, suppression and recovery, and which applies when.",
               },
               {
                 to: "/newsroom/online-reputation-problems-business-growth",

@@ -21,7 +21,7 @@ export const Route = createFileRoute("/newsroom_/brand-reputation-risk-business-
       {
         property: "og:description",
         content:
-          "Speed, fabrication and persistence have changed how reputation risk behaves — and why it increasingly needs the same planning as any other business risk.",
+          "Speed, fabrication and persistence have changed how reputation risk behaves, and why it increasingly needs the same planning as any other business risk.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -74,7 +74,7 @@ function schema() {
           name: "Isn't reputation risk too unpredictable to plan for?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "The specific incident is unpredictable, but the categories — impersonation, fabricated claims, leaked content, coordinated campaigns — are known, and each can have a defined response plan in place before anything happens.",
+            text: "The specific incident is unpredictable, but the categories, impersonation, fabricated claims, leaked content, coordinated campaigns, are known, and each can have a defined response plan in place before anything happens.",
           },
         },
         {
@@ -90,7 +90,7 @@ function schema() {
           name: "Who should own reputation risk internally?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "This varies by company, but it works best when one person or small group has clear authority to confirm claims and authorize a response — decided in advance, not during an active incident.",
+            text: "This varies by company, but it works best when one person or small group has clear authority to confirm claims and authorize a response, decided in advance, not during an active incident.",
           },
         },
         {
@@ -98,7 +98,7 @@ function schema() {
           name: "How is this different from a communications plan?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "A communications plan covers what to say. A risk-management approach also covers what to monitor, how a claim gets verified before it's treated as fact, and who's authorized to escalate — the decisions that need to happen before a response can be written.",
+            text: "A communications plan covers what to say. A risk-management approach also covers what to monitor, how a claim gets verified before it's treated as fact, and who's authorized to escalate, the decisions that need to happen before a response can be written.",
           },
         },
       ],
@@ -132,7 +132,7 @@ function BrandReputationRiskPage() {
             story about us spreads faster than we can correct it." That gap isn't because the risk
             is small. It's because reputation risk has historically been hard to quantify, so it
             gets treated as a communications concern instead of a business risk with the other kind
-            — the kind with a budget, an owner and a plan.
+           , the kind with a budget, an owner and a plan.
           </p>
           <p>
             That's starting to change, and not because reputation suddenly matters more than it used
@@ -150,8 +150,8 @@ function BrandReputationRiskPage() {
               <li>
                 <span className="font-semibold text-landing-ink">Speed.</span> A claim can reach a
                 company's entire customer base before anyone internally has confirmed whether it's
-                true. Traditional crisis communications assumed a window — hours, sometimes a full
-                news cycle — to gather facts before responding. That window has compressed to the
+                true. Traditional crisis communications assumed a window, hours, sometimes a full
+                news cycle, to gather facts before responding. That window has compressed to the
                 point that many companies now form their public understanding of an incident at the
                 same pace their customers do, which is a fundamentally different starting position
                 than crisis teams were built around.
@@ -162,7 +162,7 @@ function BrandReputationRiskPage() {
                 top short-term global risk for two consecutive years, specifically because of how
                 easily fabricated content now erodes trust in institutions and, by extension, in the
                 organizations connected to them. A generated image, an out-of-context clip or an
-                AI-written "leaked memo" doesn't need to be well made to spread — it needs to be
+                AI-written "leaked memo" doesn't need to be well made to spread, it needs to be
                 plausible enough to share before anyone checks.
               </li>
               <li>
@@ -177,7 +177,7 @@ function BrandReputationRiskPage() {
           <p>
             Each of these shifts is exactly the kind of thing risk-management frameworks exist to
             handle: fast-moving, hard to predict precisely, capable of causing real financial harm,
-            and manageable — not eliminated, but manageable — through preparation rather than
+            and manageable, not eliminated, but manageable, through preparation rather than
             improvisation.
           </p>
 
@@ -188,7 +188,7 @@ function BrandReputationRiskPage() {
             Most other risk categories on a company's register get this treatment: identify what
             could go wrong, decide who owns the response, put basic monitoring in place, and revisit
             the plan periodically. Reputation risk, for many companies, skips straight to the third
-            step — monitoring, if it happens at all — without the first two ever having been decided
+            step, monitoring, if it happens at all, without the first two ever having been decided
             deliberately. That means when something does happen, the first conversation is about
             who's in charge, not about what to actually do, which costs time that a fast-moving
             incident doesn't allow for.
@@ -207,7 +207,7 @@ function BrandReputationRiskPage() {
           </h2>
           <p>
             Reputation risk rarely appears as its own line item in financial results, which is part
-            of why it's underweighted in planning — but its effects show up inside categories that
+            of why it's underweighted in planning, but its effects show up inside categories that
             are already tracked. Sales cycles lengthen when prospects pause to "do more diligence."
             Recruiting costs rise when offers require more convincing. Cost of capital can tick up
             when a lender or investor prices in reputational uncertainty they can't quite quantify
@@ -221,14 +221,14 @@ function BrandReputationRiskPage() {
           <ArticleCallout kind="mistake">
             <p>
               The most common mistake is treating reputation risk as unpredictable and therefore
-              unplannable. It's true that the specific incident can't be predicted — but the
+              unplannable. It's true that the specific incident can't be predicted, but the
               categories of risk can be: impersonation, fabricated claims, leaked or manipulated
               content, coordinated negative campaigns. A plan doesn't need to anticipate the exact
               story; it needs to define how the organization responds to each category when it
               appears. A second mistake is assuming this is only a large-company or public-company
               problem. Smaller and mid-sized organizations often have less resilience to absorb a
-              reputation event precisely because they have fewer alternative signals — no long track
-              record, no large existing customer base to reassure new prospects — for a buyer to
+              reputation event precisely because they have fewer alternative signals, no long track
+              record, no large existing customer base to reassure new prospects, for a buyer to
               fall back on.
             </p>
           </ArticleCallout>
@@ -236,7 +236,7 @@ function BrandReputationRiskPage() {
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">What to do about it</h2>
           <p>
             Treating reputation as a business risk starts with putting it on the same register as
-            everything else the board already reviews — not as a separate conversation that only
+            everything else the board already reviews, not as a separate conversation that only
             happens during a crisis. From there, the practical steps look familiar to anyone who's
             built a risk-management process before: assign clear ownership, define escalation
             triggers in advance, and build in continuous monitoring so the organization finds out
@@ -251,7 +251,7 @@ function BrandReputationRiskPage() {
             expertise tends to matter most for the harder, less frequent problems: verifying whether
             content is genuinely synthetic or manipulated, preserving evidence in a way that holds
             up if legal action becomes necessary, and coordinating a response across multiple
-            platforms at once — work that requires standing infrastructure and practiced judgment
+            platforms at once, work that requires standing infrastructure and practiced judgment
             most internal teams don't need often enough to build in-house.
           </p>
 
@@ -264,7 +264,7 @@ function BrandReputationRiskPage() {
               risk-management functions a company already runs: ongoing monitoring, a documented
               verification standard, clear authorization requirements before anything gets escalated
               publicly, and periodic review of what's working. Eterna's own operating approach is
-              built around a comparable structure — a four-part verification standard (sourced,
+              built around a comparable structure, a four-part verification standard (sourced,
               corroborated, attributable to a stated method, and authorized before enforcement)
               applied consistently rather than case by case.
             </p>
@@ -277,8 +277,8 @@ function BrandReputationRiskPage() {
                 <span className="font-semibold text-landing-ink">
                   Isn't reputation risk too unpredictable to plan for?
                 </span>{" "}
-                The specific incident is unpredictable, but the categories — impersonation,
-                fabricated claims, leaked content, coordinated campaigns — are known, and each can
+                The specific incident is unpredictable, but the categories, impersonation,
+                fabricated claims, leaked content, coordinated campaigns, are known, and each can
                 have a defined response plan in place before anything happens.
               </p>
               <p>
@@ -294,7 +294,7 @@ function BrandReputationRiskPage() {
                   Who should own reputation risk internally?
                 </span>{" "}
                 This varies by company, but it works best when one person or small group has clear
-                authority to confirm claims and authorize a response — decided in advance, not
+                authority to confirm claims and authorize a response, decided in advance, not
                 during an active incident.
               </p>
               <p>

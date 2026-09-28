@@ -10,7 +10,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/ai-impersonation-reputat
 const PUBLISHED = "2026-09-19";
 const TITLE = "How AI Impersonation Can Damage Personal and Business Reputation";
 const DESCRIPTION =
-  "A cloned face and voice were enough to move $25.6 million in one real case. Here's how AI impersonation damages both individuals and organizations — and what actually helps.";
+  "A cloned face and voice were enough to move $25.6 million in one real case. Here's how AI impersonation damages both individuals and organizations, and what actually helps.";
 
 export const Route = createFileRoute("/newsroom_/ai-impersonation-reputation-damage")({
   head: () => ({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/newsroom_/ai-impersonation-reputation-dam
       {
         property: "og:description",
         content:
-          "AI impersonation causes two distinct kinds of harm — direct fraud and reputational contamination. Here's how both actually happen.",
+          "AI impersonation causes two distinct kinds of harm, direct fraud and reputational contamination. Here's how both actually happen.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -82,7 +82,7 @@ function schema() {
           name: "Can video calls still be trusted for business decisions?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Video calls remain useful, but for high-stakes decisions — particularly financial transactions — they should be paired with an independent verification step that doesn't rely on the video or audio itself.",
+            text: "Video calls remain useful, but for high-stakes decisions, particularly financial transactions, they should be paired with an independent verification step that doesn't rely on the video or audio itself.",
           },
         },
         {
@@ -130,11 +130,11 @@ function AiImpersonationDamagePage() {
             A founder starts getting messages from people he's never met, asking why he's promoting
             a cryptocurrency investment scheme. He isn't. Somewhere online, there's a video of his
             face and his voice, cloned convincingly enough that people who follow his actual work
-            believed it was really him — and some of them sent money before anyone figured out what
+            believed it was really him, and some of them sent money before anyone figured out what
             was happening.
           </p>
           <p>
-            This specific pattern — a cloned face and voice used to lend credibility to a scam — has
+            This specific pattern, a cloned face and voice used to lend credibility to a scam, has
             become common enough that it's no longer a hypothetical. Public figures, executives and
             creators have all had their likeness used this way, and the damage doesn't stop with the
             people who were defrauded. It extends to everyone who now associates that person's face
@@ -158,14 +158,14 @@ function AiImpersonationDamagePage() {
               was a deepfake, generated from publicly available conference footage and video calls.
               Believing the instructions were genuine, the employee authorized 15 wire transfers
               totaling roughly $25.6 million before anyone realized what had happened. No single
-              element of the scam was especially exotic — it worked because the video and audio were
+              element of the scam was especially exotic, it worked because the video and audio were
               convincing enough, and the social pressure of a multi-person call was enough, to make
               normal verification feel unnecessary.
             </p>
             <p className="mt-3">
               <span className="font-semibold text-landing-ink">Reputational contamination</span>,
               where the impersonated person did nothing wrong but is now associated with something
-              harmful by proxy — a fake endorsement, a fabricated statement, a scheme they were
+              harmful by proxy, a fake endorsement, a fabricated statement, a scheme they were
               never part of. This is the founder-and-crypto-scam pattern, and it's just as damaging
               to the actual person even though they were never the one being defrauded. Their name
               and face become attached to something they'd never approve of, and that association
@@ -175,8 +175,8 @@ function AiImpersonationDamagePage() {
           </ArticleCallout>
           <p>
             Both patterns are growing for the same underlying reason: the material needed to
-            generate a convincing impersonation — public photos, conference talks, earnings calls,
-            interview clips — is exactly the kind of content that visible professionals and
+            generate a convincing impersonation, public photos, conference talks, earnings calls,
+            interview clips, is exactly the kind of content that visible professionals and
             organizations are expected to produce as part of doing business.
           </p>
 
@@ -185,8 +185,8 @@ function AiImpersonationDamagePage() {
           </h2>
           <p>
             Executives make efficient targets for a few compounding reasons. They typically have
-            substantial public video and audio available — earnings calls, conference keynotes,
-            media interviews — which is ideal training material for voice and face cloning. Their
+            substantial public video and audio available, earnings calls, conference keynotes,
+            media interviews, which is ideal training material for voice and face cloning. Their
             communications carry organizational authority, so a convincing impersonation doesn't
             need to persuade a stranger; it needs to persuade an employee who already takes
             instructions from that person as a matter of course. And the financial upside for an
@@ -200,7 +200,7 @@ function AiImpersonationDamagePage() {
           <p>
             A fraud attempt that fails, or a fake endorsement that gets caught early, doesn't
             necessarily stay contained. Screenshots and video clips get reshared as warnings, as
-            news coverage, or simply as viral content — which means the same footage used in the
+            news coverage, or simply as viral content, which means the same footage used in the
             original scam can keep circulating, sometimes stripped of the context that it was
             fraudulent in the first place. Someone encountering a reshared clip months later,
             without the original correction attached, may have no way of knowing it was ever
@@ -215,8 +215,8 @@ function AiImpersonationDamagePage() {
               The most common mistake in the fraud scenario is treating a video call, on its own, as
               sufficient verification for a high-stakes request. Video and voice used to be reliable
               proof of identity precisely because they were hard to fake convincingly; that
-              assumption no longer holds, and processes built around it — particularly for financial
-              transactions — need an independent verification step that doesn't rely on video or
+              assumption no longer holds, and processes built around it, particularly for financial
+              transactions, need an independent verification step that doesn't rely on video or
               voice alone.
             </p>
             <p className="mt-3">
@@ -230,8 +230,8 @@ function AiImpersonationDamagePage() {
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">What to do about it</h2>
           <p>
             On the fraud-prevention side, the most effective single change organizations can make is
-            requiring a second, independent verification channel for any high-value request — a
-            callback to a known number, a pre-agreed code phrase, or an in-person confirmation —
+            requiring a second, independent verification channel for any high-value request, a
+            callback to a known number, a pre-agreed code phrase, or an in-person confirmation ,
             before video or voice alone is treated as sufficient authorization, regardless of how
             senior the person on the call appears to be.
           </p>
@@ -241,7 +241,7 @@ function AiImpersonationDamagePage() {
               to="/newsroom/someone-made-a-deepfake-of-me"
               className="landing-link text-landing-ink"
             >
-              Someone Made a Deepfake of Me — What Should I Do?
+              Someone Made a Deepfake of Me, What Should I Do?
             </Link>{" "}
             covers: preserve evidence, report through the platform's specific impersonation or
             synthetic-media policy, and correct the record clearly and factually rather than
@@ -265,13 +265,13 @@ function AiImpersonationDamagePage() {
           </h2>
           <p>
             For organizations, this means building verification steps into financial and operational
-            processes that don't rely solely on video or voice — a process change, not just a
+            processes that don't rely solely on video or voice, a process change, not just a
             technology purchase. For individuals and public-facing professionals, it means combining
             response readiness (knowing what to do if impersonation happens) with ongoing
             monitoring, so an impersonation attempt is caught while it's still limited rather than
             after it's already reached a wide audience. Eterna's own approach to this pairs
             continuous monitoring with a verification standard applied before anything is treated as
-            confirmed — which matters particularly here, since acting on an unverified report of
+            confirmed, which matters particularly here, since acting on an unverified report of
             impersonation can itself cause reputational harm if the report turns out to be mistaken.
           </p>
 
@@ -291,8 +291,8 @@ function AiImpersonationDamagePage() {
                 <span className="font-semibold text-landing-ink">
                   Can video calls still be trusted for business decisions?
                 </span>{" "}
-                Video calls remain useful, but for high-stakes decisions — particularly financial
-                transactions — they should be paired with an independent verification step that
+                Video calls remain useful, but for high-stakes decisions, particularly financial
+                transactions, they should be paired with an independent verification step that
                 doesn't rely on the video or audio itself.
               </p>
               <p>
@@ -337,7 +337,7 @@ function AiImpersonationDamagePage() {
             items={[
               {
                 to: "/newsroom/someone-made-a-deepfake-of-me",
-                title: "Someone Made a Deepfake of Me — What Should I Do?",
+                title: "Someone Made a Deepfake of Me, What Should I Do?",
                 description: "The ordered first steps for correcting the record.",
               },
               {

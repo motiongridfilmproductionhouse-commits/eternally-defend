@@ -9,7 +9,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/why-companies-need-reput
 const PUBLISHED = "2026-09-19";
 const TITLE = "Why Companies Need Digital Reputation Monitoring Before a Crisis Happens";
 const DESCRIPTION =
-  "Reactive reputation management starts too late. Here's why ongoing monitoring — not crisis response alone — protects companies and their leaders.";
+  "Reactive reputation management starts too late. Here's why ongoing monitoring, not crisis response alone, protects companies and their leaders.";
 
 export const Route = createFileRoute("/newsroom_/why-companies-need-reputation-monitoring")({
   head: () => ({
@@ -97,7 +97,7 @@ function schema() {
           name: "What does Eterna's role look like in this cycle?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Eterna supports the Monitor and Verify stages of this cycle — ongoing tracking and confirmation of genuine issues — and provides evidence and documentation support for the Respond stage. Decisions about legal action, public communications, and business strategy remain with the company's own leadership, legal counsel, and communications advisors.",
+            text: "Eterna supports the Monitor and Verify stages of this cycle, ongoing tracking and confirmation of genuine issues, and provides evidence and documentation support for the Respond stage. Decisions about legal action, public communications, and business strategy remain with the company's own leadership, legal counsel, and communications advisors.",
           },
         },
       ],
@@ -129,7 +129,7 @@ function ReputationMonitoringPage() {
             Most companies discover a reputation problem the same way: by accident. A customer
             forwards a screenshot. An employee notices something strange when they search the
             company name. A sales rep mentions that a prospect asked about "that video." By the time
-            the discovery happens, the content may have been circulating for days or weeks — long
+            the discovery happens, the content may have been circulating for days or weeks, long
             enough to reach the customers, candidates, or investors who matter most.
           </p>
           <p>
@@ -141,7 +141,7 @@ function ReputationMonitoringPage() {
               first-24-hours guide
             </Link>{" "}
             covers that. It's about the earlier, less dramatic question: why building ongoing
-            visibility into your digital reputation — before anything goes wrong — changes the
+            visibility into your digital reputation, before anything goes wrong, changes the
             entire shape of a crisis, and often prevents small incidents from becoming large ones.
           </p>
 
@@ -158,7 +158,7 @@ function ReputationMonitoringPage() {
             problem to contain.
           </p>
           <p>
-            Monitoring doesn't eliminate incidents. It eliminates the discovery gap — the period
+            Monitoring doesn't eliminate incidents. It eliminates the discovery gap, the period
             where a problem is developing but the company doesn't yet know it exists.
           </p>
 
@@ -176,7 +176,7 @@ function ReputationMonitoringPage() {
               the first thing a prospective customer, candidate, or journalist sees.
             </li>
             <li>
-              <span className="font-semibold text-landing-ink">Impersonation attempts</span> — fake
+              <span className="font-semibold text-landing-ink">Impersonation attempts</span>, fake
               social accounts, spoofed websites, or fraudulent communications using the company's
               branding or an executive's likeness, which can affect customer trust even when the
               company itself did nothing wrong.
@@ -214,8 +214,8 @@ function ReputationMonitoringPage() {
             Why "we'll deal with it if something happens" is a more expensive plan
           </h2>
           <p>
-            A purely reactive approach — waiting until an incident is reported by an employee or
-            customer, then scrambling to respond — tends to cost more in three specific ways:
+            A purely reactive approach, waiting until an incident is reported by an employee or
+            customer, then scrambling to respond, tends to cost more in three specific ways:
           </p>
           <ul className="list-disc space-y-2 pl-5">
             <li>
@@ -244,15 +244,15 @@ function ReputationMonitoringPage() {
               >
                 removal vs. suppression vs. recovery guide
               </Link>{" "}
-              explains why a strategy that starts on day one looks different — and tends to work
-              better — than one that starts on day twenty.
+              explains why a strategy that starts on day one looks different, and tends to work
+              better, than one that starts on day twenty.
             </li>
           </ul>
           <ArticleCallout kind="mistake">
             <p>
               Treating reputation monitoring as a cost center that only matters after something goes
-              wrong, rather than as a standard part of operational risk management — alongside
-              financial controls, cybersecurity monitoring, and insurance — that most companies
+              wrong, rather than as a standard part of operational risk management, alongside
+              financial controls, cybersecurity monitoring, and insurance, that most companies
               already accept as necessary before an incident, not after.
             </p>
           </ArticleCallout>
@@ -265,30 +265,30 @@ function ReputationMonitoringPage() {
           </p>
           <ol className="list-decimal space-y-2 pl-5">
             <li>
-              <span className="font-semibold text-landing-ink">Monitor</span> — ongoing tracking
+              <span className="font-semibold text-landing-ink">Monitor</span>, ongoing tracking
               across search results, social platforms, review sites, and impersonation vectors
               relevant to the company and its leadership.
             </li>
             <li>
-              <span className="font-semibold text-landing-ink">Verify</span> — when something is
+              <span className="font-semibold text-landing-ink">Verify</span>, when something is
               flagged, confirming whether it's a genuine issue, a false positive, or routine
               activity that doesn't require action.
             </li>
             <li>
-              <span className="font-semibold text-landing-ink">Respond</span> — for confirmed
+              <span className="font-semibold text-landing-ink">Respond</span>, for confirmed
               issues, following an established process: platform reporting, evidence documentation,
               internal notification, and, where appropriate, communications or legal involvement.
             </li>
             <li>
-              <span className="font-semibold text-landing-ink">Monitor again</span> — continuing to
+              <span className="font-semibold text-landing-ink">Monitor again</span>, continuing to
               track whether the issue resurfaces, whether removed content reappears elsewhere, and
               whether the response was effective.
             </li>
           </ol>
           <p>
             This Monitor → Verify → Respond → Monitor Again cycle is deliberately continuous rather
-            than a linear "fix it and move on" process, because reputation risks — particularly
-            deepfakes and impersonation content — can resurface after an initial response, as
+            than a linear "fix it and move on" process, because reputation risks, particularly
+            deepfakes and impersonation content, can resurface after an initial response, as
             Eterna's{" "}
             <Link
               to="/newsroom/deepfake-reuploads-after-removal"
@@ -313,7 +313,7 @@ function ReputationMonitoringPage() {
           <ArticleCallout kind="matters">
             <p>
               For many of these organizations, the cost of a delayed discovery isn't just the
-              incident itself — it's the customers, deals, or hires that were affected before anyone
+              incident itself, it's the customers, deals, or hires that were affected before anyone
               inside the company knew there was a problem to address.
             </p>
           </ArticleCallout>
@@ -351,8 +351,8 @@ function ReputationMonitoringPage() {
                 <span className="font-semibold text-landing-ink">
                   What does Eterna's role look like in this cycle?
                 </span>{" "}
-                Eterna supports the Monitor and Verify stages of this cycle — ongoing tracking and
-                confirmation of genuine issues — and provides evidence and documentation support for
+                Eterna supports the Monitor and Verify stages of this cycle, ongoing tracking and
+                confirmation of genuine issues, and provides evidence and documentation support for
                 the Respond stage. Decisions about legal action, public communications, and business
                 strategy remain with the company's own leadership, legal counsel, and communications
                 advisors.

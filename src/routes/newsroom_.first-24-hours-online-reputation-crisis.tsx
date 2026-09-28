@@ -9,7 +9,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/first-24-hours-online-re
 const PUBLISHED = "2026-09-19";
 const TITLE = "The First 24 Hours of an Online Reputation Crisis";
 const DESCRIPTION =
-  "A step-by-step guide to the first 24 hours after an online reputation crisis — what to verify, document, decide, and act on, hour by hour.";
+  "A step-by-step guide to the first 24 hours after an online reputation crisis, what to verify, document, decide, and act on, hour by hour.";
 
 export const Route = createFileRoute("/newsroom_/first-24-hours-online-reputation-crisis")({
   head: () => ({
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/newsroom_/first-24-hours-online-reputatio
       {
         property: "og:description",
         content:
-          "What to verify, document, decide and act on in the first 24 hours after an online reputation crisis — hour by hour.",
+          "What to verify, document, decide and act on in the first 24 hours after an online reputation crisis, hour by hour.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -73,7 +73,7 @@ function schema() {
           name: "Should we always issue a public statement within 24 hours?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "No. Some incidents are better addressed through direct platform reporting and monitoring without a public statement, particularly if a response would draw more attention to content that is otherwise limited in reach. The decision should be based on scope, accuracy, and stakeholder impact — not on a fixed rule that every incident needs a public reply.",
+            text: "No. Some incidents are better addressed through direct platform reporting and monitoring without a public statement, particularly if a response would draw more attention to content that is otherwise limited in reach. The decision should be based on scope, accuracy, and stakeholder impact, not on a fixed rule that every incident needs a public reply.",
           },
         },
         {
@@ -129,7 +129,7 @@ function First24HoursPage() {
             A reputation crisis rarely announces itself politely. It shows up as a colleague's
             message asking "have you seen this," a customer email quoting something you never said,
             or a founder's phone buzzing with the same link from three people at once. By the time
-            most organizations notice a crisis, it is already moving — and what happens in the next
+            most organizations notice a crisis, it is already moving, and what happens in the next
             24 hours often matters more than what happens in the following month.
           </p>
           <p>
@@ -151,7 +151,7 @@ function First24HoursPage() {
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
-            Hour 0–1: Confirm before you react
+            Hour 0 to 1: Confirm before you react
           </h2>
           <p>
             The instinct in a crisis is to respond immediately. The more useful instinct is to
@@ -161,7 +161,7 @@ function First24HoursPage() {
             <li>
               <span className="font-semibold text-landing-ink">Verify what you're looking at.</span>{" "}
               Is the content real, altered, fabricated, or genuine but missing context? Treating a
-              manipulated image as authentic — or a real complaint as fabricated — sends the
+              manipulated image as authentic, or a real complaint as fabricated, sends the
               response down the wrong path immediately.
             </li>
             <li>
@@ -194,7 +194,7 @@ function First24HoursPage() {
           </ArticleCallout>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
-            Hour 1–4: Document and assess
+            Hour 1 to 4: Document and assess
           </h2>
           <p>
             Once the situation is confirmed, the priority shifts to building an accurate picture
@@ -228,8 +228,8 @@ function First24HoursPage() {
               <span className="font-semibold text-landing-ink">Loop in the right specialists.</span>{" "}
               Depending on the nature of the incident, this may include legal counsel (for
               defamatory or fraudulent content), a platform-trust-and-safety contact, a
-              communications or PR advisor, or — for content involving explicit or exploitative
-              material — law enforcement. Eterna's role at this stage is to help monitor, verify,
+              communications or PR advisor, or, for content involving explicit or exploitative
+              material, law enforcement. Eterna's role at this stage is to help monitor, verify,
               and document; decisions about legal action or public statements sit with the
               organization's own counsel and leadership.
             </li>
@@ -244,7 +244,7 @@ function First24HoursPage() {
           </ArticleCallout>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
-            Hour 4–12: Decide whether — and how — to respond publicly
+            Hour 4 to 12: Decide whether, and how, to respond publicly
           </h2>
           <p>
             Not every incident requires a public statement. Some are best addressed through direct
@@ -256,8 +256,8 @@ function First24HoursPage() {
               <span className="font-semibold text-landing-ink">
                 Is the content demonstrably false, and can that be shown clearly?
               </span>{" "}
-              If so, a factual, measured correction — without amplifying the original content
-              further — is often appropriate.
+              If so, a factual, measured correction, without amplifying the original content
+              further, is often appropriate.
             </li>
             <li>
               <span className="font-semibold text-landing-ink">
@@ -283,12 +283,12 @@ function First24HoursPage() {
           </p>
           <p>
             The choice to respond publicly is not reversible in the way silence is. Once a statement
-            is made, it becomes part of the record and part of what people search for afterward —
+            is made, it becomes part of the record and part of what people search for afterward ,
             which is one reason it's worth a few hours of assessment before deciding.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
-            Hour 12–24: Begin the removal and monitoring process
+            Hour 12 to 24: Begin the removal and monitoring process
           </h2>
           <p>
             In parallel with any communications decisions, the practical work of addressing the
@@ -332,7 +332,7 @@ function First24HoursPage() {
               <span className="font-semibold text-landing-ink">Set expectations internally</span>{" "}
               about timeline. Platform reviews can take hours to weeks depending on the platform and
               the type of report. A crisis that is well-managed in the first 24 hours can still take
-              much longer to fully resolve — the first day is about establishing control and
+              much longer to fully resolve, the first day is about establishing control and
               direction, not necessarily reaching a conclusion.
             </li>
           </ul>
@@ -341,7 +341,7 @@ function First24HoursPage() {
             What the first 24 hours should produce
           </h2>
           <p>
-            By the end of the first day, the goal is not that the problem is solved — for most
+            By the end of the first day, the goal is not that the problem is solved, for most
             reputation incidents, it isn't yet. The goal is that you have: a confirmed and
             documented understanding of what happened, the right people informed, evidence
             preserved, reports filed with the relevant platforms, a decision made (and, if
@@ -352,9 +352,9 @@ function First24HoursPage() {
           </p>
           <ArticleCallout kind="distinction">
             <p>
-              The first 24 hours are about response, not recovery. Reputation recovery — rebuilding
+              The first 24 hours are about response, not recovery. Reputation recovery, rebuilding
               search results, restoring trust with customers or colleagues, and confirming the
-              content doesn't resurface — is a longer process. Eterna's{" "}
+              content doesn't resurface, is a longer process. Eterna's{" "}
               <Link
                 to="/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery"
                 className="landing-link text-landing-ink"
@@ -376,7 +376,7 @@ function First24HoursPage() {
                 No. Some incidents are better addressed through direct platform reporting and
                 monitoring without a public statement, particularly if a response would draw more
                 attention to content that is otherwise limited in reach. The decision should be
-                based on scope, accuracy, and stakeholder impact — not on a fixed rule that every
+                based on scope, accuracy, and stakeholder impact, not on a fixed rule that every
                 incident needs a public reply.
               </p>
               <p>
@@ -419,7 +419,7 @@ function First24HoursPage() {
               {
                 to: "/methodology",
                 title: "Eterna's Verification Methodology",
-                description: "The evidence and verification standard referenced in Hour 1–4.",
+                description: "The evidence and verification standard referenced in Hour 1 to 4.",
               },
               {
                 to: "/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery",

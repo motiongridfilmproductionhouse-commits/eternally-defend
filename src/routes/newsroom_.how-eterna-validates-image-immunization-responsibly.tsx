@@ -10,7 +10,7 @@ export const Route = createFileRoute(
 )({
   head: () => ({
     meta: [
-      { title: "How Eterna Validates Image Immunization Responsibly — Eterna Sentinel" },
+      { title: "How Eterna Validates Image Immunization Responsibly, Eterna Sentinel" },
       {
         name: "description",
         content:
@@ -18,7 +18,7 @@ export const Route = createFileRoute(
       },
       {
         property: "og:title",
-        content: "How Eterna Validates Image Immunization Responsibly — Eterna Sentinel",
+        content: "How Eterna Validates Image Immunization Responsibly, Eterna Sentinel",
       },
       {
         property: "og:description",
@@ -144,7 +144,7 @@ function ResponsibleValidationPage() {
                   to="/newsroom/inside-eterna-image-immunization"
                   className="landing-link text-landing-ink"
                 >
-                  Inside Eterna Image Immunization — the technical view
+                  Inside Eterna Image Immunization, the technical view
                 </Link>
               </li>
               <li>
