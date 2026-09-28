@@ -115,11 +115,10 @@ export const submitEnquiry = createServerFn({ method: "POST" })
       };
     }
 
-    if (row.result_status === "ALREADY_JOINED" && row.result_waitlist_id) {
-      return { status: "ALREADY_JOINED", enquiryId: row.result_waitlist_id };
-    }
-
-    if (row.result_status !== "JOINED" || !row.result_waitlist_id) {
+    if (
+      (row.result_status !== "JOINED" && row.result_status !== "ALREADY_JOINED") ||
+      !row.result_waitlist_id
+    ) {
       return { status: "ERROR", message: "Please check your details and try again." };
     }
 
@@ -148,10 +147,20 @@ export const submitEnquiry = createServerFn({ method: "POST" })
         sourcePage: data.sourcePage ?? null,
         sourceCta: data.sourceCta ?? null,
       });
-      if (!alert.ok) console.error("[enquiry] admin alert failed:", alert.error);
+      if (!alert.ok) {
+        console.error("[enquiry] admin alert failed:", alert.error);
+        return {
+          status: "ERROR",
+          message: "Your enquiry was saved, but confirmation could not be delivered. Please try again.",
+        };
+      }
     } catch (err) {
       console.error("[enquiry] admin alert threw:", (err as Error)?.message);
+      return {
+        status: "ERROR",
+        message: "Your enquiry was saved, but confirmation could not be delivered. Please try again.",
+      };
     }
 
-    return { status: "JOINED", enquiryId };
+    return { status: row.result_status as "JOINED" | "ALREADY_JOINED", enquiryId };
   });

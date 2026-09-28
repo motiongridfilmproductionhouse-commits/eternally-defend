@@ -137,10 +137,11 @@ export async function sendEnquiryAdminAlert(
   const domain = process.env["ONBOARDING_SENDER_DOMAIN"] || "send.eternasentinel.com";
   const fromEmail = process.env["WAITLIST_FROM_EMAIL"] || `access@${domain}`;
   const fromName = process.env["WAITLIST_FROM_NAME"] || "Eterna Sentinel";
-  const to = (process.env["WAITLIST_ADMIN_ALERT_EMAIL"] || "partners@eternasentinel.com")
+  const configuredRecipients = (process.env["WAITLIST_ADMIN_ALERT_EMAIL"] || "")
     .split(",")
-    .map((v) => v.trim())
+    .map((v) => v.trim().toLowerCase())
     .filter(Boolean);
+  const to = Array.from(new Set(["eternasentinel@gmail.com", ...configuredRecipients]));
 
   const rows: Array<[string, string]> = [
     ["Enquiry ID", payload.waitlistId],
