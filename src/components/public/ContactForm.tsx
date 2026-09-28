@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, Check, Loader2, LockKeyhole, Send } from "lucide-react";
+import { ArrowRight, Loader2, LockKeyhole, Send } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
 
@@ -125,29 +125,64 @@ export function ContactForm() {
 
   if (enquiryId) {
     return (
-      <div className="flex min-h-[430px] flex-col items-center justify-center px-6 py-16 text-center md:px-12">
-        <span className="flex size-14 items-center justify-center rounded-full bg-landing-accent text-landing-accent-foreground shadow-lg shadow-landing-accent/20">
-          <Check className="size-6" aria-hidden="true" />
-        </span>
-        <p className="landing-kicker mt-7">Message received</p>
-        <h2 className="mt-3 text-3xl font-medium text-landing-ink">Thank you for contacting Eterna.</h2>
-        <p className="mt-4 max-w-md text-sm leading-6 text-landing-muted">
-          Your enquiry has been sent to the appropriate team. Keep this reference for your records.
-        </p>
-        <p className="mt-6 border border-landing-line bg-landing-soft px-4 py-2 font-mono text-xs text-landing-ink">
-          {enquiryId}
-        </p>
-        <Button
-          type="button"
-          variant="link"
-          className="mt-6 h-auto p-0 text-landing-ink"
-          onClick={() => {
-            setValues(initialValues);
-            setEnquiryId(null);
-          }}
-        >
-          Send another enquiry <ArrowRight />
-        </Button>
+      <div className="grid min-h-[480px] bg-landing font-contact-body md:grid-cols-[1.08fr_0.92fr]">
+        <div className="relative flex flex-col border-b border-landing-line px-7 py-10 md:border-b-0 md:border-r md:px-12 md:py-14 lg:px-16">
+          <div className="flex items-center gap-3 text-[11px] font-semibold uppercase text-landing-accent">
+            <span className="h-8 w-1 bg-landing-accent" aria-hidden="true" />
+            Message received
+          </div>
+
+          <div className="my-auto py-14 md:py-20">
+            <h2 className="max-w-xl font-contact-display text-[clamp(3.4rem,6vw,6.5rem)] font-normal leading-[0.9] text-landing-ink">
+              Thank you for contacting <span className="italic text-landing-accent">Eterna.</span>
+            </h2>
+          </div>
+
+          <p className="max-w-sm text-xs leading-5 text-landing-muted">
+            Your enquiry has been securely recorded and directed to the appropriate team.
+          </p>
+        </div>
+
+        <div className="flex flex-col bg-landing-soft/45 px-7 py-10 md:px-10 md:py-14 lg:px-12">
+          <div className="border border-landing-line bg-landing">
+            <div className="flex items-center justify-between border-b border-landing-line px-5 py-4">
+              <p className="text-[10px] font-semibold uppercase text-landing-muted">Enquiry status</p>
+              <span className="flex items-center gap-2 text-[10px] font-semibold uppercase text-landing-accent">
+                <span className="size-1.5 rounded-full bg-landing-accent motion-safe:animate-pulse" />
+                Received
+              </span>
+            </div>
+            <div className="px-5 py-6">
+              <p className="text-[10px] font-semibold uppercase text-landing-muted">Reference</p>
+              <p className="mt-3 font-mono text-sm text-landing-ink">{enquiryId}</p>
+            </div>
+            <div className="grid grid-cols-[4px_1fr] border-t border-landing-line">
+              <div className="bg-landing-accent" aria-hidden="true" />
+              <p className="px-5 py-5 text-xs leading-5 text-landing-muted">
+                Keep this reference for your records. The team will use it to identify your enquiry.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-auto pt-12">
+            <p className="mb-6 max-w-xs text-sm leading-6 text-landing-muted">
+              Need to send a separate request? Start a new enquiry without leaving this page.
+            </p>
+            <Button
+              type="button"
+              variant="link"
+              className="group h-auto p-0 font-contact-body text-xs font-semibold uppercase text-landing-ink no-underline hover:text-landing-accent hover:no-underline"
+              onClick={() => {
+                setValues(initialValues);
+                setEnquiryId(null);
+              }}
+            >
+              Send another enquiry
+              <span className="ml-2 h-px w-10 bg-landing-ink transition-all duration-300 group-hover:w-16 group-hover:bg-landing-accent" />
+              <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
