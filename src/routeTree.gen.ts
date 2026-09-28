@@ -28,7 +28,6 @@ import { Route as EternaAiRouteImport } from './routes/eterna-ai'
 import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
-import { Route as CaseStudiesRouteImport } from './routes/case-studies'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiImpersonationRouteImport } from './routes/ai-impersonation'
 import { Route as AgentAssessmentRouteImport } from './routes/agent-assessment'
@@ -238,11 +237,6 @@ const CookiesRoute = CookiesRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CaseStudiesRoute = CaseStudiesRouteImport.update({
-  id: '/case-studies',
-  path: '/case-studies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -879,7 +873,6 @@ export interface FileRoutesByFullPath {
   '/agent-assessment': typeof AgentAssessmentRoute
   '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
-  '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
@@ -1012,7 +1005,6 @@ export interface FileRoutesByTo {
   '/agent-assessment': typeof AgentAssessmentRoute
   '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
-  '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
@@ -1146,7 +1138,6 @@ export interface FileRoutesById {
   '/agent-assessment': typeof AgentAssessmentRoute
   '/ai-impersonation': typeof AiImpersonationRoute
   '/auth': typeof AuthRoute
-  '/case-studies': typeof CaseStudiesRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
@@ -1281,7 +1272,6 @@ export interface FileRouteTypes {
     | '/agent-assessment'
     | '/ai-impersonation'
     | '/auth'
-    | '/case-studies'
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
@@ -1414,7 +1404,6 @@ export interface FileRouteTypes {
     | '/agent-assessment'
     | '/ai-impersonation'
     | '/auth'
-    | '/case-studies'
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
@@ -1547,7 +1536,6 @@ export interface FileRouteTypes {
     | '/agent-assessment'
     | '/ai-impersonation'
     | '/auth'
-    | '/case-studies'
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
@@ -1683,7 +1671,6 @@ export interface RootRouteChildren {
   AgentAssessmentRoute: typeof AgentAssessmentRoute
   AiImpersonationRoute: typeof AiImpersonationRoute
   AuthRoute: typeof AuthRoute
-  CaseStudiesRoute: typeof CaseStudiesRoute
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
   DeepfakeProtectionRoute: typeof DeepfakeProtectionRoute
@@ -1892,13 +1879,6 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/case-studies': {
-      id: '/case-studies'
-      path: '/case-studies'
-      fullPath: '/case-studies'
-      preLoaderRoute: typeof CaseStudiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -2851,7 +2831,6 @@ const rootRouteChildren: RootRouteChildren = {
   AgentAssessmentRoute: AgentAssessmentRoute,
   AiImpersonationRoute: AiImpersonationRoute,
   AuthRoute: AuthRoute,
-  CaseStudiesRoute: CaseStudiesRoute,
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
   DeepfakeProtectionRoute: DeepfakeProtectionRoute,
