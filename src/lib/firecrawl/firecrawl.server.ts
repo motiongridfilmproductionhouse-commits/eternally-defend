@@ -95,6 +95,34 @@ export function getFirecrawlConfigInfo(): {
   return { firecrawlConfigured: true, mode };
 }
 
+/*
+ * Request pacing: the search plan allows ~50 requests/minute. Large scans
+ * fire 100+ queries at once, so cap in-flight requests and space starts,
+ * and pause everything after a 429 until the provider's retry window ends.
+ */
+const MAX_IN_FLIGHT = 3;
+const MIN_START_GAP_MS = 1300;
+let inFlight = 0;
+let lastStart = 0;
+let pauseUntil = 0;
+const waiters: Array<() => void> = [];
+
+async function acquirePacingSlot(): Promise<void> {
+  while (inFlight >= MAX_IN_FLIGHT) {
+    await new Promise<void>((r) => waiters.push(r));
+  }
+  inFlight++;
+  const now = Date.now();
+  const startAt = Math.max(now, pauseUntil, lastStart + MIN_START_GAP_MS);
+  lastStart = startAt;
+  if (startAt > now) await new Promise((r) => setTimeout(r, startAt - now));
+}
+
+function releasePacingSlot(): void {
+  inFlight = Math.max(0, inFlight - 1);
+  waiters.shift()?.();
+}
+
 /** Internal fetch transport with exponential backoff for transient 5xx/408 errors. */
 async function firecrawlRequest(
   path: string,
