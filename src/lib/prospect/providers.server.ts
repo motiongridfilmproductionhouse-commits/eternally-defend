@@ -17,7 +17,7 @@ import {
   firecrawlProvider,
   makeFirecrawlProvider,
 } from "@/lib/scan/discovery/firecrawl-provider.server";
-import { FIRECRAWL_ONLY_SEARCH } from "@/lib/scan/search-policy";
+import { BRAVE_SEARCH_ALLOWED, FIRECRAWL_ONLY_SEARCH } from "@/lib/scan/search-policy";
 import { geminiGroundingProvider } from "@/lib/scan/discovery/gemini-grounding-provider.server";
 import { ddgHtmlProvider } from "@/lib/scan/discovery/ddg-provider.server";
 import { wikipediaProvider } from "@/lib/scan/discovery/wikipedia-provider.server";
@@ -268,6 +268,14 @@ export function productionExecutors(): ProviderExecutor[] {
         "WEB_SEARCH",
         "Reference page search",
       ),
+      // Owner-approved second engine (28 Sep 2026): widens web/news coverage.
+      // Neutral labels only — vendor names must never surface to staff.
+      ...(BRAVE_SEARCH_ALLOWED
+        ? [
+            adapterExecutor(braveProvider, "web_general", "WEB_SEARCH", "Web search"),
+            adapterExecutor(braveProvider, "news", "WEB_SEARCH", "News search"),
+          ]
+        : []),
     ];
   }
   return [
