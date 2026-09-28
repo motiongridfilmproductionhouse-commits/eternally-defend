@@ -365,7 +365,7 @@ function ScanPage() {
     const counts = splitForPresentation(report.hits);
     if (counts.reputationRisk.length > 0) setResultsTab("risk");
     else if (counts.needsReview.length > 0) setResultsTab("review");
-    else setResultsTab("mentions");
+    else setResultsTab("risk");
   }, [report]);
 
   const persistFn = useServerFn(persistScan);
@@ -1084,7 +1084,6 @@ function ScanPage() {
                     [
                       ["risk", "Reputation Risk"],
                       ["review", "Needs Review"],
-                      ["mentions", "All Mentions"],
                     ] as const
                   ).map(([key, label]) => {
                     const counts = splitForPresentation(report.hits);
@@ -2994,7 +2993,19 @@ function PersistedResults({
       return true;
     };
 
+    // Defamatory / harmful content only: drop neutral, official and irrelevant mentions.
+    const isHarmful = (h: PersistedHit) => {
+      if (h.risk_evidence_found) return true;
+      if (riskPriority(h) <= 1) return true;
+      const hay =
+        `${h.risk_type ?? ""} ${h.narrative_claim ?? ""} ${(h.tags ?? []).join(" ")}`.toLowerCase();
+      if (/\bneutral\b|official|irrelevant/.test(hay) && !/defam|allegation|abuse|scandal|fake|fraud|harass|slander|libel|troll|negative/.test(hay))
+        return false;
+      return /defam|allegation|abuse|scandal|fake|fraud|harass|slander|libel|troll|negative|morph|deepfake|impersonat/.test(hay);
+    };
+
     return filterHitsBySourceType(items, source)
+      .filter((h) => hiddenFilter === "hidden" || isHarmful(h))
       .filter((h) => {
         if (windowMs && h.published_at) {
           if (now - new Date(h.published_at).getTime() > windowMs) return false;
@@ -3021,7 +3032,7 @@ function PersistedResults({
         const pb = b.published_at ? new Date(b.published_at).getTime() : 0;
         return pb - pa;
       });
-  }, [items, source, timeWindow, quickFilter]);
+  }, [items, source, timeWindow, quickFilter, hiddenFilter]);
 
   // Counts are keyed by canonical source_type and derived from `items` (the currently
   // loaded, already server-filtered page(s)) — so with a source selected, every count
