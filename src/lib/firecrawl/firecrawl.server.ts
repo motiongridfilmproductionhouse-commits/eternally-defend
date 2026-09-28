@@ -95,6 +95,34 @@ export function getFirecrawlConfigInfo(): {
   return { firecrawlConfigured: true, mode };
 }
 
+/*
+ * Request pacing: the search plan allows ~50 requests/minute. Large scans
+ * fire 100+ queries at once, so cap in-flight requests and space starts,
+ * and pause everything after a 429 until the provider's retry window ends.
+ */
+const MAX_IN_FLIGHT = 3;
+const MIN_START_GAP_MS = 1300;
+let inFlight = 0;
+let lastStart = 0;
+let pauseUntil = 0;
+const waiters: Array<() => void> = [];
+
+async function acquirePacingSlot(): Promise<void> {
+  while (inFlight >= MAX_IN_FLIGHT) {
+    await new Promise<void>((r) => waiters.push(r));
+  }
+  inFlight++;
+  const now = Date.now();
+  const startAt = Math.max(now, pauseUntil, lastStart + MIN_START_GAP_MS);
+  lastStart = startAt;
+  if (startAt > now) await new Promise((r) => setTimeout(r, startAt - now));
+}
+
+function releasePacingSlot(): void {
+  inFlight = Math.max(0, inFlight - 1);
+  waiters.shift()?.();
+}
+
 /** Internal fetch transport with exponential backoff for transient 5xx/408 errors. */
 async function firecrawlRequest(
   path: string,
@@ -130,24 +158,37 @@ async function firecrawlRequest(
   let lastText = "";
   const startTime = Date.now();
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries + 1; attempt++) {
+    await acquirePacingSlot();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } finally {
+        releasePacingSlot();
+      }
       clearTimeout(timer);
 
       lastStatus = res.status;
       lastText = await res.text().catch(() => "");
 
-      // 408 / 429 / 5xx error retry with exponential backoff
-      if ((res.status === 408 || res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+      // 429: honour the provider's retry window and pause all searches.
+      if (res.status === 429 && attempt <= maxRetries) {
+        const m = /retry after (\d+)\s*s/i.exec(lastText);
+        const waitMs = Math.min(Math.max((m ? Number(m[1]) : 8) * 1000, 3000), 20000);
+        pauseUntil = Math.max(pauseUntil, Date.now() + waitMs);
+        continue;
+      }
+      // 408 / 5xx error retry with exponential backoff
+      if ((res.status === 408 || res.status >= 500) && attempt < maxRetries) {
         const backoffMs = (attempt + 1) * 1200;
         await new Promise((r) => setTimeout(r, backoffMs));
         continue;
