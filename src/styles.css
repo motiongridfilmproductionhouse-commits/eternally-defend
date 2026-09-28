@@ -518,6 +518,13 @@
   }
 }
 
+/* Platform privacy: keep field labels while suppressing suggestion copy. */
+input::placeholder,
+textarea::placeholder {
+  color: transparent !important;
+  opacity: 0 !important;
+}
+
 /* Agent assessment — 15 second search signal */
 :root {
   --assessment-ink: oklch(0.16 0.035 265);
