@@ -1550,6 +1550,12 @@ async function runFirecrawl(
 
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, plan.length) }, worker));
 
+  const { currentDiscoveryRouter } = await import("@/lib/scan/discovery/router.server");
+  const discoveryReport = currentDiscoveryRouter().report();
+  if (discoveryReport.all_providers_down && runsMap.size === 0) {
+    errors.push("Public source coverage is temporarily unavailable");
+  }
+
   console.log(
     `[scan:queries] planned=${queriesPlanned} executed=${queriesExecuted} failed=${queriesFailed}`,
   );
@@ -4159,10 +4165,9 @@ export const Route = createFileRoute("/api/scan")({
             else mergedRuns.push({ source: "Instagram", raw: hikerRaw });
           }
 
-          const overallErr =
-            !mergedRuns.some((r) => r.raw.length > 0) && !ytQuotaExhaustedFinal && !fcError
-              ? "No results returned"
-              : undefined;
+          const overallErr = !mergedRuns.some((r) => r.raw.length > 0)
+            ? fcError || "No results returned"
+            : undefined;
 
           /* ── EXTRACTION STAGE ────────────────────────────────────────────
            * Crawl4AI (with plain-fetch fallback) fetches the full page for
