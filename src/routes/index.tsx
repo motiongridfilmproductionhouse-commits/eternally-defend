@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import { CountUpMetric } from "@/components/public/CountUpMetric";
-import { ClientShuffleCards } from "@/components/public/ClientShuffle";
 import { PlatformLogos } from "@/components/public/PlatformLogos";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import {
@@ -721,83 +720,6 @@ function LandingPageContent() {
                 </article>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section
-          id="clients"
-          className="border-t border-landing-line bg-landing-soft py-20 md:py-28"
-          aria-labelledby="clients-heading"
-        >
-          <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <div data-landing-reveal>
-              <p className="landing-kicker">Clients</p>
-              <h2
-                id="clients-heading"
-                className="mt-4 max-w-[520px] text-4xl font-medium md:text-5xl"
-              >
-                Feedback from the people we protect.
-              </h2>
-              <p className="mt-5 max-w-md text-sm leading-6 text-landing-muted">
-                Engagements are confidential, so feedback is shared by role with permission —
-                never by name. Every account reflects the managed, human-reviewed way Eterna
-                operates.
-              </p>
-              <p className="mt-6 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-landing-muted">
-                <i className="size-1.5 rounded-full bg-landing-accent" aria-hidden="true" />
-                Shared with permission · Names confidential
-              </p>
-            </div>
-            <div data-landing-reveal className="pb-6">
-              <ClientShuffleCards />
-            </div>
-          </div>
-        </section>
-
-        <section className="border-t border-landing-line py-20 md:py-28">
-          <div className="mx-auto max-w-6xl px-6">
-            <div data-landing-reveal>
-              <p className="landing-kicker">Protection in practice</p>
-              <h2 className="mt-4 max-w-3xl text-4xl font-medium md:text-6xl">
-                Verified activity, without manufactured outcomes.
-              </h2>
-            </div>
-            <div data-landing-reveal className="landing-stagger mt-12 grid gap-6 md:grid-cols-3">
-              {[
-                [
-                  Users,
-                  "Impersonation case",
-                  "Potential identity misuse discovered, source evidence retained and a case opened for review.",
-                ],
-                [
-                  ScanFace,
-                  "Synthetic-media case",
-                  "Specialist signals assessed against protected references with context preserved for human investigation.",
-                ],
-                [
-                  FileCheck2,
-                  "Content protection case",
-                  "Potential unauthorized use reviewed against ownership, eligibility and available platform routes.",
-                ],
-              ].map(([Icon, title, body]) => (
-                <article
-                  key={title as string}
-                  className="landing-audience-card border border-landing-line p-7"
-                >
-                  <Icon className="size-5 text-landing-accent" />
-                  <h3 className="mt-14 text-xl font-semibold">{title as string}</h3>
-                  <p className="mt-3 text-sm leading-6 text-landing-muted">{body as string}</p>
-                  <p className="mt-6 border-t border-landing-line pt-4 text-[11px] text-landing-muted">
-                    Status: operating activity recorded; no removal outcome claimed.
-                  </p>
-                </article>
-              ))}
-            </div>
-            <Button asChild variant="link" className="mt-7 h-auto p-0 text-landing-ink">
-              <Link to="/case-studies">
-                View anonymized case studies <ArrowRight />
-              </Link>
-            </Button>
           </div>
         </section>
 

@@ -7,13 +7,13 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/inside-eterna-image-immu
 export const Route = createFileRoute("/newsroom_/inside-eterna-image-immunization")({
   head: () => ({
     meta: [
-      { title: "Inside Eterna Image Immunization — Eterna Sentinel" },
+      { title: "Inside Eterna Image Immunization, Eterna Sentinel" },
       {
         name: "description",
         content:
           "A technically grounded, public-safe look at how Image Immunization approaches pre-publication protection.",
       },
-      { property: "og:title", content: "Inside Eterna Image Immunization — Eterna Sentinel" },
+      { property: "og:title", content: "Inside Eterna Image Immunization, Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -155,7 +155,7 @@ function TechnicalBlogPage() {
             <ul className="mt-4 space-y-2 text-xs">
               <li>
                 <Link to="/image-immunization" className="landing-link text-landing-ink">
-                  Image Immunization — the complete overview
+                  Image Immunization, the complete overview
                 </Link>
               </li>
               <li>

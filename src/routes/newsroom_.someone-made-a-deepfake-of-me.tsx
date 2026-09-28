@@ -8,9 +8,9 @@ import { ArticleCta } from "@/components/public/ArticleCta";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/someone-made-a-deepfake-of-me";
 const PUBLISHED = "2026-09-19";
-const TITLE = "Someone Made a Deepfake of Me — What Should I Do?";
+const TITLE = "Someone Made a Deepfake of Me, What Should I Do?";
 const DESCRIPTION =
-  "Found a deepfake of yourself online? Here's what to do first — in order — before you report it, respond publicly, or assume the worst.";
+  "Found a deepfake of yourself online? Here's what to do first, in order, before you report it, respond publicly, or assume the worst.";
 
 export const Route = createFileRoute("/newsroom_/someone-made-a-deepfake-of-me")({
   head: () => ({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/newsroom_/someone-made-a-deepfake-of-me")
       {
         property: "og:description",
         content:
-          "Calm, ordered first steps for anyone who has just discovered a deepfake impersonating them — what to do before you post, report or panic.",
+          "Calm, ordered first steps for anyone who has just discovered a deepfake impersonating them, what to do before you post, report or panic.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -74,7 +74,7 @@ function schema() {
           name: "Should I confront the person who posted it?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Not as a first step. Preserve evidence and report through the platform first — a direct confrontation before that can tip off the poster to remove or hide the content before you've documented it.",
+            text: "Not as a first step. Preserve evidence and report through the platform first, a direct confrontation before that can tip off the poster to remove or hide the content before you've documented it.",
           },
         },
         {
@@ -82,7 +82,7 @@ function schema() {
           name: "What if I'm not sure whether it's actually a deepfake?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "You don't need certainty before reporting something that impersonates you — platforms will assess it. A second, calmer look with someone you trust can also help before you escalate.",
+            text: "You don't need certainty before reporting something that impersonates you, platforms will assess it. A second, calmer look with someone you trust can also help before you escalate.",
           },
         },
         {
@@ -90,7 +90,7 @@ function schema() {
           name: "Will reporting it make the content spread further?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Reporting to a platform is private between you and the platform — it doesn't notify other users or draw attention to the content. Public commentary about it is what can inadvertently spread it further.",
+            text: "Reporting to a platform is private between you and the platform, it doesn't notify other users or draw attention to the content. Public commentary about it is what can inadvertently spread it further.",
           },
         },
         {
@@ -141,14 +141,14 @@ function DeepfakeOfMePage() {
             First: don't engage publicly yet
           </h2>
           <p>
-            It's tempting to respond immediately — to comment, to post a denial, to confront whoever
+            It's tempting to respond immediately, to comment, to post a denial, to confront whoever
             shared it. Give that instinct a few minutes before acting on it. A public reaction
             posted before you understand what you're dealing with can lock in a version of events
             before you've had a chance to establish the facts, and it can also alert whoever created
             the content before you've preserved evidence of it.
           </p>
           <p>
-            This doesn't mean staying silent forever — it means sequencing your response so the
+            This doesn't mean staying silent forever, it means sequencing your response so the
             facts come first.
           </p>
 
@@ -160,7 +160,7 @@ function DeepfakeOfMePage() {
               Before anything else, capture what you're seeing: screenshot or screen-record it, note
               the exact URL, the account or username that posted it, and the date and time you found
               it. If it's been shared or commented on elsewhere, capture that too. Content like this
-              sometimes gets taken down — by the platform, or by whoever posted it — and once it's
+              sometimes gets taken down, by the platform, or by whoever posted it, and once it's
               gone, you lose the ability to prove what it said, where it appeared, or how far it
               spread. None of this evidence needs to be shared publicly. It's for you, and
               potentially for a platform report or, later, a legal or investigative process.
@@ -173,7 +173,7 @@ function DeepfakeOfMePage() {
           <p>
             Not everything that looks unusual is a deepfake, and not every deepfake is as
             sophisticated as it first appears. Before escalating, it can help to have someone you
-            trust take a second look — sometimes context (a joke account, an obvious parody, a
+            trust take a second look, sometimes context (a joke account, an obvious parody, a
             low-effort edit) becomes clearer once the initial shock passes. This isn't about
             minimizing something genuinely harmful; it's about making sure your next steps are aimed
             at the actual situation, not the version of it that felt most alarming in the first
@@ -182,7 +182,7 @@ function DeepfakeOfMePage() {
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">Secure your own accounts</h2>
           <p>
-            While you're working through the above, take a few minutes to check your own accounts —
+            While you're working through the above, take a few minutes to check your own accounts ,
             email, social media, anything connected to your identity. Deepfakes sometimes accompany
             account compromise or are created using material pulled from an account that's already
             been accessed without permission. Updating passwords and enabling multi-factor
@@ -195,18 +195,18 @@ function DeepfakeOfMePage() {
           </h2>
           <p>
             Most major platforms have specific policies against synthetic or manipulated media
-            impersonating a real person, and a specific reporting category for it — which usually
+            impersonating a real person, and a specific reporting category for it, which usually
             gets handled faster and more seriously than a generic "inappropriate content" report.
             Use the category that actually matches what happened (impersonation, synthetic media,
             non-consensual imagery, harassment) rather than the first option in the menu.
           </p>
           <p>
-            If the content involves intimate or sexually explicit imagery — real or AI-generated —
+            If the content involves intimate or sexually explicit imagery, real or AI-generated ,
             there are purpose-built tools for this specifically: StopNCII.org for adults, and the
             National Center for Missing &amp; Exploited Children's Take It Down tool if you were
             under 18 when the image was created. Both work by generating a digital fingerprint (a
-            "hash") of the image on your own device — the image itself is never uploaded or seen by
-            anyone — which participating platforms then use to detect and remove matching content.{" "}
+            "hash") of the image on your own device, the image itself is never uploaded or seen by
+            anyone, which participating platforms then use to detect and remove matching content.{" "}
             <Link to="/methodology" className="landing-link text-landing-ink">
               Eterna's Verification Methodology
             </Link>{" "}
@@ -219,7 +219,7 @@ function DeepfakeOfMePage() {
           <ArticleCallout kind="matters">
             <p>
               One thing that trips people up: you don't need to "disprove" the deepfake before
-              reporting it or asking for help. The burden isn't on you to produce forensic proof —
+              reporting it or asking for help. The burden isn't on you to produce forensic proof ,
               platforms, and any investigator or legal counsel you involve later, are equipped to
               assess authenticity. Your job at this stage is to preserve what you found and report
               it through the right channel, not to build a technical case yourself.
@@ -235,9 +235,9 @@ function DeepfakeOfMePage() {
             when it's being used as part of a scam or extortion attempt, when you're a public figure
             or executive and the content is gaining traction quickly, or when you need evidence
             preserved and documented to a standard that would hold up if legal action becomes
-            necessary. That's the point where professional monitoring and response — the kind that
+            necessary. That's the point where professional monitoring and response, the kind that
             verifies findings against a clear standard before treating anything as confirmed, and
-            escalates only with your authorization — tends to matter more than doing it alone.
+            escalates only with your authorization, tends to matter more than doing it alone.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">What happens next</h2>
@@ -249,7 +249,7 @@ function DeepfakeOfMePage() {
             >
               Impersonation Response Guide
             </Link>{" "}
-            walks through the fuller sequence — documenting the case, deciding what to communicate
+            walks through the fuller sequence, documenting the case, deciding what to communicate
             and to whom, and monitoring for the content reappearing elsewhere, which does happen and
             isn't a sign that anything went wrong the first time.
           </p>
@@ -261,7 +261,7 @@ function DeepfakeOfMePage() {
                 <span className="font-semibold text-landing-ink">
                   Should I confront the person who posted it?
                 </span>{" "}
-                Not as a first step. Preserve evidence and report through the platform first — a
+                Not as a first step. Preserve evidence and report through the platform first, a
                 direct confrontation before that can tip off the poster to remove or hide the
                 content before you've documented it.
               </p>
@@ -269,7 +269,7 @@ function DeepfakeOfMePage() {
                 <span className="font-semibold text-landing-ink">
                   What if I'm not sure whether it's actually a deepfake?
                 </span>{" "}
-                You don't need certainty before reporting something that impersonates you —
+                You don't need certainty before reporting something that impersonates you ,
                 platforms will assess it. A second, calmer look with someone you trust can also help
                 before you escalate.
               </p>
@@ -277,7 +277,7 @@ function DeepfakeOfMePage() {
                 <span className="font-semibold text-landing-ink">
                   Will reporting it make the content spread further?
                 </span>{" "}
-                Reporting to a platform is private between you and the platform — it doesn't notify
+                Reporting to a platform is private between you and the platform, it doesn't notify
                 other users or draw attention to the content. Public commentary about it is what can
                 inadvertently spread it further.
               </p>

@@ -10,7 +10,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/college-student-deepfake
 const PUBLISHED = "2026-09-19";
 const TITLE = "Deepfakes Are Becoming a New Digital Safety Problem for College Students";
 const DESCRIPTION =
-  "Video deepfakes are showing up in student social circles — not because every campus faces this, but because the tools and source material have both become more accessible. Here's what to know.";
+  "Video deepfakes are showing up in student social circles, not because every campus faces this, but because the tools and source material have both become more accessible. Here's what to know.";
 
 export const Route = createFileRoute("/newsroom_/college-student-deepfakes")({
   head: () => ({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/newsroom_/college-student-deepfakes")({
       {
         property: "og:description",
         content:
-          "A calm, clear look at how and why fabricated video is showing up in student social circles — and what actually helps.",
+          "A calm, clear look at how and why fabricated video is showing up in student social circles, and what actually helps.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -98,7 +98,7 @@ function schema() {
           name: "Is this covered by any specific law?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "The federal TAKE IT DOWN Act covers AI-generated intimate imagery specifically; broader deepfake laws vary by state. This article is general information, not legal advice — legal options depend on jurisdiction and circumstances.",
+            text: "The federal TAKE IT DOWN Act covers AI-generated intimate imagery specifically; broader deepfake laws vary by state. This article is general information, not legal advice, legal options depend on jurisdiction and circumstances.",
           },
         },
       ],
@@ -132,8 +132,8 @@ function CollegeStudentDeepfakesPage() {
             realize the video isn't real. By then, it's already been forwarded a dozen times.
           </p>
           <p>
-            This kind of incident — a fabricated video, not a photo, specifically built to look and
-            sound like a real person — is a distinct and growing part of student digital-safety
+            This kind of incident, a fabricated video, not a photo, specifically built to look and
+            sound like a real person, is a distinct and growing part of student digital-safety
             conversations on campuses. It's worth understanding on its own terms, separate from the
             broader, equally serious issue of AI-generated still images, which{" "}
             <Link
@@ -152,7 +152,7 @@ function CollegeStudentDeepfakesPage() {
             College campuses concentrate exactly the conditions that make video deepfakes easier to
             create and more likely to circulate widely: students constantly appear in each other's
             photos and videos, that footage is shared across group chats, social platforms and class
-            projects, and the social graph of a campus — dorms, classes, clubs, social circles — is
+            projects, and the social graph of a campus, dorms, classes, clubs, social circles, is
             exactly the kind of tightly connected network that lets something spread to hundreds of
             people within a single day.
           </p>
@@ -160,7 +160,7 @@ function CollegeStudentDeepfakesPage() {
             None of this means every campus faces this problem, or that it's an inevitable part of
             college life. It means the tools that make convincing video fabrication possible have
             become more accessible at the same time that college social life generates an unusually
-            large amount of exactly the source material — casual video, photos, voice recordings —
+            large amount of exactly the source material, casual video, photos, voice recordings ,
             those tools use.
           </p>
 
@@ -182,7 +182,7 @@ function CollegeStudentDeepfakesPage() {
           <p>
             Rumors and gossip have always circulated on campuses, and most of it fades quickly
             because it's just words, easily doubted. A fabricated video changes that dynamic because
-            video carries more default credibility than a spoken or written claim — people are
+            video carries more default credibility than a spoken or written claim, people are
             inclined to believe what they see, even when, rationally, they know synthetic video
             exists. That gap between how much a video is trusted and how easy it now is to fabricate
             one is the core reason this deserves specific attention rather than being treated as a
@@ -197,11 +197,11 @@ function CollegeStudentDeepfakesPage() {
               The most common mistake among students who encounter this is assuming that because
               "everyone knows it's not real," no real harm is being done. Even when a video is
               widely understood to be fabricated within a friend group, it can still resurface later
-              — in a new context, to new people, or after enough time that the original
-              clarification is forgotten — causing renewed harm long after the initial incident.
+             , in a new context, to new people, or after enough time that the original
+              clarification is forgotten, causing renewed harm long after the initial incident.
             </p>
             <p className="mt-3">
-              A second common mistake is forwarding a deepfake, even with good intentions — to warn
+              A second common mistake is forwarding a deepfake, even with good intentions, to warn
               others, to show a resident advisor, to document it for later. Every forward creates
               another copy, in another chat, that's now outside anyone's control. It's far better to
               report through the platform or to a trusted adult directly than to keep sharing the
@@ -223,9 +223,9 @@ function CollegeStudentDeepfakesPage() {
               to="/newsroom/someone-made-a-deepfake-of-me"
               className="landing-link text-landing-ink"
             >
-              Someone Made a Deepfake of Me — What Should I Do?
+              Someone Made a Deepfake of Me, What Should I Do?
             </Link>{" "}
-            covers the immediate first steps — preserve what you're seeing, don't forward it
+            covers the immediate first steps, preserve what you're seeing, don't forward it
             further, and report through the platform's specific policy for synthetic or
             impersonating media.
           </p>
@@ -241,8 +241,8 @@ function CollegeStudentDeepfakesPage() {
             When outside help may be needed
           </h2>
           <p>
-            Most single-incident cases can be handled through campus resources — a resident advisor,
-            a Title IX office, campus security — combined with platform reporting. Outside help
+            Most single-incident cases can be handled through campus resources, a resident advisor,
+            a Title IX office, campus security, combined with platform reporting. Outside help
             becomes more relevant when a video is spreading across multiple platforms
             simultaneously, when it's tied to a blackmail or extortion attempt, or when the evidence
             needs to be preserved and documented to a standard that could support a school
@@ -254,14 +254,14 @@ function CollegeStudentDeepfakesPage() {
             <p>
               Lawmakers have started responding directly to this category of harm. The federal TAKE
               IT DOWN Act, signed into law in 2025, criminalizes the distribution of non-consensual
-              intimate imagery — explicitly including AI-generated "digital forgeries" — and
+              intimate imagery, explicitly including AI-generated "digital forgeries", and
               requires platforms to build a process for removing reported content within 48 hours.
               Separately, a proposed measure such as the DEFIANCE Act of 2025 (S.1837) would create
               a federal civil right for victims of AI-generated intimate imagery to sue for damages;
               it is pending legislation, not yet enacted law, and its status should be confirmed
               before being cited as current. Neither of these is limited to students, but both
               reflect a recognition that this problem is real, current and serious enough to warrant
-              a dedicated legal response — not a reason for alarm, but a sign that the response
+              a dedicated legal response, not a reason for alarm, but a sign that the response
               infrastructure is catching up.
             </p>
           </ArticleCallout>
@@ -298,7 +298,7 @@ function CollegeStudentDeepfakesPage() {
                 </span>{" "}
                 The federal TAKE IT DOWN Act covers AI-generated intimate imagery specifically;
                 broader deepfake laws vary by state. This article is general information, not legal
-                advice — legal options depend on jurisdiction and circumstances.
+                advice, legal options depend on jurisdiction and circumstances.
               </p>
             </div>
           </div>
@@ -317,7 +317,7 @@ function CollegeStudentDeepfakesPage() {
                 citation: (
                   <>
                     Congress.gov, S.1837, DEFIANCE Act of 2025, 119th Congress
-                    (congress.gov/bill/119th-congress/senate-bill/1837) — a proposed bill, not yet
+                    (congress.gov/bill/119th-congress/senate-bill/1837), a proposed bill, not yet
                     enacted law.
                   </>
                 ),
@@ -340,7 +340,7 @@ function CollegeStudentDeepfakesPage() {
               },
               {
                 to: "/newsroom/someone-made-a-deepfake-of-me",
-                title: "Someone Made a Deepfake of Me — What Should I Do?",
+                title: "Someone Made a Deepfake of Me, What Should I Do?",
                 description: "The immediate first steps for a student facing this directly.",
               },
               {

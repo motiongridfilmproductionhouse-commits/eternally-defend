@@ -10,7 +10,7 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/false-allegations-online
 const PUBLISHED = "2026-09-19";
 const TITLE = "False Allegations Online: What Individuals and Businesses Should Do";
 const DESCRIPTION =
-  "A false claim doesn't need to be proven to cause damage — it just needs to be visible. Here's how to assess and respond, as an individual or a business.";
+  "A false claim doesn't need to be proven to cause damage, it just needs to be visible. Here's how to assess and respond, as an individual or a business.";
 
 export const Route = createFileRoute("/newsroom_/false-allegations-online-what-to-do")({
   head: () => ({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/newsroom_/false-allegations-online-what-t
       {
         property: "og:description",
         content:
-          "What to do first when a false allegation appears online — for individuals and businesses, and when this becomes a legal question.",
+          "What to do first when a false allegation appears online, for individuals and businesses, and when this becomes a legal question.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -74,7 +74,7 @@ function schema() {
           name: "Is every false statement about me or my business defamation?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Not necessarily — defamation generally requires a false statement of fact (not opinion), that causes harm, made with a certain level of fault, and the specifics vary significantly by jurisdiction. This is general information, not legal advice.",
+            text: "Not necessarily, defamation generally requires a false statement of fact (not opinion), that causes harm, made with a certain level of fault, and the specifics vary significantly by jurisdiction. This is general information, not legal advice.",
           },
         },
         {
@@ -127,8 +127,8 @@ function FalseAllegationsPage() {
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
-            A post goes up making a specific, damaging claim — that a company defrauded a client,
-            that an individual did something they never did — and it's stated as established fact,
+            A post goes up making a specific, damaging claim, that a company defrauded a client,
+            that an individual did something they never did, and it's stated as established fact,
             not opinion or allegation. There's no evidence attached, no named source, sometimes not
             even a named accuser. And it's already being shared.
           </p>
@@ -156,7 +156,7 @@ function FalseAllegationsPage() {
             Why responding immediately and publicly isn't always the right first move
           </h2>
           <p>
-            The instinct to respond right away — a public denial, a rebuttal in the comments — is
+            The instinct to respond right away, a public denial, a rebuttal in the comments, is
             understandable, but it can work against you in two ways. It can spread the claim
             further, to people who hadn't seen it yet, particularly if your response generates its
             own engagement. And it can lock in a defensive posture before you've had a chance to
@@ -184,7 +184,7 @@ function FalseAllegationsPage() {
                 Many platforms prohibit harassment, targeted false claims, or coordinated
                 inauthentic behavior, and have a specific reporting category for it. This is often
                 faster than pursuing removal through any other channel, though it isn't guaranteed
-                to succeed — platforms make their own policy judgment calls.
+                to succeed, platforms make their own policy judgment calls.
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">
@@ -192,14 +192,14 @@ function FalseAllegationsPage() {
                 </span>{" "}
                 The FTC's Consumer Reviews and Testimonials Rule, in effect since October 2024,
                 prohibits fabricated reviews and testimonials, and most major review platforms have
-                their own reporting process for reviews that violate their authenticity policies — a
+                their own reporting process for reviews that violate their authenticity policies, a
                 distinct pathway from a general defamation claim.
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">
                   Decide whether and how to respond publicly
                 </span>
-                , based on how far the claim has actually spread and who's likely to see it — not on
+                , based on how far the claim has actually spread and who's likely to see it, not on
                 how upsetting it feels internally. A claim seen by a handful of people may not
                 warrant the same public response as one that's already reached a wide audience.
               </li>
@@ -212,7 +212,7 @@ function FalseAllegationsPage() {
           <p>
             Most major platforms operate under legal frameworks, including Section 230 of the
             Communications Decency Act in the United States, that generally treat them as distinct
-            from the people who post content on them — which is part of why a platform may decline
+            from the people who post content on them, which is part of why a platform may decline
             to remove something even when you believe it's false, absent a policy violation or a
             court order. This isn't a statement about whether the underlying claim is true; it's a
             structural reason platforms are often reluctant to act as an arbiter of factual disputes
@@ -224,13 +224,13 @@ function FalseAllegationsPage() {
           </h2>
           <ArticleCallout kind="distinction" label="Not legal advice">
             <p>
-              Whether a false statement rises to the level of defamation — and what remedies are
-              available — depends on jurisdiction, the nature of the claim, who made it, and a
+              Whether a false statement rises to the level of defamation, and what remedies are
+              available, depends on jurisdiction, the nature of the claim, who made it, and a
               number of other factors that a general article can't resolve for a specific situation.
               This article is general information, not legal advice; an attorney licensed in the
               relevant jurisdiction is the right source for guidance on a specific case. What's
-              useful to know in general terms is that documentation — what was said, where, when,
-              and how it spread — tends to matter regardless of which legal path, if any, ends up
+              useful to know in general terms is that documentation, what was said, where, when,
+              and how it spread, tends to matter regardless of which legal path, if any, ends up
               being relevant.
             </p>
           </ArticleCallout>
@@ -242,7 +242,7 @@ function FalseAllegationsPage() {
             <p>
               The most common mistake is responding emotionally and publicly before documenting
               anything, which can spread the claim further and complicate any later process. A
-              second is assuming that because something is false, it will automatically be removed —
+              second is assuming that because something is false, it will automatically be removed ,
               platforms and courts both require more than an assertion that a claim is untrue. A
               third, for businesses specifically, is not distinguishing between a genuinely
               fabricated review (which may be addressable through a platform's authenticity policy
@@ -270,7 +270,7 @@ function FalseAllegationsPage() {
                 <span className="font-semibold text-landing-ink">
                   Is every false statement about me or my business defamation?
                 </span>{" "}
-                Not necessarily — defamation generally requires a false statement of fact (not
+                Not necessarily, defamation generally requires a false statement of fact (not
                 opinion), that causes harm, made with a certain level of fault, and the specifics
                 vary significantly by jurisdiction. This is general information, not legal advice.
               </p>

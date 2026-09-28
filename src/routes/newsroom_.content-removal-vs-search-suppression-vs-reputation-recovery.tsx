@@ -11,7 +11,7 @@ const CANONICAL =
 const PUBLISHED = "2026-09-19";
 const TITLE = "Content Removal vs Search Suppression vs Reputation Recovery";
 const DESCRIPTION =
-  '"Can you just get it taken down?" is really three different questions. Here\'s the difference between removal, suppression and recovery — and which applies when.';
+  '"Can you just get it taken down?" is really three different questions. Here\'s the difference between removal, suppression and recovery, and which applies when.';
 
 export const Route = createFileRoute(
   "/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery",
@@ -77,7 +77,7 @@ function schema() {
           name: 'Is search suppression the same as "hiding" something?',
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Not exactly — the content remains fully accessible to anyone who searches for it specifically or has the direct link. Suppression affects how prominently it surfaces in general search results, not whether it exists or can be found at all.",
+            text: "Not exactly, the content remains fully accessible to anyone who searches for it specifically or has the direct link. Suppression affects how prominently it surfaces in general search results, not whether it exists or can be found at all.",
           },
         },
         {
@@ -85,7 +85,7 @@ function schema() {
           name: "Can I request removal for something that's true but unflattering?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Generally not through a standard removal request — platforms and search engines don't typically remove accurate content just because it's unflattering. Suppression and recovery are the more realistic goals in that situation.",
+            text: "Generally not through a standard removal request, platforms and search engines don't typically remove accurate content just because it's unflattering. Suppression and recovery are the more realistic goals in that situation.",
           },
         },
         {
@@ -93,7 +93,7 @@ function schema() {
           name: "How long does reputation recovery actually take?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "There's no fixed timeline. It depends on how established the existing content is, what's replacing it, and how consistently the effort continues — it's generally measured in months to years, not days or weeks.",
+            text: "There's no fixed timeline. It depends on how established the existing content is, what's replacing it, and how consistently the effort continues, it's generally measured in months to years, not days or weeks.",
           },
         },
         {
@@ -132,7 +132,7 @@ function RemovalSuppressionRecoveryPage() {
           <p>
             "Can you just get it taken down?" is usually the first question anyone asks when they
             find something damaging online about themselves or their business. It's a reasonable
-            question, and the honest answer is usually more nuanced than yes or no — because
+            question, and the honest answer is usually more nuanced than yes or no, because
             "getting it taken down" is actually three different things, each with different
             requirements, different odds of success, and different timelines.
           </p>
@@ -148,26 +148,26 @@ function RemovalSuppressionRecoveryPage() {
             <ul className="list-disc space-y-3 pl-5">
               <li>
                 <span className="font-semibold text-landing-ink">Content removal</span> means the
-                content itself comes down — deleted from the site or platform that hosts it. This is
+                content itself comes down, deleted from the site or platform that hosts it. This is
                 the strongest outcome when it's achievable, but it's also the most constrained: it
                 generally requires the content to violate a platform's own policies, or a valid
                 legal basis (a court order, a successful copyright claim, a confirmed violation of
                 law), and the website or platform hosting it has to actually be willing or required
                 to act. Google's own guidance on this is direct: even when a search engine removes
                 something from its results, "it may still exist on the web, and only a website owner
-                can remove content entirely" — removal at the source is a different, separate thing
+                can remove content entirely", removal at the source is a different, separate thing
                 from removal from search visibility.
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">Search suppression</span> means the
-                content stays where it is, but becomes harder to find through search — either
+                content stays where it is, but becomes harder to find through search, either
                 because a search engine has removed it from its own results for a specific, narrow
                 category of content (Google, for instance, will remove certain categories like
                 non-consensual intimate imagery or exposed personal information from search results
                 without removing it from the source site), or because other content has, over time,
                 become more prominent for the relevant search terms. This doesn't touch the content
                 itself, and the content can still be found by anyone who has the direct link or
-                searches specifically for it — it just becomes less likely to surface as the top
+                searches specifically for it, it just becomes less likely to surface as the top
                 result for a general search.
               </li>
               <li>
@@ -189,8 +189,8 @@ function RemovalSuppressionRecoveryPage() {
             removal when only suppression is realistically achievable, and feeling like nothing
             worked when the content is still technically findable, even though its practical
             visibility has genuinely changed. The second: pursuing removal aggressively for content
-            that doesn't meet the bar for it — a genuine but negative review, for instance, or a
-            true statement someone would simply prefer wasn't public — which tends to fail and can,
+            that doesn't meet the bar for it, a genuine but negative review, for instance, or a
+            true statement someone would simply prefer wasn't public, which tends to fail and can,
             in some cases, draw more attention to the content than leaving it alone would have.
           </p>
           <p>
@@ -206,9 +206,9 @@ function RemovalSuppressionRecoveryPage() {
             involves a legal violation with a documented basis, or falls into one of the narrow
             categories platforms handle proactively (like non-consensual intimate imagery).
             Suppression is the more realistic goal when content is negative but not policy-violating
-            or unlawful — true, or at least not provably false, but something you'd understandably
+            or unlawful, true, or at least not provably false, but something you'd understandably
             prefer wasn't the first result for your name. Reputation recovery is the right frame
-            when there's no single piece of content to target at all — the issue is a pattern, an
+            when there's no single piece of content to target at all, the issue is a pattern, an
             outdated impression, or the cumulative effect of several smaller things rather than one
             clear item to remove or suppress.
           </p>
@@ -225,7 +225,7 @@ function RemovalSuppressionRecoveryPage() {
             <p>
               The most common mistake is anchoring entirely on removal as the only acceptable
               outcome, which sets up disappointment even when suppression or recovery would
-              meaningfully address the actual problem — the practical effect on how the business or
+              meaningfully address the actual problem, the practical effect on how the business or
               person is perceived. A second mistake is assuming reputation recovery is purely
               reactive. The organizations and individuals who handle this best generally have
               accurate, substantive content already established before an incident happens, which
@@ -239,8 +239,8 @@ function RemovalSuppressionRecoveryPage() {
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">What to do</h2>
           <p>
-            Start by identifying which category the specific content actually falls into — clearly
-            policy-violating or unlawful, negative but legitimate, or part of a broader pattern —
+            Start by identifying which category the specific content actually falls into, clearly
+            policy-violating or unlawful, negative but legitimate, or part of a broader pattern ,
             since that determines which lever is realistic. From there, pursue removal where it's
             genuinely available, invest in accurate and substantive content where suppression and
             recovery are the more honest goals, and monitor on an ongoing basis so you know which
@@ -266,7 +266,7 @@ function RemovalSuppressionRecoveryPage() {
                 <span className="font-semibold text-landing-ink">
                   Is search suppression the same as "hiding" something?
                 </span>{" "}
-                Not exactly — the content remains fully accessible to anyone who searches for it
+                Not exactly, the content remains fully accessible to anyone who searches for it
                 specifically or has the direct link. Suppression affects how prominently it surfaces
                 in general search results, not whether it exists or can be found at all.
               </p>
@@ -274,7 +274,7 @@ function RemovalSuppressionRecoveryPage() {
                 <span className="font-semibold text-landing-ink">
                   Can I request removal for something that's true but unflattering?
                 </span>{" "}
-                Generally not through a standard removal request — platforms and search engines
+                Generally not through a standard removal request, platforms and search engines
                 don't typically remove accurate content just because it's unflattering. Suppression
                 and recovery are the more realistic goals in that situation.
               </p>
@@ -283,7 +283,7 @@ function RemovalSuppressionRecoveryPage() {
                   How long does reputation recovery actually take?
                 </span>{" "}
                 There's no fixed timeline. It depends on how established the existing content is,
-                what's replacing it, and how consistently the effort continues — it's generally
+                what's replacing it, and how consistently the effort continues, it's generally
                 measured in months to years, not days or weeks.
               </p>
               <p>

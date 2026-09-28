@@ -11,7 +11,7 @@ const CANONICAL =
 const PUBLISHED = "2026-09-19";
 const TITLE = "AI-Generated Explicit Images Without Consent: A Student Safety Guide";
 const DESCRIPTION =
-  "Found out an AI-generated explicit image of you or someone you know is circulating? Here's what actually helps — calmly, in order, without judgment.";
+  "Found out an AI-generated explicit image of you or someone you know is circulating? Here's what actually helps, calmly, in order, without judgment.";
 
 export const Route = createFileRoute(
   "/newsroom_/ai-generated-explicit-images-student-safety-guide",
@@ -20,11 +20,11 @@ export const Route = createFileRoute(
     meta: [
       { title: `${TITLE} | Eterna Sentinel` },
       { name: "description", content: DESCRIPTION },
-      { property: "og:title", content: "You Are Not Alone in This — What to Do Next" },
+      { property: "og:title", content: "You Are Not Alone in This, What to Do Next" },
       {
         property: "og:description",
         content:
-          "A calm, practical guide for students facing a non-consensual AI-generated image — what to do first, and where to get real help.",
+          "A calm, practical guide for students facing a non-consensual AI-generated image, what to do first, and where to get real help.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -85,7 +85,7 @@ function schema() {
           name: "Do I have to show the image to someone to get help?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "No. Both the Take It Down tool and StopNCII.org work by generating a fingerprint of the image on your own device — you never have to upload or send the actual file to get it removed from participating platforms.",
+            text: "No. Both the Take It Down tool and StopNCII.org work by generating a fingerprint of the image on your own device, you never have to upload or send the actual file to get it removed from participating platforms.",
           },
         },
         {
@@ -101,7 +101,7 @@ function schema() {
           name: "Should I respond to whoever is sharing it or confront them?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Generally, no — preserve evidence and report through the proper channels first. If there's any threat or extortion attempt involved, direct engagement can make things harder to resolve safely.",
+            text: "Generally, no, preserve evidence and report through the proper channels first. If there's any threat or extortion attempt involved, direct engagement can make things harder to resolve safely.",
           },
         },
       ],
@@ -130,7 +130,7 @@ function ExplicitImagesGuidePage() {
       <section className="py-16 md:py-20">
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
-            A student finds out that an image has been circulating — one that appears to show her
+            A student finds out that an image has been circulating, one that appears to show her
             without clothing, made using a photo she actually posted, altered by an AI tool into
             something that never happened. She never took the picture being used for this. She may
             not even know who made it.
@@ -148,7 +148,7 @@ function ExplicitImagesGuidePage() {
           <p>
             Before anything else: finding a trusted adult, friend, school counselor or advocate to
             involve is not a step to skip, even if the instinct is to handle it privately.
-            Non-consensual intimate imagery — including AI-generated images — is specifically
+            Non-consensual intimate imagery, including AI-generated images, is specifically
             covered by dedicated reporting tools and, in many cases, by criminal law. You are not
             overreacting by treating this seriously, and you are not required to manage it by
             yourself.
@@ -158,8 +158,8 @@ function ExplicitImagesGuidePage() {
             Preserve what you can, without re-sharing it
           </h2>
           <p>
-            If you're able to safely do so, note where you saw the image — the platform, the account
-            or username, the date — without downloading, forwarding or re-sharing the image further,
+            If you're able to safely do so, note where you saw the image, the platform, the account
+            or username, the date, without downloading, forwarding or re-sharing the image further,
             even to "prove" what happened to someone else. Every additional copy, even a
             well-intentioned one, adds another version of the file in circulation. If a trusted
             adult or a school official needs to see it to act, let them access it directly through
@@ -167,8 +167,8 @@ function ExplicitImagesGuidePage() {
             the file yourself.
           </p>
           <p>
-            A screenshot of the surrounding context — the post caption, the account name, the
-            platform, the date — is usually enough to support a report without needing to preserve
+            A screenshot of the surrounding context, the post caption, the account name, the
+            platform, the date, is usually enough to support a report without needing to preserve
             the image itself in a way that creates more copies.
           </p>
 
@@ -187,13 +187,13 @@ function ExplicitImagesGuidePage() {
                 </span>{" "}
                 the National Center for Missing &amp; Exploited Children's Take It Down tool lets
                 you generate a digital fingerprint (a "hash") of the image directly on your own
-                device. The image itself never leaves your device or gets uploaded anywhere — only
+                device. The image itself never leaves your device or gets uploaded anywhere, only
                 the fingerprint is submitted. Participating platforms use that fingerprint to find
                 and remove matching content from their public services.
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">If you're 18 or older:</span>{" "}
-                StopNCII.org works the same way — a hash is generated on your device, the image
+                StopNCII.org works the same way, a hash is generated on your device, the image
                 never leaves it, and participating platforms use the fingerprint to detect and
                 remove matches.
               </li>
@@ -201,7 +201,7 @@ function ExplicitImagesGuidePage() {
             <p className="mt-3">
               Both tools have a real limitation worth knowing upfront: they only work on
               participating platforms, and they can't guarantee removal from every site on the
-              internet. That doesn't make them not worth using — it means they're one important part
+              internet. That doesn't make them not worth using, it means they're one important part
               of the response, not the entire answer.
             </p>
           </ArticleCallout>
@@ -212,7 +212,7 @@ function ExplicitImagesGuidePage() {
           <p>
             Alongside the hash-matching tools, report the content directly to whatever platform it's
             on, using the specific category for non-consensual or synthetic intimate imagery rather
-            than a generic report — major platforms treat this category with more urgency and are
+            than a generic report, major platforms treat this category with more urgency and are
             legally required, under the federal TAKE IT DOWN Act, to provide a way to request
             removal and to act on valid requests within 48 hours.
           </p>
@@ -220,7 +220,7 @@ function ExplicitImagesGuidePage() {
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">Tell your school</h2>
           <p>
             If you're a student, your school's Title IX office or student conduct office can act on
-            this — both to support you directly and, where appropriate, to address it through the
+            this, both to support you directly and, where appropriate, to address it through the
             school's own disciplinary process, separate from any law enforcement involvement.
           </p>
 
@@ -231,7 +231,7 @@ function ExplicitImagesGuidePage() {
             Creating or distributing AI-generated intimate imagery of a real, identifiable person
             without consent is addressed by the federal TAKE IT DOWN Act, and by a growing number of
             state laws, though exact legal treatment varies by jurisdiction and by the ages of the
-            people involved — this is general information, not legal advice, and a local advocate or
+            people involved, this is general information, not legal advice, and a local advocate or
             attorney can speak to your specific situation. If someone is using the image to
             threaten, extort or coerce you, that's a matter for law enforcement, and{" "}
             <Link
@@ -249,8 +249,8 @@ function ExplicitImagesGuidePage() {
           </h2>
           <ArticleCallout kind="mistake">
             <p>
-              The most common and damaging misconception is that because the image is "fake" — not a
-              real photo — it's somehow a lesser harm, or not worth a serious response. The
+              The most common and damaging misconception is that because the image is "fake", not a
+              real photo, it's somehow a lesser harm, or not worth a serious response. The
               emotional and reputational impact of a convincing AI-generated image can be just as
               real as that of an authentic one, and the tools and laws responding to this treat it
               accordingly.
@@ -273,7 +273,7 @@ function ExplicitImagesGuidePage() {
             Supporting someone else through this
           </h2>
           <p>
-            If someone has come to you about this — as a friend, parent, teacher or counselor — the
+            If someone has come to you about this, as a friend, parent, teacher or counselor, the
             most useful things you can offer are believing them without requiring them to explain or
             justify anything, helping them access the reporting tools above rather than trying to
             handle it entirely yourself, and not asking to see the image, which isn't necessary for
@@ -285,7 +285,7 @@ function ExplicitImagesGuidePage() {
           </h2>
           <p>
             Most single-platform incidents can be addressed through the tools and reporting channels
-            above. Outside help — from an advocate, an attorney, or a specialized response service —
+            above. Outside help, from an advocate, an attorney, or a specialized response service ,
             becomes more important when the content is spreading across multiple platforms at once,
             when it's connected to an extortion attempt, or when the evidence needs to be documented
             and preserved to a standard that would support a school or legal process.
@@ -308,7 +308,7 @@ function ExplicitImagesGuidePage() {
                   Do I have to show the image to someone to get help?
                 </span>{" "}
                 No. Both the Take It Down tool and StopNCII.org work by generating a fingerprint of
-                the image on your own device — you never have to upload or send the actual file to
+                the image on your own device, you never have to upload or send the actual file to
                 get it removed from participating platforms.
               </p>
               <p>
@@ -323,7 +323,7 @@ function ExplicitImagesGuidePage() {
                 <span className="font-semibold text-landing-ink">
                   Should I respond to whoever is sharing it or confront them?
                 </span>{" "}
-                Generally, no — preserve evidence and report through the proper channels first. If
+                Generally, no, preserve evidence and report through the proper channels first. If
                 there's any threat or extortion attempt involved, direct engagement can make things
                 harder to resolve safely.
               </p>

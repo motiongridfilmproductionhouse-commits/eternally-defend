@@ -1,5 +1,8 @@
 # Website authority upgrade
 
+- [x] Remove visible form suggestions across the platform
+- [x] Remove public client-derived stories, identities, IDs, and dates
+- [x] Remove em and en dash punctuation from public articles
 - [ ] Rebuild homepage around verified operating proof
 - [ ] Add shared public navigation and corporate footer
 - [ ] Add About, Security, Case Studies, Terms, Cookies, and Acceptable Use pages

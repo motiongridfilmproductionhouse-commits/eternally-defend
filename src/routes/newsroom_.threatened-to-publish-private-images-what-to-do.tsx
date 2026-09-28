@@ -11,7 +11,7 @@ const CANONICAL =
 const PUBLISHED = "2026-09-19";
 const TITLE = "What to Do if Someone Threatens to Publish Your Private Images or Videos";
 const DESCRIPTION =
-  "If someone is threatening to publish private images or videos of you, here's what actually helps — before anything is posted, and why you shouldn't pay.";
+  "If someone is threatening to publish private images or videos of you, here's what actually helps, before anything is posted, and why you shouldn't pay.";
 
 export const Route = createFileRoute("/newsroom_/threatened-to-publish-private-images-what-to-do")({
   head: () => ({
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/newsroom_/threatened-to-publish-private-i
       {
         property: "og:description",
         content:
-          "Calm, practical steps for the moment someone threatens to publish private images or videos — before anything is posted.",
+          "Calm, practical steps for the moment someone threatens to publish private images or videos, before anything is posted.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -94,7 +94,7 @@ function schema() {
           name: "Is it too soon to report if nothing has been posted yet?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "No. Reporting a threat before anything is published is not premature — it's often the point where a platform or law enforcement can most effectively intervene.",
+            text: "No. Reporting a threat before anything is published is not premature, it's often the point where a platform or law enforcement can most effectively intervene.",
           },
         },
         {
@@ -102,7 +102,7 @@ function schema() {
           name: "What if the images they're threatening to share aren't real?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "AI-generated or fabricated images are increasingly used in exactly this kind of threat. Report it the same way regardless — the tools and reporting channels above cover both real and AI-generated content.",
+            text: "AI-generated or fabricated images are increasingly used in exactly this kind of threat. Report it the same way regardless, the tools and reporting channels above cover both real and AI-generated content.",
           },
         },
       ],
@@ -137,7 +137,7 @@ function ThreatenedPublicationPage() {
             yet. The threat itself is the crisis.
           </p>
           <p>
-            This specific moment — before anything has actually been published — is different from
+            This specific moment, before anything has actually been published, is different from
             responding to content that's already circulating, and it comes with its own first steps.
           </p>
 
@@ -148,8 +148,8 @@ function ThreatenedPublicationPage() {
             Sextortion attempts increasingly use AI-generated or manipulated images that were never
             real in the first place, built from ordinary photos pulled from social media. The FBI
             has specifically warned that malicious actors are creating this kind of fabricated
-            content to threaten both adults and minors. This doesn't make the threat less serious —
-            the harm from a convincing fake being published is real — but it matters for how you
+            content to threaten both adults and minors. This doesn't make the threat less serious ,
+            the harm from a convincing fake being published is real, but it matters for how you
             think about what's actually being threatened, and it's not something you can determine
             on your own in the moment. Don't assume, and don't try to figure it out by continuing to
             engage with whoever sent the message.
@@ -160,8 +160,8 @@ function ThreatenedPublicationPage() {
           </h2>
           <ArticleCallout kind="matters">
             <p>
-              This is the single most important thing to know: complying with the demand — paying
-              money, sending more images, doing anything else that's been asked — does not reliably
+              This is the single most important thing to know: complying with the demand, paying
+              money, sending more images, doing anything else that's been asked, does not reliably
               stop the threat. The FBI's own guidance is direct that compliance offers no guarantee
               the material won't still be shared. In many documented cases, paying or complying
               leads to escalated demands, not fewer, because it confirms the person is willing to
@@ -173,7 +173,7 @@ function ThreatenedPublicationPage() {
             Preserve everything before you block
           </h2>
           <p>
-            Before cutting off contact, take screenshots of the full conversation — the messages,
+            Before cutting off contact, take screenshots of the full conversation, the messages,
             the threat itself, the username or account, any images that were sent to you as "proof,"
             and the platform it's happening on. This is the evidence that a platform report, a
             school report, or law enforcement will need. Once you block the account, you may lose
@@ -183,21 +183,21 @@ function ThreatenedPublicationPage() {
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">Then stop responding</h2>
           <p>
             After you've preserved what you need, stop engaging. Don't negotiate, don't explain,
-            don't ask them to reconsider. Continuing the conversation — even to argue or plead —
+            don't ask them to reconsider. Continuing the conversation, even to argue or plead ,
             tends to confirm you're paying attention and can prolong or escalate the demands rather
             than end them. Blocking the account after you've captured what you need is a reasonable
             next step for most people in this situation.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">
-            Report it — before anything is published, not after
+            Report it, before anything is published, not after
           </h2>
           <p>
             You don't have to wait until something is actually posted to report it. Report the
             account and the messages to the platform, using its category for extortion, harassment
             or threats. Report the situation to the FBI's Internet Crime Complaint Center (IC3.gov),
             which specifically tracks this kind of extortion, or to local law enforcement. If you're
-            a student, your school can also act on a report before anything is published — schools
+            a student, your school can also act on a report before anything is published, schools
             generally aren't limited to responding only after harm has occurred.
           </p>
           <p>
@@ -212,8 +212,8 @@ function ThreatenedPublicationPage() {
             Tell someone before you have to
           </h2>
           <p>
-            Telling a trusted adult, friend or counselor before the situation escalates further —
-            rather than after — means you have support in place if the threat continues, and it
+            Telling a trusted adult, friend or counselor before the situation escalates further ,
+            rather than after, means you have support in place if the threat continues, and it
             means you're not carrying the decision of what to do next entirely alone. This is true
             even if the threat turns out to be empty; there's no downside to having told someone you
             trust.
@@ -237,7 +237,7 @@ function ThreatenedPublicationPage() {
             <p className="mt-3">
               A third mistake is assuming nothing can be done until content is actually posted.
               Preserving evidence and reporting a threat while it's still just a threat is not
-              premature — it's the point at which intervention is most likely to prevent the content
+              premature, it's the point at which intervention is most likely to prevent the content
               from being published at all.
             </p>
           </ArticleCallout>
@@ -275,7 +275,7 @@ function ThreatenedPublicationPage() {
                 <span className="font-semibold text-landing-ink">
                   Is it too soon to report if nothing has been posted yet?
                 </span>{" "}
-                No. Reporting a threat before anything is published is not premature — it's often
+                No. Reporting a threat before anything is published is not premature, it's often
                 the point where a platform or law enforcement can most effectively intervene.
               </p>
               <p>
@@ -283,7 +283,7 @@ function ThreatenedPublicationPage() {
                   What if the images they're threatening to share aren't real?
                 </span>{" "}
                 AI-generated or fabricated images are increasingly used in exactly this kind of
-                threat. Report it the same way regardless — the tools and reporting channels above
+                threat. Report it the same way regardless, the tools and reporting channels above
                 cover both real and AI-generated content.
               </p>
             </div>

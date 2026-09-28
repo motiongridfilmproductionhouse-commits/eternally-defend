@@ -104,7 +104,7 @@ function GuidePage() {
             research says otherwise: studies on human accuracy identifying high-quality deepfake
             video have found rates as low as 24.5%, worse than a coin flip. Automated detectors fare
             better in controlled conditions, but independent real-world benchmarking (the
-            Deepfake-Eval-2024 benchmark) found detector accuracy dropped by roughly 45–50% outside
+            Deepfake-Eval-2024 benchmark) found detector accuracy dropped by roughly 45 to 50% outside
             lab conditions compared to curated test sets.
           </p>
 

@@ -42,6 +42,21 @@ export const getPublicVerification = createServerFn({ method: "GET" })
     });
     const row = Array.isArray(rows) ? rows[0] : rows;
     if (!row) return { status: "NOT_FOUND" as const };
-    return row;
+    const isExpired = row.expires_at ? new Date(row.expires_at) < new Date() : false;
+    const isSuspended = row.status === "SUSPENDED" || row.authorization_status === "SUSPENDED";
+    const isRevoked = row.status === "REVOKED" || row.authorization_status === "REVOKED";
+    const isActive = row.status === "ACTIVE" && row.authorization_status === "ACTIVE" && !isExpired;
+    return {
+      status: "FOUND" as const,
+      verificationStatus: isRevoked
+        ? ("REVOKED" as const)
+        : isSuspended
+          ? ("SUSPENDED" as const)
+          : isExpired
+            ? ("EXPIRED" as const)
+            : isActive
+              ? ("ACTIVE" as const)
+              : ("INACTIVE" as const),
+    };
   });
 

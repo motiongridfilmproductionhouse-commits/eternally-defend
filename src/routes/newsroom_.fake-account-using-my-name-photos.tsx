@@ -16,7 +16,7 @@ export const Route = createFileRoute("/newsroom_/fake-account-using-my-name-phot
     meta: [
       { title: `${TITLE} | Eterna Sentinel` },
       { name: "description", content: DESCRIPTION },
-      { property: "og:title", content: "Someone's Impersonating You Online — Here's What Helps" },
+      { property: "og:title", content: "Someone's Impersonating You Online, Here's What Helps" },
       {
         property: "og:description",
         content:
@@ -73,7 +73,7 @@ function schema() {
           name: "Do I need to prove it's not me?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Usually not in a formal sense — platforms generally review impersonation reports based on the account's content and behavior, though reporting from your own established or verified account tends to speed up the process.",
+            text: "Usually not in a formal sense, platforms generally review impersonation reports based on the account's content and behavior, though reporting from your own established or verified account tends to speed up the process.",
           },
         },
         {
@@ -127,12 +127,12 @@ function FakeAccountPage() {
         <div className="mx-auto max-w-3xl space-y-8 px-6 text-sm leading-7 text-landing-muted">
           <p>
             A friend messages you a screenshot: an account using your name, your profile photo,
-            maybe even a bio that sounds like something you'd write — except you never made it. It's
+            maybe even a bio that sounds like something you'd write, except you never made it. It's
             already followed a few dozen people. Some of them think it's really you.
           </p>
           <p>
             A fake account is one of the more common forms of online impersonation, and unlike a
-            deepfake video, it doesn't require any sophisticated technology — just your name and a
+            deepfake video, it doesn't require any sophisticated technology, just your name and a
             few public photos. That makes it common, and also, in most cases, fairly straightforward
             to address once you know the sequence.
           </p>
@@ -142,10 +142,10 @@ function FakeAccountPage() {
           </h2>
           <p>
             Not all impersonating accounts have the same intent, and that shapes the urgency of the
-            response. Some are parody or fan accounts, sometimes clearly labeled, sometimes not —
+            response. Some are parody or fan accounts, sometimes clearly labeled, sometimes not ,
             annoying but not necessarily malicious. Some are set up to deceive people into thinking
             they're interacting with you, sometimes to solicit money, sometimes just for attention.
-            And some are set up specifically to damage your reputation — posting content designed to
+            And some are set up specifically to damage your reputation, posting content designed to
             look like something you'd say or do, in order to embarrass or discredit you. The
             response is broadly similar across all three, but the urgency, and whether it warrants
             involving your network or a platform's more serious enforcement categories, depends on
@@ -159,7 +159,7 @@ function FakeAccountPage() {
             <p>
               Screenshot the account's profile, its posts, its follower or following list if
               relevant, and note the exact username and the date you found it. If the account is
-              actively posting content, capture that too — accounts like this sometimes get deleted
+              actively posting content, capture that too, accounts like this sometimes get deleted
               or renamed once the person behind them realizes they've been noticed, and
               documentation you don't capture now may not be recoverable later.
             </p>
@@ -171,7 +171,7 @@ function FakeAccountPage() {
           <p>
             Most major platforms have a specific policy against impersonation and a corresponding
             reporting category, separate from general harassment or spam reports. Using the correct
-            category matters — impersonation reports are often reviewed under a different, faster
+            category matters, impersonation reports are often reviewed under a different, faster
             process than generic content reports, particularly when you can demonstrate you're the
             real person being impersonated (which usually means reporting from your own verified or
             established account, if you have one).
@@ -182,8 +182,8 @@ function FakeAccountPage() {
           </h2>
           <p>
             If the fake account has been messaging people you know, or if it's actively being
-            mistaken for you, a brief, factual note to your own network — "this account is not me,
-            I've reported it" — can prevent confusion or, in cases involving solicitation, prevent
+            mistaken for you, a brief, factual note to your own network, "this account is not me,
+            I've reported it", can prevent confusion or, in cases involving solicitation, prevent
             someone from being scammed. This doesn't need to be dramatic or defensive; a short,
             clear statement usually does the job.
           </p>
@@ -193,17 +193,17 @@ function FakeAccountPage() {
           </h2>
           <ArticleCallout kind="mistake">
             <p>
-              The most common mistake is engaging directly with the fake account — commenting,
+              The most common mistake is engaging directly with the fake account, commenting,
               messaging it, or publicly calling it out before reporting it through the proper
               channel. This can tip off whoever created it, and it doesn't actually speed up
               removal, which happens through the platform's review process regardless. A second
               mistake is assuming a fake account is harmless because it hasn't done anything overtly
-              damaging yet. Accounts like this can sit dormant and then be activated later — for a
-              scam, for harassment, for a coordinated attempt to damage your reputation — which is
+              damaging yet. Accounts like this can sit dormant and then be activated later, for a
+              scam, for harassment, for a coordinated attempt to damage your reputation, which is
               part of why documenting and reporting it early, rather than waiting to see what it
               does, is the more reliable approach. A third mistake, if the account is being used for
               solicitation or fraud, is not reporting it to the platform's fraud or financial-scam
-              category in addition to impersonation — the two categories can trigger different
+              category in addition to impersonation, the two categories can trigger different
               review processes.
             </p>
           </ArticleCallout>
@@ -233,7 +233,7 @@ function FakeAccountPage() {
                 <span className="font-semibold text-landing-ink">
                   Do I need to prove it's not me?
                 </span>{" "}
-                Usually not in a formal sense — platforms generally review impersonation reports
+                Usually not in a formal sense, platforms generally review impersonation reports
                 based on the account's content and behavior, though reporting from your own
                 established or verified account tends to speed up the process.
               </p>
@@ -273,7 +273,7 @@ function FakeAccountPage() {
               },
               {
                 to: "/newsroom/someone-made-a-deepfake-of-me",
-                title: "Someone Made a Deepfake of Me — What Should I Do?",
+                title: "Someone Made a Deepfake of Me, What Should I Do?",
                 description:
                   "The response sequence for a more sophisticated form of impersonation.",
               },

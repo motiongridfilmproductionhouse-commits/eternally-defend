@@ -390,7 +390,6 @@ export function ProfileStep({
               className={fieldInputClassName}
               value={profileName}
               onChange={(e) => onProfileNameChange(e.target.value)}
-              placeholder="The name this person is known by"
             />
           </Field>
         </div>
@@ -402,7 +401,6 @@ export function ProfileStep({
               className={fieldInputClassName}
               value={organization}
               onChange={(e) => onOrganizationChange(e.target.value)}
-              placeholder="Your company or organization"
             />
           </Field>
         </div>
@@ -414,7 +412,6 @@ export function ProfileStep({
               className={fieldInputClassName}
               value={profileName}
               onChange={(e) => onProfileNameChange(e.target.value)}
-              placeholder="Who you're representing"
             />
           </Field>
           <Field label="Your relationship / role">
@@ -422,7 +419,6 @@ export function ProfileStep({
               className={fieldInputClassName}
               value={roleTitle}
               onChange={(e) => onRoleTitleChange(e.target.value)}
-              placeholder="e.g. Manager, Legal counsel"
             />
           </Field>
         </div>
@@ -479,23 +475,6 @@ export function PlatformChips({
 /* Details step content helpers                                        */
 /* ------------------------------------------------------------------ */
 
-export function messagePlaceholderFor(state: EnquiryFormState): string {
-  switch (state.department) {
-    case "protection":
-      return "Briefly describe what is happening, where it appears, and what you would like Eterna to review.";
-    case "security":
-      return "Briefly describe the security-related issue or question.";
-    case "privacy":
-      return "Briefly describe your privacy request or concern.";
-    case "partnership":
-      return "Tell us about the partnership you would like to discuss.";
-    case "media":
-      return "Tell us what you're working on and what you need from Eterna.";
-    default:
-      return "Tell us a little about your enquiry.";
-  }
-}
-
 /* ------------------------------------------------------------------ */
 /* Step 4 — Details                                                    */
 /* ------------------------------------------------------------------ */
@@ -517,7 +496,6 @@ export function DetailsStep({
             value={state.fullName}
             onChange={(e) => update("fullName", e.target.value)}
             autoComplete="name"
-            placeholder="Your full name"
             required
           />
         </Field>
@@ -528,7 +506,6 @@ export function DetailsStep({
             value={state.email}
             onChange={(e) => update("email", e.target.value)}
             autoComplete="email"
-            placeholder="you@example.com"
             required
           />
         </Field>
@@ -539,7 +516,6 @@ export function DetailsStep({
             value={state.phone}
             onChange={(e) => update("phone", e.target.value)}
             autoComplete="tel"
-            placeholder="+1 555 000 0000"
             required
           />
         </Field>
@@ -550,7 +526,6 @@ export function DetailsStep({
               value={state.organization}
               onChange={(e) => update("organization", e.target.value)}
               autoComplete="organization"
-              placeholder="Optional"
             />
           </Field>
         ) : null}
@@ -560,7 +535,6 @@ export function DetailsStep({
               className={fieldInputClassName}
               value={state.roleTitle}
               onChange={(e) => update("roleTitle", e.target.value)}
-              placeholder="Optional"
             />
           </Field>
         ) : null}
@@ -572,7 +546,6 @@ export function DetailsStep({
             className={cn(fieldInputClassName, "h-28 resize-none py-3 leading-6")}
             value={state.message}
             onChange={(e) => update("message", e.target.value)}
-            placeholder={messagePlaceholderFor(state)}
           />
         </Field>
       </div>
@@ -591,7 +564,6 @@ export function DetailsStep({
               className={fieldInputClassName}
               value={state.relevantUrl}
               onChange={(e) => update("relevantUrl", e.target.value)}
-              placeholder="https://"
             />
           </Field>
           <p className="mt-1.5 text-xs leading-5 text-landing-muted">

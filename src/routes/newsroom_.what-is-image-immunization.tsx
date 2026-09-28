@@ -7,13 +7,13 @@ const CANONICAL = "https://protectbyeterna.com/newsroom/what-is-image-immunizati
 export const Route = createFileRoute("/newsroom_/what-is-image-immunization")({
   head: () => ({
     meta: [
-      { title: "What Is Image Immunization? — Eterna Sentinel" },
+      { title: "What Is Image Immunization?, Eterna Sentinel" },
       {
         name: "description",
         content:
           "A plain-language introduction to what Image Immunization is and how it's designed to work.",
       },
-      { property: "og:title", content: "What Is Image Immunization? — Eterna Sentinel" },
+      { property: "og:title", content: "What Is Image Immunization?, Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -131,7 +131,7 @@ function EducationalPage() {
                   to="/newsroom/inside-eterna-image-immunization"
                   className="landing-link text-landing-ink"
                 >
-                  Inside Eterna Image Immunization — the technical view
+                  Inside Eterna Image Immunization, the technical view
                 </Link>
               </li>
               <li>
@@ -139,7 +139,7 @@ function EducationalPage() {
                   to="/newsroom/eterna-introduces-image-immunization"
                   className="landing-link text-landing-ink"
                 >
-                  Eterna Introduces Image Immunization — the announcement
+                  Eterna Introduces Image Immunization, the announcement
                 </Link>
               </li>
               <li>

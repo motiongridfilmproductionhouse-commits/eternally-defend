@@ -153,13 +153,15 @@ export function ContactForm() {
               </span>
             </div>
             <div className="px-5 py-6">
-              <p className="text-[10px] font-semibold uppercase text-landing-muted">Reference</p>
-              <p className="mt-3 font-mono text-sm text-landing-ink">{enquiryId}</p>
+              <p className="text-[10px] font-semibold uppercase text-landing-muted">Next step</p>
+              <p className="mt-3 text-sm leading-6 text-landing-ink">
+                The appropriate Eterna team will review your enquiry.
+              </p>
             </div>
             <div className="grid grid-cols-[4px_1fr] border-t border-landing-line">
               <div className="bg-landing-accent" aria-hidden="true" />
               <p className="px-5 py-5 text-xs leading-5 text-landing-muted">
-                Keep this reference for your records. The team will use it to identify your enquiry.
+                No submitted personal details are displayed on this page.
               </p>
             </div>
           </div>
@@ -231,7 +233,6 @@ export function ContactForm() {
               value={values.fullName}
               onChange={(event) => update("fullName", event.target.value)}
               autoComplete="name"
-              placeholder="Your name"
               maxLength={120}
               className={fieldClassName}
               aria-invalid={Boolean(errors.fullName)}
@@ -244,7 +245,6 @@ export function ContactForm() {
               value={values.email}
               onChange={(event) => update("email", event.target.value)}
               autoComplete="email"
-              placeholder="name@company.com"
               maxLength={254}
               className={fieldClassName}
               aria-invalid={Boolean(errors.email)}
@@ -257,7 +257,6 @@ export function ContactForm() {
               value={values.phone}
               onChange={(event) => update("phone", event.target.value)}
               autoComplete="tel"
-              placeholder="Include country code"
               maxLength={24}
               className={fieldClassName}
               aria-invalid={Boolean(errors.phone)}
@@ -270,7 +269,6 @@ export function ContactForm() {
                 value={values.organization}
                 onChange={(event) => update("organization", event.target.value)}
                 autoComplete="organization"
-                placeholder="Company, agency or organization (optional)"
                 maxLength={160}
                 className={fieldClassName}
               />
@@ -282,7 +280,6 @@ export function ContactForm() {
               <Textarea
                 value={values.message}
                 onChange={(event) => update("message", event.target.value)}
-                placeholder="Briefly describe what you need help with."
                 maxLength={4000}
                 className="min-h-32 resize-y rounded-none border-0 border-b border-landing-line bg-transparent px-0 py-3 text-landing-ink shadow-none transition-[border-color,background-color] placeholder:text-landing-muted/65 focus-visible:border-landing-accent focus-visible:bg-landing-soft/45 focus-visible:ring-0"
                 aria-invalid={Boolean(errors.message)}
