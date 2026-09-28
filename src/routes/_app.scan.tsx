@@ -365,7 +365,7 @@ function ScanPage() {
     const counts = splitForPresentation(report.hits);
     if (counts.reputationRisk.length > 0) setResultsTab("risk");
     else if (counts.needsReview.length > 0) setResultsTab("review");
-    else setResultsTab("mentions");
+    else setResultsTab("risk");
   }, [report]);
 
   const persistFn = useServerFn(persistScan);
@@ -1084,7 +1084,6 @@ function ScanPage() {
                     [
                       ["risk", "Reputation Risk"],
                       ["review", "Needs Review"],
-                      ["mentions", "All Mentions"],
                     ] as const
                   ).map(([key, label]) => {
                     const counts = splitForPresentation(report.hits);
