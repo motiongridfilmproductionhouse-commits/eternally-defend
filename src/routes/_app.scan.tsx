@@ -968,7 +968,7 @@ function ScanPage() {
                 className="mt-2 text-6xl font-display font-black"
                 style={{ color: scoreColor(report.reputationScore) }}
               >
-                {report.reputationScore}
+                {report.reputationLevel === "Insufficient Data" ? "—" : report.reputationScore}
               </div>
               <div
                 className="text-sm font-semibold"
@@ -976,6 +976,11 @@ function ScanPage() {
               >
                 {report.reputationLevel}
               </div>
+              {report.reputationLevel === "Insufficient Data" && (
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  Not enough results from enough sources to calculate a reliable score.
+                </div>
+              )}
               <div className="text-[11px] text-muted-foreground mt-1">
                 Period: {report.period} · {report.totals.unique} results
               </div>
