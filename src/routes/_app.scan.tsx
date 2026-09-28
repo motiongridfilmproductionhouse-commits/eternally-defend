@@ -2994,7 +2994,19 @@ function PersistedResults({
       return true;
     };
 
+    // Defamatory / harmful content only: drop neutral, official and irrelevant mentions.
+    const isHarmful = (h: PersistedHit) => {
+      if (h.risk_evidence_found) return true;
+      if (riskPriority(h) <= 1) return true;
+      const hay =
+        `${h.risk_type ?? ""} ${h.narrative_claim ?? ""} ${(h.tags ?? []).join(" ")}`.toLowerCase();
+      if (/\bneutral\b|official|irrelevant/.test(hay) && !/defam|allegation|abuse|scandal|fake|fraud|harass|slander|libel|troll|negative/.test(hay))
+        return false;
+      return /defam|allegation|abuse|scandal|fake|fraud|harass|slander|libel|troll|negative|morph|deepfake|impersonat/.test(hay);
+    };
+
     return filterHitsBySourceType(items, source)
+      .filter((h) => hiddenFilter === "hidden" || isHarmful(h))
       .filter((h) => {
         if (windowMs && h.published_at) {
           if (now - new Date(h.published_at).getTime() > windowMs) return false;
