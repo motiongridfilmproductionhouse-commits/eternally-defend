@@ -319,6 +319,33 @@ test("splitForPresentation routes evidence-gated hits to the correct tab", () =>
   assert.equal(buckets.allMentions.length, 3);
 });
 
+test("reasoning-flagged harmful leads stay visible in Needs Review without becoming verified risk", () => {
+  const lead = baseHit({
+    id: "reasoning-review-1",
+    classificationTier: "TIER_1_NEUTRAL",
+    riskEvidence: {
+      subjectMatched: true,
+      riskEvidenceFound: false,
+      riskCategory: null,
+      evidenceText: null,
+      evidenceSource: "none",
+      confidence: 0,
+      reason: "Deterministic evidence threshold was not met.",
+    },
+    aiAnalysis: {
+      reputation_risk: "HIGH",
+      recommended_action: "HUMAN_REVIEW_REQUIRED",
+      evidence_basis: "MODEL_SUGGESTED",
+      reasoning_summary: "Potential harmful claim requires human verification.",
+    },
+  });
+
+  const buckets = splitForPresentation([lead]);
+  assert.equal(buckets.reputationRisk.length, 0);
+  assert.equal(buckets.needsReview.length, 1);
+  assert.equal(buckets.needsReview[0]?.id, lead.id);
+});
+
 /* ------------------------------------------------------------------ *
  * 8. "Evidence analysis pending" must only ever describe a genuinely
  * unrecorded classification, never a completed neutral verdict.

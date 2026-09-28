@@ -111,6 +111,17 @@ export function presentationTabFor(hit: ScanHit): PresentationTab {
       case "TIER_2_NEEDS_REVIEW":
         return "NEEDS_REVIEW";
       default:
+        // The evidence-bound reasoning pass may identify a harmful lead that
+        // the deterministic classifier could not verify. Keep it visible for
+        // human review, but never promote it to confirmed reputation risk.
+        if (
+          hit.aiAnalysis?.reputation_risk === "MEDIUM" ||
+          hit.aiAnalysis?.reputation_risk === "HIGH" ||
+          hit.aiAnalysis?.recommended_action?.startsWith("HUMAN_REVIEW") ||
+          hit.aiAnalysis?.recommended_action === "POTENTIAL_LEGAL_REVIEW"
+        ) {
+          return "NEEDS_REVIEW";
+        }
         return "ALL_MENTIONS";
     }
   }

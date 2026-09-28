@@ -233,6 +233,13 @@ export interface ScanHit {
     overallPriority: number;
     version: string;
   };
+  /** Evidence-bound reasoning annotation. It can request review, never self-verify a finding. */
+  aiAnalysis?: {
+    reputation_risk?: "LOW" | "MEDIUM" | "HIGH";
+    recommended_action?: string;
+    evidence_basis?: string;
+    reasoning_summary?: string;
+  };
 }
 
 export type SourceKey =
@@ -4627,7 +4634,7 @@ export const Route = createFileRoute("/api/scan")({
               for (const hit of report.hits) {
                 const verdict = hit.url ? reasoning.verdicts.get(hit.url) : undefined;
                 if (!verdict) continue;
-                (hit as unknown as Record<string, unknown>).aiAnalysis = verdict;
+                hit.aiAnalysis = verdict;
                 if (verdict.reputation_risk === "HIGH") aiDiag.high_risk++;
                 else if (verdict.reputation_risk === "MEDIUM") aiDiag.medium_risk++;
                 if (
