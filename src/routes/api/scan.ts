@@ -235,7 +235,7 @@ export interface ScanHit {
   };
   /** Evidence-bound reasoning annotation. It can request review, never self-verify a finding. */
   aiAnalysis?: {
-    reputation_risk?: "LOW" | "MEDIUM" | "HIGH";
+    reputation_risk?: "NONE" | "LOW" | "MEDIUM" | "HIGH";
     recommended_action?: string;
     evidence_basis?: string;
     reasoning_summary?: string;

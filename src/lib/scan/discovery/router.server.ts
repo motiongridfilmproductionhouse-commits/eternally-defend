@@ -117,7 +117,9 @@ export class DiscoveryRouter {
 
     for (const adapter of registry) {
       // Owner policy: Firecrawl primary; Brave approved as second engine.
-      if (!searchProviderAllowed(adapter.id)) continue;
+      // A supplied registry is test-only and must remain independently
+      // exercisable; production registrations always honor owner policy.
+      if (!options.adapters && !searchProviderAllowed(adapter.id)) continue;
       if (options.only && !options.only.includes(adapter.id)) continue;
       const forcedOff = disabled.has(adapter.id) || envDisabled.has(adapter.id);
       const configured = !forcedOff && adapter.isConfigured();
