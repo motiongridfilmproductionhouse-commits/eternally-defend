@@ -233,6 +233,13 @@ export interface ScanHit {
     overallPriority: number;
     version: string;
   };
+  /** Evidence-bound reasoning annotation. It can request review, never self-verify a finding. */
+  aiAnalysis?: {
+    reputation_risk?: "NONE" | "LOW" | "MEDIUM" | "HIGH";
+    recommended_action?: string;
+    evidence_basis?: string;
+    reasoning_summary?: string;
+  };
 }
 
 export type SourceKey =
@@ -1549,6 +1556,12 @@ async function runFirecrawl(
   }
 
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, plan.length) }, worker));
+
+  const { currentDiscoveryRouter } = await import("@/lib/scan/discovery/router.server");
+  const discoveryReport = currentDiscoveryRouter().report();
+  if (discoveryReport.all_providers_down && runsMap.size === 0) {
+    errors.push("Public source coverage is temporarily unavailable");
+  }
 
   console.log(
     `[scan:queries] planned=${queriesPlanned} executed=${queriesExecuted} failed=${queriesFailed}`,
@@ -4159,10 +4172,9 @@ export const Route = createFileRoute("/api/scan")({
             else mergedRuns.push({ source: "Instagram", raw: hikerRaw });
           }
 
-          const overallErr =
-            !mergedRuns.some((r) => r.raw.length > 0) && !ytQuotaExhaustedFinal && !fcError
-              ? "No results returned"
-              : undefined;
+          const overallErr = !mergedRuns.some((r) => r.raw.length > 0)
+            ? fcError || "No results returned"
+            : undefined;
 
           /* ── EXTRACTION STAGE ────────────────────────────────────────────
            * Crawl4AI (with plain-fetch fallback) fetches the full page for
@@ -4622,7 +4634,7 @@ export const Route = createFileRoute("/api/scan")({
               for (const hit of report.hits) {
                 const verdict = hit.url ? reasoning.verdicts.get(hit.url) : undefined;
                 if (!verdict) continue;
-                (hit as unknown as Record<string, unknown>).aiAnalysis = verdict;
+                hit.aiAnalysis = verdict;
                 if (verdict.reputation_risk === "HIGH") aiDiag.high_risk++;
                 else if (verdict.reputation_risk === "MEDIUM") aiDiag.medium_risk++;
                 if (

@@ -33,6 +33,13 @@ import { PersistedResultCard, type HitLike } from "@/components/scan/PersistedRe
 import { FunnelDebugPanel } from "@/components/scan/FunnelDebugPanel";
 import { OpenAiIntelPanel } from "@/components/scan/OpenAiIntelPanel";
 import { DiscoveryHealthPanel } from "@/components/scan/DiscoveryHealthPanel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import { DetailDrawer } from "@/components/scan/DetailDrawer";
 import { ActionDrawer, type ActionTarget } from "@/components/scan/ActionDrawer";
@@ -286,8 +293,18 @@ function ScanPage() {
     duplicatesRemoved: number;
     uniqueHits: number;
   } | null>(null);
+  const [scanOverlayOpen, setScanOverlayOpen] = useState(false);
 
-  const m = useMutation({ mutationFn: runScan });
+  const m = useMutation({
+    mutationFn: runScan,
+    onMutate: () => setScanOverlayOpen(true),
+    onSuccess: () => {
+      setScanOverlayOpen(false);
+      window.setTimeout(() => {
+        document.getElementById("scan-results")?.scrollIntoView({ behavior: "smooth" });
+      }, 80);
+    },
+  });
   const autoScanStarted = useRef(false);
 
   // Enrolled, protection-active customers already have recurring scans
@@ -852,19 +869,39 @@ function ScanPage() {
         </div>
       </div>
 
+      <ScanProgressDialog
+        open={scanOverlayOpen}
+        subject={q.trim()}
+        error={m.isError ? (m.error as Error).message : null}
+        onRetry={() => {
+          if (m.variables) m.mutate(m.variables);
+        }}
+        onDismiss={() => {
+          m.reset();
+          setScanOverlayOpen(false);
+        }}
+      />
+
       {report && report.hits.length === 0 && (
-        <PageCard
-          title="NO RESULTS"
-          sub="No public results were returned for this query. Try broader terms, add aliases, or expand sources."
-        >
-          <div className="text-sm text-muted-foreground">
-            Sources requested: {report.sourcesRequested.join(", ")}
-          </div>
-        </PageCard>
+        <div id="scan-results">
+          <PageCard
+            title={report.error ? "SCAN COVERAGE LIMITED" : "NO RELEVANT FINDINGS"}
+            sub={
+              report.error
+                ? "The scan could not complete enough source checks to produce reliable results."
+                : "No harmful or defamatory findings were returned from the sources successfully checked."
+            }
+          >
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>Sources requested: {report.sourcesRequested.join(", ")}</p>
+              <p>No low-risk conclusion is made when source coverage is incomplete.</p>
+            </div>
+          </PageCard>
+        </div>
       )}
 
       {report && report.hits.length > 0 && (
-        <>
+        <div id="scan-results" className="space-y-6 animate-fade-in">
           {/* Executive summary + score */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6">
@@ -1348,7 +1385,7 @@ function ScanPage() {
               <li>Report generated {new Date(report.generatedAt).toLocaleString()}.</li>
             </ul>
           </PageCard>
-        </>
+        </div>
       )}
 
       {!report && !m.isPending && (
@@ -1368,6 +1405,122 @@ function ScanPage() {
         </PageCard>
       )}
     </div>
+  );
+}
+
+const SCAN_STAGES = [
+  { label: "Opening source coverage", detail: "Preparing the selected public sources" },
+  { label: "Discovering relevant pages", detail: "Finding material connected to this identity" },
+  { label: "Checking identity relevance", detail: "Separating the intended subject from unrelated people" },
+  { label: "Reviewing harmful signals", detail: "Assessing allegations, abuse, impersonation and manipulated media" },
+  { label: "Preserving source evidence", detail: "Organizing traceable links and supporting context" },
+  { label: "Preparing your findings", detail: "Finalizing the completed scan results" },
+] as const;
+
+function ScanProgressDialog({
+  open,
+  subject,
+  error,
+  onRetry,
+  onDismiss,
+}: {
+  open: boolean;
+  subject: string;
+  error: string | null;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  const [activeStage, setActiveStage] = useState(0);
+
+  useEffect(() => {
+    if (!open || error) return;
+    setActiveStage(0);
+    const timer = window.setInterval(() => {
+      setActiveStage((current) => Math.min(current + 1, SCAN_STAGES.length - 1));
+    }, 7_000);
+    return () => window.clearInterval(timer);
+  }, [open, error]);
+
+  return (
+    <Dialog open={open}>
+      <DialogContent
+        className="scan-progress-dialog max-w-[min(92vw,620px)] overflow-hidden border-primary/20 p-0 shadow-2xl [&>button]:hidden"
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+      >
+        <div className="scan-progress-grid relative px-6 py-7 sm:px-8 sm:py-8">
+          <div className="relative z-10">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                  Eterna intelligence scan
+                </div>
+                <DialogTitle className="mt-2 text-xl font-display sm:text-2xl">
+                  {error ? "Scan interrupted" : `Scanning ${subject || "your identity"}`}
+                </DialogTitle>
+                <DialogDescription className="mt-2 max-w-md leading-relaxed">
+                  {error
+                    ? "Source coverage was interrupted before a complete result was available."
+                    : "This window will close automatically when your completed findings are ready."}
+                </DialogDescription>
+              </div>
+              <div className={`scan-progress-radar ${error ? "scan-progress-radar--error" : ""}`}>
+                {error ? <AlertTriangle className="size-5" /> : <Radar className="size-5" />}
+              </div>
+            </div>
+
+            {!error ? (
+              <>
+                <div className="scan-progress-track mt-7" aria-label="Scan in progress">
+                  <span className="scan-progress-flow" />
+                  <span className="scan-progress-marker" />
+                </div>
+                <div className="mt-6 space-y-2" aria-live="polite">
+                  {SCAN_STAGES.map((stage, index) => {
+                    const active = index === activeStage;
+                    const complete = index < activeStage;
+                    return (
+                      <div
+                        key={stage.label}
+                        className={`scan-progress-step ${active ? "is-active" : ""} ${complete ? "is-complete" : ""}`}
+                      >
+                        <span className="scan-progress-step-icon">
+                          {complete ? (
+                            <CheckCircle className="size-4" />
+                          ) : active ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <span className="size-1.5 rounded-full bg-current" />
+                          )}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold">{stage.label}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {stage.detail}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="mt-7 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+                <p className="text-sm text-foreground">No completed result was shown.</p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <Button type="button" onClick={onRetry}>
+                    <ScanSearch /> Retry scan
+                  </Button>
+                  <Button type="button" variant="outline" onClick={onDismiss}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

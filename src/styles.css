@@ -518,6 +518,116 @@
   }
 }
 
+/* Web Scan progress dialog: real request duration, indeterminate by design. */
+@keyframes scanProgressFlow {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(330%); }
+}
+
+@keyframes scanProgressRadar {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 28%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in oklab, var(--primary) 0%, transparent); }
+}
+
+.scan-progress-grid {
+  background-color: var(--card);
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 6%, transparent) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+.scan-progress-radar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--primary) 24%, transparent);
+  border-radius: 999px;
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 8%, var(--card));
+  animation: scanProgressRadar 2.2s ease-out infinite;
+}
+
+.scan-progress-radar--error {
+  color: var(--destructive);
+  border-color: color-mix(in oklab, var(--destructive) 24%, transparent);
+  background: color-mix(in oklab, var(--destructive) 8%, var(--card));
+  animation: none;
+}
+
+.scan-progress-track {
+  position: relative;
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--primary) 14%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 7%, var(--card));
+}
+
+.scan-progress-flow {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 32%;
+  border-radius: inherit;
+  background: var(--gradient-brand);
+  animation: scanProgressFlow 2.4s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+
+.scan-progress-marker {
+  position: absolute;
+  inset-block: -3px;
+  left: 62%;
+  width: 2px;
+  background: var(--primary);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--primary) 60%, transparent);
+}
+
+.scan-progress-step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  min-height: 54px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: color-mix(in oklab, var(--muted-foreground) 58%, transparent);
+  transition: border-color 240ms ease, background-color 240ms ease, color 240ms ease, transform 240ms ease;
+}
+
+.scan-progress-step-icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--muted);
+}
+
+.scan-progress-step.is-active {
+  transform: translateX(4px);
+  border-color: color-mix(in oklab, var(--primary) 28%, transparent);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--primary) 7%, var(--card));
+  box-shadow: var(--shadow-card);
+}
+
+.scan-progress-step.is-active .scan-progress-step-icon,
+.scan-progress-step.is-complete .scan-progress-step-icon {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 12%, var(--card));
+}
+
+.scan-progress-step.is-complete { color: var(--muted-foreground); }
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-progress-flow,
+  .scan-progress-radar { animation: none !important; }
+  .scan-progress-step { transition: none; }
+}
+
 /* Platform privacy: keep field labels while suppressing suggestion copy. */
 input::placeholder,
 textarea::placeholder {
