@@ -316,8 +316,10 @@ export const listEvidenceStatus = createServerFn({ method: "POST" })
       const count = evByReq.get(r.id) ?? 0;
       cur.evidenceCount += count;
       // Prefer latest non-Draft status
-      if (!cur.status || cur.status === "Draft") cur.status = r.status;
-      if (!cur.requestId || (cur.status === "Draft" && r.status !== "Draft")) cur.requestId = r.id;
+      if (!cur.status || (cur.status === "Draft" && r.status !== "Draft")) {
+        cur.status = r.status;
+        cur.requestId = r.id;
+      }
     }
     return { byHit };
   });
