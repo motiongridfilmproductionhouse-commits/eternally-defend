@@ -3508,6 +3508,7 @@ function PersistedResults({
                 }}
                 evidenceCount={ev?.evidenceCount ?? 0}
                 status={ev?.status ?? null}
+                requestId={ev?.requestId ?? null}
                 hiddenView={hiddenFilter === "hidden" || !!h.hidden_at}
               />
             );

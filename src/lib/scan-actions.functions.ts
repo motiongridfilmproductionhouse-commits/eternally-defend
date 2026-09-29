@@ -140,6 +140,113 @@ const TakeActionInput = z.object({
   method: z.string().min(1).max(80),
 });
 
+const RemovalVerificationDocumentInput = z.object({
+  enforcementRequestId: z.string().uuid(),
+  documentType: z.enum(["client_identity", "signed_authorization"]),
+  filename: z.string().trim().min(1).max(200),
+  mimeType: z.enum(["application/pdf", "image/png", "image/jpeg"]),
+  fileBase64: z.string().min(16).max(14_000_000),
+});
+
+const RemovalVerificationStatusInput = z.object({
+  enforcementRequestId: z.string().uuid(),
+});
+
+const SUBMITTED_REQUEST_STATUSES = ["Sent", "Approved", "SUBMITTED", "UNDER_REVIEW"] as const;
+
+/** Attach a private verification document to the caller's already-submitted request. */
+export const uploadRemovalVerificationDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => RemovalVerificationDocumentInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: request, error: requestError } = await supabase
+      .from("enforcement_requests")
+      .select("id,status")
+      .eq("id", data.enforcementRequestId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (requestError) throw new Error(requestError.message);
+    if (!request) throw new Error("Removal request not found.");
+    if (!(SUBMITTED_REQUEST_STATUSES as readonly string[]).includes(request.status)) {
+      throw new Error("Verification documents can only be added to a submitted removal request.");
+    }
+
+    const encoded = data.fileBase64.includes(",")
+      ? data.fileBase64.split(",")[1]
+      : data.fileBase64;
+    const bytes = Buffer.from(encoded ?? "", "base64");
+    if (bytes.byteLength === 0 || bytes.byteLength > 10 * 1024 * 1024) {
+      throw new Error("Document must be smaller than 10 MB.");
+    }
+
+    const safeName = data.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const key = `clients/${userId}/removal-verification/${request.id}/${data.documentType}-${crypto.randomUUID()}-${safeName}`;
+    const { storeOnboardingDocument } = await import("@/lib/onboarding/document-storage.server");
+    const storagePath = await storeOnboardingDocument({
+      supabase,
+      userId,
+      key,
+      bytes,
+      contentType: data.mimeType,
+    });
+
+    const { error } = await supabase.from("enforcement_evidence").insert({
+      user_id: userId,
+      enforcement_request_id: request.id,
+      evidence_type: `verification_${data.documentType}`,
+      storage_path: storagePath,
+      payload: {
+        filename: safeName,
+        mime_type: data.mimeType,
+        review_status: "DOCUMENTS_REQUIRED",
+      },
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true, documentType: data.documentType, filename: safeName };
+  });
+
+/** Return only document-presence metadata for the caller's own request. */
+export const getRemovalVerificationDocuments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => RemovalVerificationStatusInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: request, error: requestError } = await context.supabase
+      .from("enforcement_requests")
+      .select("id")
+      .eq("id", data.enforcementRequestId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (requestError) throw new Error(requestError.message);
+    if (!request) throw new Error("Removal request not found.");
+
+    const { data: documents, error } = await context.supabase
+      .from("enforcement_evidence")
+      .select("evidence_type,payload,created_at")
+      .eq("user_id", context.userId)
+      .eq("enforcement_request_id", request.id)
+      .in("evidence_type", [
+        "verification_client_identity",
+        "verification_signed_authorization",
+      ])
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const latest: Record<string, { filename: string; uploadedAt: string }> = {};
+    for (const document of documents ?? []) {
+      if (latest[document.evidence_type]) continue;
+      const payload = (document.payload ?? {}) as Record<string, unknown>;
+      latest[document.evidence_type] = {
+        filename: typeof payload.filename === "string" ? payload.filename : "Document uploaded",
+        uploadedAt: document.created_at,
+      };
+    }
+    return {
+      clientIdentity: latest.verification_client_identity ?? null,
+      signedAuthorization: latest.verification_signed_authorization ?? null,
+    };
+  });
+
 /** Create an enforcement_request in Draft status. Never auto-submits. */
 export const createEnforcementRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -185,9 +292,10 @@ export const listEvidenceStatus = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: reqs, error } = await supabase
       .from("enforcement_requests")
-      .select("id,scan_hit_id,status")
+      .select("id,scan_hit_id,status,created_at")
       .eq("user_id", userId)
-      .in("scan_hit_id", data.scanHitIds);
+      .in("scan_hit_id", data.scanHitIds)
+      .order("created_at", { ascending: false });
     if (error) throw error;
     const requestIds = (reqs ?? []).map((r) => r.id);
     let evByReq = new Map<string, number>();
@@ -214,7 +322,7 @@ export const listEvidenceStatus = createServerFn({ method: "POST" })
       cur.evidenceCount += count;
       // Prefer latest non-Draft status
       if (!cur.status || cur.status === "Draft") cur.status = r.status;
-      if (!cur.requestId) cur.requestId = r.id;
+      if (!cur.requestId || (cur.status === "Draft" && r.status !== "Draft")) cur.requestId = r.id;
     }
     return { byHit };
   });
