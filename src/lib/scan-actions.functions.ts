@@ -172,9 +172,7 @@ export const uploadRemovalVerificationDocument = createServerFn({ method: "POST"
       throw new Error("Verification documents can only be added to a submitted removal request.");
     }
 
-    const encoded = data.fileBase64.includes(",")
-      ? data.fileBase64.split(",")[1]
-      : data.fileBase64;
+    const encoded = data.fileBase64.includes(",") ? data.fileBase64.split(",")[1] : data.fileBase64;
     const bytes = Buffer.from(encoded ?? "", "base64");
     if (bytes.byteLength === 0 || bytes.byteLength > 10 * 1024 * 1024) {
       throw new Error("Document must be smaller than 10 MB.");
@@ -225,10 +223,7 @@ export const getRemovalVerificationDocuments = createServerFn({ method: "GET" })
       .select("evidence_type,payload,created_at")
       .eq("user_id", context.userId)
       .eq("enforcement_request_id", request.id)
-      .in("evidence_type", [
-        "verification_client_identity",
-        "verification_signed_authorization",
-      ])
+      .in("evidence_type", ["verification_client_identity", "verification_signed_authorization"])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
 
@@ -298,7 +293,7 @@ export const listEvidenceStatus = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false });
     if (error) throw error;
     const requestIds = (reqs ?? []).map((r) => r.id);
-    let evByReq = new Map<string, number>();
+    const evByReq = new Map<string, number>();
     if (requestIds.length) {
       const { data: evs } = await supabase
         .from("enforcement_evidence")

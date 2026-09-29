@@ -127,7 +127,9 @@ export function ActionDrawer({
   const identityInput = useRef<HTMLInputElement | null>(null);
   const authorizationInput = useRef<HTMLInputElement | null>(null);
 
-  const submitted = Boolean(target?.requestId && SUBMITTED_STATUSES.has(target.status?.toLowerCase() ?? ""));
+  const submitted = Boolean(
+    target?.requestId && SUBMITTED_STATUSES.has(target.status?.toLowerCase() ?? ""),
+  );
   const documentsQuery = useQuery({
     queryKey: ["removal-verification-documents", target?.requestId],
     enabled: open && submitted && Boolean(target?.requestId),
@@ -258,7 +260,9 @@ export function ActionDrawer({
               type="file"
               accept="application/pdf,image/png,image/jpeg"
               className="sr-only"
-              onChange={(event) => handleDocument("client_identity", event.target.files?.[0] ?? null)}
+              onChange={(event) =>
+                handleDocument("client_identity", event.target.files?.[0] ?? null)
+              }
             />
             <input
               ref={authorizationInput}
@@ -271,13 +275,20 @@ export function ActionDrawer({
             />
 
             <div className="grid gap-2 rounded-lg border border-border bg-muted/30 p-4 text-xs sm:grid-cols-2">
-              <div><span className="text-muted-foreground">Status:</span> <strong>Removal Request Submitted</strong></div>
-              <div><span className="text-muted-foreground">Verification:</span> <strong>Documents Required</strong></div>
+              <div>
+                <span className="text-muted-foreground">Status:</span>{" "}
+                <strong>Removal Request Submitted</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Verification:</span>{" "}
+                <strong>Documents Required</strong>
+              </div>
             </div>
 
             <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
               <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-primary" />
-              Your documents will be handled securely and used only for verification and case processing purposes.
+              Your documents will be handled securely and used only for verification and case
+              processing purposes.
             </p>
           </div>
         </DialogContent>
@@ -412,11 +423,26 @@ function VerificationUpload({
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold">{title}</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-          <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onClick} disabled={busy}>
-            {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : uploadedName ? <CheckCircle2 className="mr-2 size-4 text-emerald-600" /> : <Upload className="mr-2 size-4" />}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={onClick}
+            disabled={busy}
+          >
+            {busy ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : uploadedName ? (
+              <CheckCircle2 className="mr-2 size-4 text-emerald-600" />
+            ) : (
+              <Upload className="mr-2 size-4" />
+            )}
             {uploadedName ? "Replace document" : buttonLabel}
           </Button>
-          {uploadedName ? <p className="mt-2 truncate text-xs text-emerald-700">Uploaded: {uploadedName}</p> : null}
+          {uploadedName ? (
+            <p className="mt-2 truncate text-xs text-emerald-700">Uploaded: {uploadedName}</p>
+          ) : null}
         </div>
         <div className="text-primary">{icon}</div>
       </div>
