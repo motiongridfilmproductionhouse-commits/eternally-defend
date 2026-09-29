@@ -109,7 +109,7 @@ const adminSystemNav: NavItem[] = [
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { isAdmin } = useUserRoles();
+  const { isAdmin, isStaff } = useUserRoles();
   const { session } = useSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -193,6 +193,24 @@ export function Sidebar() {
         </div>
 
         <NavGroup items={navItems} pathname={pathname} collapsed={collapsed} />
+
+        {!isAdmin && isStaff && (
+          <div className="mt-1">
+            {!collapsed && <SectionLabel>STAFF</SectionLabel>}
+            <NavGroup
+              items={[
+                {
+                  icon: KeyRound,
+                  label: "Invitation Codes",
+                  to: "/admin/invites",
+                  badge: "STAFF",
+                },
+              ]}
+              pathname={pathname}
+              collapsed={collapsed}
+            />
+          </div>
+        )}
 
         {isAdmin && workspaceMode === "enterprise" && (
           <>
