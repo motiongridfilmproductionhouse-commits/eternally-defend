@@ -90,11 +90,12 @@ export const signUpWithInvite = createServerFn({ method: "POST" })
 /* ---------------------------------- admin ---------------------------------- */
 
 async function assertAdmin(supabase: any, userId: string) {
-  const [{ data: isAdmin }, { data: isSuper }] = await Promise.all([
+  const [{ data: isAdmin }, { data: isSuper }, { data: isStaff }] = await Promise.all([
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
     supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "staff" }),
   ]);
-  if (!isAdmin && !isSuper) throw new Error("Forbidden");
+  if (!isAdmin && !isSuper && !isStaff) throw new Error("Forbidden");
 }
 
 export const listInvites = createServerFn({ method: "GET" })
