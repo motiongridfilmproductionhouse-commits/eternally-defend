@@ -77,6 +77,7 @@ export function PersistedResultCard({
   onChanged,
   evidenceCount,
   status,
+  requestId,
   hiddenView,
 }: {
   hit: HitLike;
@@ -87,6 +88,7 @@ export function PersistedResultCard({
   onChanged: () => void;
   evidenceCount: number;
   status: string | null;
+  requestId?: string | null;
   hiddenView: boolean;
 }) {
   const addEvidence = useServerFn(addEvidenceForHit);
@@ -111,9 +113,10 @@ export function PersistedResultCard({
       threatScore: hit.threat_score,
       evidenceCount,
       status,
+      requestId,
       author: hit.author,
     }),
-    [hit, url, displayTitle, evidenceCount, status],
+    [hit, url, displayTitle, evidenceCount, status, requestId],
   );
 
   const handleAddEvidence = async () => {

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sheet,
   SheetContent,
@@ -7,10 +8,33 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useServerFn } from "@tanstack/react-start";
-import { createEnforcementRequest } from "@/lib/scan-actions.functions";
+import {
+  createEnforcementRequest,
+  getRemovalVerificationDocuments,
+  uploadRemovalVerificationDocument,
+} from "@/lib/scan-actions.functions";
 import { useAuthorization } from "@/hooks/use-authorization";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronRight, ExternalLink, Loader2, ShieldAlert } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  ExternalLink,
+  FileCheck2,
+  IdCard,
+  Loader2,
+  LockKeyhole,
+  ShieldAlert,
+  Upload,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export type ActionTarget = {
   id: string;
@@ -21,8 +45,13 @@ export type ActionTarget = {
   threatScore: number | null;
   evidenceCount: number;
   status: string | null;
+  requestId?: string | null;
   author?: string | null;
 };
+
+type VerificationDocumentType = "client_identity" | "signed_authorization";
+
+const SUBMITTED_STATUSES = new Set(["sent", "approved", "submitted", "under_review"]);
 
 const ACTIONS_BY_PLATFORM: Record<string, string[]> = {
   YouTube: [
@@ -90,8 +119,32 @@ export function ActionDrawer({
 }) {
   const authz = useAuthorization();
   const create = useServerFn(createEnforcementRequest);
+  const uploadDocument = useServerFn(uploadRemovalVerificationDocument);
+  const getDocuments = useServerFn(getRemovalVerificationDocuments);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState<VerificationDocumentType | null>(null);
+  const identityInput = useRef<HTMLInputElement | null>(null);
+  const authorizationInput = useRef<HTMLInputElement | null>(null);
+
+  const submitted = Boolean(
+    target?.requestId && SUBMITTED_STATUSES.has(target.status?.toLowerCase() ?? ""),
+  );
+  const documentsQuery = useQuery({
+    queryKey: ["removal-verification-documents", target?.requestId],
+    enabled: open && submitted && Boolean(target?.requestId),
+    queryFn: () => {
+      if (!target?.requestId) throw new Error("Removal request not found.");
+      return getDocuments({ data: { enforcementRequestId: target.requestId } });
+    },
+  });
+
+  useEffect(() => {
+    if (!open) {
+      setSelected(null);
+      setUploading(null);
+    }
+  }, [open]);
 
   const actions = useMemo(
     () => (target ? actionsFor(target.platform || target.source) : []),
@@ -114,7 +167,134 @@ export function ActionDrawer({
     }
   };
 
+  const handleDocument = async (documentType: VerificationDocumentType, file: File | null) => {
+    if (!file || !target?.requestId) return;
+    const accepted = ["application/pdf", "image/png", "image/jpeg"];
+    if (!accepted.includes(file.type)) {
+      toast.error("Upload a PDF, PNG, or JPEG document.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Document must be smaller than 10 MB.");
+      return;
+    }
+    setUploading(documentType);
+    try {
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(new Error("Unable to read document."));
+        reader.readAsDataURL(file);
+      });
+      await uploadDocument({
+        data: {
+          enforcementRequestId: target.requestId,
+          documentType,
+          filename: file.name,
+          mimeType: file.type as "application/pdf" | "image/png" | "image/jpeg",
+          fileBase64,
+        },
+      });
+      await documentsQuery.refetch();
+      toast.success("Document uploaded securely for review.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to upload document.");
+    } finally {
+      setUploading(null);
+      if (identityInput.current) identityInput.current.value = "";
+      if (authorizationInput.current) authorizationInput.current.value = "";
+    }
+  };
+
   const canRequest = authz.canRequestEnforcement || authz.canTakedown;
+
+  if (submitted && target) {
+    const identityDocument = documentsQuery.data?.clientIdentity ?? null;
+    const authorizationDocument = documentsQuery.data?.signedAuthorization ?? null;
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-xl overflow-hidden border-primary/20 p-0">
+          <div className="border-b border-border bg-primary/5 px-6 py-5">
+            <div className="mb-4 grid size-11 place-items-center rounded-lg border border-primary/20 bg-background text-primary">
+              <FileCheck2 className="size-5" />
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl">Removal Request Already Submitted</DialogTitle>
+              <DialogDescription className="pt-2 leading-relaxed">
+                Your removal request has already been submitted through the Eterna Central System.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="space-y-5 px-6 pb-6">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              To complete the client verification process and support the platform submission,
+              please upload the following documents:
+            </p>
+
+            <div className="space-y-3">
+              <VerificationUpload
+                number="1"
+                title="Client ID Document"
+                description="Upload a valid government-issued identity document for verification."
+                icon={<IdCard className="size-4" />}
+                uploadedName={identityDocument?.filename ?? null}
+                busy={uploading === "client_identity"}
+                onClick={() => identityInput.current?.click()}
+                buttonLabel="Upload ID Document"
+              />
+              <VerificationUpload
+                number="2"
+                title="Signed Client Authorization Agreement"
+                description="Upload the signed authorization agreement confirming that Eterna Sentinel Defence LLC is authorized to act on behalf of the client."
+                icon={<FileCheck2 className="size-4" />}
+                uploadedName={authorizationDocument?.filename ?? null}
+                busy={uploading === "signed_authorization"}
+                onClick={() => authorizationInput.current?.click()}
+                buttonLabel="Upload Authorization Agreement"
+              />
+            </div>
+
+            <input
+              ref={identityInput}
+              type="file"
+              accept="application/pdf,image/png,image/jpeg"
+              className="sr-only"
+              onChange={(event) =>
+                handleDocument("client_identity", event.target.files?.[0] ?? null)
+              }
+            />
+            <input
+              ref={authorizationInput}
+              type="file"
+              accept="application/pdf,image/png,image/jpeg"
+              className="sr-only"
+              onChange={(event) =>
+                handleDocument("signed_authorization", event.target.files?.[0] ?? null)
+              }
+            />
+
+            <div className="grid gap-2 rounded-lg border border-border bg-muted/30 p-4 text-xs sm:grid-cols-2">
+              <div>
+                <span className="text-muted-foreground">Status:</span>{" "}
+                <strong>Removal Request Submitted</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Verification:</span>{" "}
+                <strong>Documents Required</strong>
+              </div>
+            </div>
+
+            <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+              <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-primary" />
+              Your documents will be handled securely and used only for verification and case
+              processing purposes.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -212,5 +392,60 @@ export function ActionDrawer({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function VerificationUpload({
+  number,
+  title,
+  description,
+  icon,
+  uploadedName,
+  busy,
+  onClick,
+  buttonLabel,
+}: {
+  number: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  uploadedName: string | null;
+  busy: boolean;
+  onClick: () => void;
+  buttonLabel: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border p-4 transition-colors hover:border-primary/30">
+      <div className="flex items-start gap-3">
+        <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
+          {number}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={onClick}
+            disabled={busy}
+          >
+            {busy ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : uploadedName ? (
+              <CheckCircle2 className="mr-2 size-4 text-emerald-600" />
+            ) : (
+              <Upload className="mr-2 size-4" />
+            )}
+            {uploadedName ? "Replace document" : buttonLabel}
+          </Button>
+          {uploadedName ? (
+            <p className="mt-2 truncate text-xs text-emerald-700">Uploaded: {uploadedName}</p>
+          ) : null}
+        </div>
+        <div className="text-primary">{icon}</div>
+      </div>
+    </div>
   );
 }

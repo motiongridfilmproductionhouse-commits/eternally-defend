@@ -3017,7 +3017,7 @@ function PersistedResults({
   const [detail, setDetail] = useState<PersistedHit | null>(null);
   const [action, setAction] = useState<ActionTarget | null>(null);
   const [evidenceMap, setEvidenceMap] = useState<
-    Record<string, { evidenceCount: number; status: string | null }>
+    Record<string, { evidenceCount: number; status: string | null; requestId: string | null }>
   >({});
   const [reloadTick, setReloadTick] = useState(0);
   const sentinel = useRef<HTMLDivElement | null>(null);
@@ -3112,7 +3112,11 @@ function PersistedResults({
           setEvidenceMap((prev) => {
             const next = { ...prev };
             for (const [id, v] of Object.entries(res.byHit)) {
-              next[id] = { evidenceCount: v.evidenceCount, status: v.status };
+              next[id] = {
+                evidenceCount: v.evidenceCount,
+                status: v.status,
+                requestId: v.requestId,
+              };
             }
             return next;
           });
@@ -3508,6 +3512,7 @@ function PersistedResults({
                 }}
                 evidenceCount={ev?.evidenceCount ?? 0}
                 status={ev?.status ?? null}
+                requestId={ev?.requestId ?? null}
                 hiddenView={hiddenFilter === "hidden" || !!h.hidden_at}
               />
             );
