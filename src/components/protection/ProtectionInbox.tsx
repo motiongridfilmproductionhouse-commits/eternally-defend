@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getProtectionInbox } from "@/lib/protection/inbox.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { startYoutubeRemovalScan } from "@/lib/youtube-removal/removal.functions";
 import type { InboxBucket, InboxItem } from "@/lib/protection/inbox";
 
@@ -55,10 +56,28 @@ export function ProtectionInbox() {
   });
   const [selected, setSelected] = useState<InboxItem | null>(null);
 
+  const [hasSession, setHasSession] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setHasSession(!!data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setHasSession(!!session);
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
   const inboxQuery = useQuery({
     queryKey: ["protection-inbox"],
     queryFn: () => fetchInbox(),
-    refetchInterval: 60_000,
+    enabled: hasSession,
+    refetchInterval: hasSession ? 60_000 : false,
+    retry: (count, err) =>
+      !String((err as Error)?.message ?? "").includes("Unauthorized") && count < 2,
   });
 
   const data = inboxQuery.data;
