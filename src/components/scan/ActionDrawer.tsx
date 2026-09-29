@@ -211,43 +211,83 @@ export function ActionDrawer({
   if (submitted && target) {
     const identityDocument = documentsQuery.data?.clientIdentity ?? null;
     const authorizationDocument = documentsQuery.data?.signedAuthorization ?? null;
+    const steps = ["Request Submitted", "Verification Required", "Platform Review"];
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-xl overflow-hidden border-primary/20 p-0">
-          <div className="border-b border-border bg-primary/5 px-6 py-5">
-            <div className="mb-4 grid size-11 place-items-center rounded-lg border border-primary/20 bg-background text-primary">
-              <FileCheck2 className="size-5" />
+        <DialogContent className="rrs-modal max-h-[92vh] max-w-xl overflow-y-auto rounded-[24px] border-primary/10 bg-background/95 p-0 shadow-[0_30px_80px_-30px_color-mix(in_oklab,var(--primary)_35%,transparent)] backdrop-blur-xl">
+          <div className="relative overflow-hidden px-7 pb-6 pt-8">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-primary/10 to-transparent" />
+            <div className="rrs-stagger relative" style={{ ["--d" as string]: "80ms" }}>
+              <div className="relative mb-5 grid size-14 place-items-center">
+                <span className="rrs-glow absolute inset-0 rounded-full bg-primary/30 blur-xl" />
+                <span className="rrs-pulse relative grid size-14 place-items-center rounded-full bg-gradient-to-br from-primary/15 to-primary/35 text-primary ring-1 ring-primary/20">
+                  <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 3v5h5" />
+                    <path className="rrs-check" d="m9 14 2 2 4-4" />
+                  </svg>
+                </span>
+              </div>
+              <DialogHeader className="text-left">
+                <DialogTitle className="text-[22px] font-semibold tracking-tight">
+                  Removal Request Already Submitted
+                </DialogTitle>
+                <DialogDescription className="pt-2 leading-relaxed">
+                  Your removal request has already been submitted for platform review through
+                  Eterna's Express Removal Process.
+                </DialogDescription>
+              </DialogHeader>
             </div>
-            <DialogHeader>
-              <DialogTitle className="text-xl">Removal Request Already Submitted</DialogTitle>
-              <DialogDescription className="pt-2 leading-relaxed">
-                Your removal request has already been submitted through the Eterna Central System.
-              </DialogDescription>
-            </DialogHeader>
+
+            <div className="rrs-stagger relative mt-6" style={{ ["--d" as string]: "160ms" }}>
+              <div className="relative mx-3 h-[3px] rounded-full bg-muted">
+                <div className="rrs-progress absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary/60 to-primary" />
+              </div>
+              <div className="-mt-[9px] grid grid-cols-3">
+                {steps.map((step, i) => (
+                  <div
+                    key={step}
+                    className={`flex flex-col gap-2 ${i === 0 ? "items-start" : i === 1 ? "items-center" : "items-end"}`}
+                  >
+                    <span
+                      className={`size-[15px] rounded-full border-2 ${
+                        i === 0
+                          ? "border-primary bg-primary"
+                          : i === 1
+                            ? "rrs-current border-primary bg-background"
+                            : "border-muted-foreground/30 bg-background"
+                      }`}
+                    />
+                    <span
+                      className={`text-[11px] ${i === 1 ? "font-semibold text-primary" : "text-muted-foreground"}`}
+                    >
+                      {step}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-5 px-6 pb-6">
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              To complete the client verification process and support the platform submission,
-              please upload the following documents:
-            </p>
-
-            <div className="space-y-3">
+          <div className="space-y-3 px-7 pb-7">
+            <div className="rrs-stagger" style={{ ["--d" as string]: "240ms" }}>
               <VerificationUpload
                 number="1"
-                title="Client ID Document"
-                description="Upload a valid government-issued identity document for verification."
-                icon={<IdCard className="size-4" />}
+                title="Identity Verification"
+                description="Upload a valid government-issued identification document to complete identity verification."
+                icon={<IdCard className="size-5" />}
                 uploadedName={identityDocument?.filename ?? null}
                 busy={uploading === "client_identity"}
                 onClick={() => identityInput.current?.click()}
                 buttonLabel="Upload ID Document"
               />
+            </div>
+            <div className="rrs-stagger" style={{ ["--d" as string]: "320ms" }}>
               <VerificationUpload
                 number="2"
-                title="Signed Client Authorization Agreement"
-                description="Upload the signed authorization agreement confirming that Eterna Sentinel Defence LLC is authorized to act on behalf of the client."
-                icon={<FileCheck2 className="size-4" />}
+                title="Signed Client Authorization"
+                description="Upload the signed agreement confirming that Eterna Sentinel Defence LLC is authorized to act on behalf of the client."
+                icon={<FileCheck2 className="size-5" />}
                 uploadedName={authorizationDocument?.filename ?? null}
                 busy={uploading === "signed_authorization"}
                 onClick={() => authorizationInput.current?.click()}
@@ -274,22 +314,13 @@ export function ActionDrawer({
               }
             />
 
-            <div className="grid gap-2 rounded-lg border border-border bg-muted/30 p-4 text-xs sm:grid-cols-2">
-              <div>
-                <span className="text-muted-foreground">Status:</span>{" "}
-                <strong>Removal Request Submitted</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Verification:</span>{" "}
-                <strong>Documents Required</strong>
-              </div>
-            </div>
-
-            <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+            <div
+              className="rrs-stagger flex items-start gap-2 pt-2 text-xs leading-relaxed text-muted-foreground"
+              style={{ ["--d" as string]: "400ms" }}
+            >
               <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-primary" />
-              Your documents will be handled securely and used only for verification and case
-              processing purposes.
-            </p>
+              Your documents are encrypted and used only for verification and case processing.
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -415,36 +446,44 @@ function VerificationUpload({
   buttonLabel: string;
 }) {
   return (
-    <div className="rounded-lg border border-border p-4 transition-colors hover:border-primary/30">
-      <div className="flex items-start gap-3">
-        <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
-          {number}
+    <div className="group rounded-[18px] border border-border/70 bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_12px_32px_-16px_color-mix(in_oklab,var(--primary)_45%,transparent)]">
+      <div className="flex items-start gap-4">
+        <div className="relative grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary/10 to-primary/25 text-primary">
+          {icon}
+          <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-background text-[10px] font-semibold text-primary ring-1 ring-primary/20">
+            {number}
+          </span>
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold">{title}</h3>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+              <LockKeyhole className="size-3" /> Secure upload
+            </span>
+          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground/80">Accepted formats: JPG, PNG, PDF</p>
           <Button
             type="button"
-            variant="outline"
             size="sm"
-            className="mt-3"
+            variant={uploadedName ? "outline" : "default"}
+            className="mt-3 rounded-full px-4"
             onClick={onClick}
             disabled={busy}
           >
             {busy ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : uploadedName ? (
-              <CheckCircle2 className="mr-2 size-4 text-emerald-600" />
+              <CheckCircle2 className="mr-2 size-4 text-primary" />
             ) : (
-              <Upload className="mr-2 size-4" />
+              <Upload className="mr-2 size-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
             )}
-            {uploadedName ? "Replace document" : buttonLabel}
+            {busy ? "Uploading…" : uploadedName ? "Replace document" : buttonLabel}
           </Button>
           {uploadedName ? (
-            <p className="mt-2 truncate text-xs text-emerald-700">Uploaded: {uploadedName}</p>
+            <p className="mt-2 truncate text-xs text-primary">Uploaded: {uploadedName}</p>
           ) : null}
         </div>
-        <div className="text-primary">{icon}</div>
       </div>
     </div>
   );
