@@ -152,7 +152,30 @@ const RemovalVerificationStatusInput = z.object({
   enforcementRequestId: z.string().uuid(),
 });
 
-const SUBMITTED_REQUEST_STATUSES = ["Sent", "Approved", "SUBMITTED", "UNDER_REVIEW"] as const;
+const SUBMITTED_REQUEST_STATUSES = [
+  "Queued",
+  "Sent",
+  "Approved",
+  "SUBMITTED",
+  "UNDER_REVIEW",
+] as const;
+
+/** Return the caller's latest Central System request that still needs verification documents. */
+export const getLatestRemovalVerificationRequest = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: requests, error } = await context.supabase
+      .from("enforcement_requests")
+      .select("id,status,platform,target_url,created_at")
+      .eq("user_id", context.userId)
+      .in("status", [...SUBMITTED_REQUEST_STATUSES])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const request = requests?.[0];
+    if (!request) return null;
+    return request;
+  });
 
 /** Attach a private verification document to the caller's already-submitted request. */
 export const uploadRemovalVerificationDocument = createServerFn({ method: "POST" })

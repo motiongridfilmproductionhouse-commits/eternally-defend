@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarLayoutProvider, useSidebarLayout } from "@/lib/layout-context";
+import { RemovalVerificationPrompt } from "@/components/enforcement/RemovalVerificationPrompt";
 
 // ---------------------------------------------------------------------------
 // DEMO MODE — UI/routing bypass (never fakes auth, KYC or legal data).
@@ -93,6 +94,7 @@ function AppShell() {
           <Outlet />
         </div>
       </main>
+      <RemovalVerificationPrompt />
     </div>
   );
 }

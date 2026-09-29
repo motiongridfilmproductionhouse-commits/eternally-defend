@@ -51,7 +51,7 @@ export type ActionTarget = {
 
 type VerificationDocumentType = "client_identity" | "signed_authorization";
 
-const SUBMITTED_STATUSES = new Set(["sent", "approved", "submitted", "under_review"]);
+const SUBMITTED_STATUSES = new Set(["queued", "sent", "approved", "submitted", "under_review"]);
 
 const ACTIONS_BY_PLATFORM: Record<string, string[]> = {
   YouTube: [
