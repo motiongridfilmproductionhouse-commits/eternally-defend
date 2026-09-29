@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { listInvites, createInvite, setInviteStatus } from "@/lib/invites/invites.functions";
 import { PageCard } from "@/components/dashboard/PageCard";
-import { AdminGuard } from "@/components/AdminGuard";
+import { InviteManagerGuard } from "@/components/InviteManagerGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +22,9 @@ export const Route = createFileRoute("/_app/admin/invites")({
     ],
   }),
   component: () => (
-    <AdminGuard>
+    <InviteManagerGuard>
       <InvitesPage />
-    </AdminGuard>
+    </InviteManagerGuard>
   ),
 });
 
