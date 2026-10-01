@@ -1,3 +1,4 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { TopBar } from "@/components/dashboard/TopBar";
@@ -43,7 +44,9 @@ export const Route = createFileRoute("/_app")({
   errorComponent: WorkspaceError,
 });
 
-function WorkspaceError({ error, reset }: ErrorComponentProps) {
+function WorkspaceError(props: ErrorComponentProps) {
+  const error = props.error as Error;
+  const reset = props.reset;
   return (
     <div className="min-h-screen grid place-items-center bg-background px-6">
       <div className="max-w-md w-full rounded-xl border border-border bg-card p-6 text-center">
