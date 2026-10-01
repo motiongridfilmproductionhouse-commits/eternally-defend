@@ -783,7 +783,7 @@ export function PublicPage({
           {breadcrumb && breadcrumb[1]?.to === "/newsroom" ? (
             <RelatedProtectionResources title={title} />
           ) : null}
-          {breadcrumb && breadcrumb.length > 1 ? (
+          {breadcrumb && breadcrumb.length > 1 && breadcrumb[1]?.to !== "/newsroom" ? (
             <script
               type="application/ld+json"
               dangerouslySetInnerHTML={{ __html: breadcrumbSchema(breadcrumb) }}
