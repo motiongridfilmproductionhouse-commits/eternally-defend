@@ -489,8 +489,8 @@ function LandingPageContent() {
               <p className="text-xs text-landing-muted">VERIFIED OPERATIONAL DATA</p>
             </div>
             <div className="grid gap-px bg-landing-line sm:grid-cols-2 lg:grid-cols-4">
-              <CountUpMetric value={13800} suffix="+" label="Signals detected" />
-              <CountUpMetric value={2700} suffix="+" label="Specialist findings" />
+              <CountUpMetric value={200000} suffix="+" label="Signals detected" />
+              <CountUpMetric value={50000} suffix="+" label="Specialist findings" />
               <CountUpMetric displayValue="24/7" label="Continuous monitoring" />
               <CountUpMetric
                 displayValue="MULTI-PLATFORM"
