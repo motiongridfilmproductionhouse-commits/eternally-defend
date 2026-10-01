@@ -9,7 +9,7 @@ import { isSafePublicHttpUrl } from "./url-safety.server";
 import type { ReferenceImageHit } from "./image-discovery-providers.server";
 
 export function isFirecrawlImageSearchConfigured(): boolean {
-  return Boolean((process.env.FIRECRAWL_API_KEY ?? process.env.FIRECRAWL_API_KEY_1)?.trim());
+  return Boolean((process.env.FIRECRAWL_API_KEY_1 || process.env.FIRECRAWL_API_KEY)?.trim());
 }
 
 export async function searchFirecrawlImagesBatch(input: {

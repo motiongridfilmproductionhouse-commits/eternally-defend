@@ -21,7 +21,7 @@ export function makeFirecrawlProvider(opts?: {
     label: opts?.label ?? "Firecrawl",
 
     isConfigured() {
-      return Boolean((process.env.FIRECRAWL_API_KEY ?? process.env.FIRECRAWL_API_KEY_1)?.trim());
+      return Boolean((process.env.FIRECRAWL_API_KEY_1 || process.env.FIRECRAWL_API_KEY)?.trim());
     },
 
     async search(query, limit) {
