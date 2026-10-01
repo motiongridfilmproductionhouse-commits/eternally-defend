@@ -5,6 +5,8 @@
   <url><loc>https://protectbyeterna.com/request-protection</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://protectbyeterna.com/enterprise-protection</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
   <url><loc>https://protectbyeterna.com/incident-response</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://protectbyeterna.com/monitoring</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://protectbyeterna.com/public-figure-protection</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
   <url><loc>https://protectbyeterna.com/about</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://protectbyeterna.com/eterna-ai</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://protectbyeterna.com/deepfake-protection</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>

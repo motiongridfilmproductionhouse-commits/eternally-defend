@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { DEFAULT_OG_IMAGE } from "@/lib/seo/og-image";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 export const SITE = "https://protectbyeterna.com";
@@ -27,6 +28,12 @@ export function landingHead(opts: { path: string; title: string; description: st
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: opts.title },
       { name: "twitter:description", content: opts.description },
+      ...(DEFAULT_OG_IMAGE.ENABLED
+        ? [
+            { property: "og:image", content: DEFAULT_OG_IMAGE.url },
+            { name: "twitter:image", content: DEFAULT_OG_IMAGE.url },
+          ]
+        : []),
     ],
     links: [{ rel: "canonical", href: url }],
   };
