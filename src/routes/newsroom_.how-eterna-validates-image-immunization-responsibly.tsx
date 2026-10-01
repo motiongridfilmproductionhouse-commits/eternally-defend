@@ -49,6 +49,12 @@ function ResponsibleValidationPage() {
     <PublicPage
       eyebrow="Newsroom · Responsible validation"
       title="How Eterna Validates Image Immunization Responsibly"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "How Eterna Validates Image Immunization Responsibly" },
+      ]}
+      breadcrumbJsonLd
       intro="EIP, Eterna's proprietary pre-publication image protection technology, is developed through Eterna's internal research and development and currently under validation, designed to help reduce the risk of deepfake creation, AI identity replication and unauthorized likeness reuse. Eterna is publishing this article alongside that introduction because a protection claim without an honest account of its limits isn't a protection claim worth trusting."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

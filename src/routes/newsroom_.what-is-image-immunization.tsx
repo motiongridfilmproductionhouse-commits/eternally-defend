@@ -43,6 +43,12 @@ function EducationalPage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="What Is Image Immunization?"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "What Is Image Immunization?" },
+      ]}
+      breadcrumbJsonLd
       intro="Written for public figures, creators, executives, students, families and organizations, in plain language."
       image={{
         src: "/images/newsroom/image-immunization-audiences.png",

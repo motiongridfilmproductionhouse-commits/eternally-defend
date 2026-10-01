@@ -47,6 +47,12 @@ function GuidePage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Deepfake Verification Guide"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "The Deepfake Verification Guide" },
+      ]}
+      breadcrumbJsonLd
       intro="What actually counts as a verified deepfake, and the standard Eterna applies before calling one confirmed."
       image={{
         src: "/images/newsroom/executive-first-hour-response-playbook.png",

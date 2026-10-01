@@ -691,6 +691,7 @@ export function PublicPage({
   category,
   publishedDate,
   readTime,
+  breadcrumbJsonLd,
   children,
 }: {
   eyebrow: string;
@@ -705,6 +706,8 @@ export function PublicPage({
   category?: string;
   publishedDate?: string;
   readTime?: string;
+  /** Emit BreadcrumbList JSON-LD (defaults to true except for newsroom pages, which declare their own). */
+  breadcrumbJsonLd?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -783,7 +786,7 @@ export function PublicPage({
           {breadcrumb && breadcrumb[1]?.to === "/newsroom" ? (
             <RelatedProtectionResources title={title} />
           ) : null}
-          {breadcrumb && breadcrumb.length > 1 && breadcrumb[1]?.to !== "/newsroom" ? (
+          {breadcrumb && breadcrumb.length > 1 && (breadcrumbJsonLd ?? breadcrumb[1]?.to !== "/newsroom") ? (
             <script
               type="application/ld+json"
               dangerouslySetInnerHTML={{ __html: breadcrumbSchema(breadcrumb) }}

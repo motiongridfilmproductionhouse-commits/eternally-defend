@@ -73,6 +73,12 @@ function GuidePage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Executive First Hour Response Playbook"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "The Executive First Hour Response Playbook" },
+      ]}
+      breadcrumbJsonLd
       intro="A condensed playbook for executives and communications leads: the decisions that matter most in the first hour, before the fuller response process begins."
       image={{
         src: "/images/newsroom/deepfake-verification-guide.png",

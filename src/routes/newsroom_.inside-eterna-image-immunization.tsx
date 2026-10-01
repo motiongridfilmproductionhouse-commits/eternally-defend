@@ -44,6 +44,12 @@ function TechnicalBlogPage() {
     <PublicPage
       eyebrow="Newsroom · Technical"
       title="Inside Eterna Image Immunization: How Image Privacy Can Be Designed Before Misuse Happens"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "Inside Eterna Image Immunization: How Image Privacy Can Be Designed Before Misuse Happens" },
+      ]}
+      breadcrumbJsonLd
       intro="EIP, Eterna's proprietary pre-publication image protection technology, is developed through Eterna's internal research and development and currently under validation, designed to help reduce the risk of deepfake creation, AI identity replication and unauthorized likeness reuse."
       image={{
         src: "/images/newsroom/image-immunization-identity-signal.png",

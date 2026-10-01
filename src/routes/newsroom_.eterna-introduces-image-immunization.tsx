@@ -43,6 +43,12 @@ function AnnouncementPage() {
     <PublicPage
       eyebrow="Newsroom · Company announcement"
       title="Eterna Introduces Image Immunization for a New Era of Digital Identity Protection"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "Eterna Introduces Image Immunization for a New Era of Digital Identity Protection" },
+      ]}
+      breadcrumbJsonLd
       intro="EIP, Eterna Image Immunization, is a proprietary pre-publication image protection technology developed through Eterna's internal research and development and currently under validation."
       image={{
         src: "/images/newsroom/image-immunization-hero.png",
