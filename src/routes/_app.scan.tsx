@@ -212,11 +212,25 @@ interface ReportWithDiagnostics extends ReputationReport {
 }
 
 async function runScan(payload: unknown): Promise<ReportWithDiagnostics> {
-  const r = await fetch("/api/scan", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  // Never leave the progress window open forever if the connection stalls.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6 * 60_000);
+  let r: Response;
+  try {
+    r = await fetch("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error("The scan took too long to respond. Please run it again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const contentType = r.headers.get("content-type") ?? "";
   const rawBody = await r.text();
