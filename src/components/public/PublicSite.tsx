@@ -780,9 +780,66 @@ export function PublicPage({
             </section>
           )}
           {children}
+          {breadcrumb && breadcrumb[1]?.to === "/newsroom" ? (
+            <RelatedProtectionResources title={title} />
+          ) : null}
+          {breadcrumb && breadcrumb.length > 1 ? (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: breadcrumbSchema(breadcrumb) }}
+            />
+          ) : null}
         </main>
         <PublicFooter />
       </div>
     </EnquiryModalProvider>
+  );
+}
+
+function breadcrumbSchema(items: ArticleBreadcrumbItem[]) {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.label,
+      ...(typeof item.to === "string" ? { item: `https://protectbyeterna.com${item.to === "/" ? "/" : item.to}` } : {}),
+    })),
+  });
+}
+
+const relatedRules: { test: RegExp; label: string; to: NavRouteTo }[] = [
+  { test: /deepfake|synthetic|explicit|morph/i, label: "Deepfake Protection", to: "/deepfake-protection" as const },
+  { test: /impersonat|fake account|scam/i, label: "Impersonation Protection", to: "/ai-impersonation" as const },
+  { test: /reputation|allegation|search result|crisis|brand/i, label: "Online Reputation Protection", to: "/online-reputation-protection" as const },
+  { test: /image|immuniz|photo/i, label: "Explore Image Immunization", to: "/image-immunization" as const },
+  { test: /student|college|school/i, label: "Digital Safety Resources", to: "/student-digital-safety" as const },
+  { test: /executive|compan|business|enterprise/i, label: "Enterprise Protection", to: "/enterprise-protection" as const },
+  { test: /leak|blackmail|threat|first|hour|respond/i, label: "Incident Response", to: "/incident-response" as const },
+];
+
+function RelatedProtectionResources({ title }: { title: string }) {
+  const matched = relatedRules.filter((rule) => rule.test.test(title)).slice(0, 3);
+  const links = [
+    ...matched,
+    { label: "How Eterna Sentinel Works", to: "/how-it-works" as const },
+    { label: "Request Digital Identity Protection", to: "/request-protection" as const },
+  ];
+  return (
+    <section className="border-t border-landing-line bg-landing-soft py-14">
+      <div className="mx-auto max-w-3xl px-6">
+        <h2 className="text-xl font-medium">Related Eterna Protection Resources</h2>
+        <ul className="mt-5 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+          {links.map((link) => (
+            <li key={link.label}>
+              <Link to={link.to} className="landing-link">
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
