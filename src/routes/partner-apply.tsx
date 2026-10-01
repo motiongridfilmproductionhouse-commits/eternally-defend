@@ -22,9 +22,15 @@ export const Route = createFileRoute("/partner-apply")({
       { title: "Become an Eterna Partner" },
       {
         name: "description",
-        content:
-          "Apply to join the Eterna Partner Programme and refer clients for a 25% commission.",
+        content: "Apply to join the Eterna Partner Programme and earn a 10% commission.",
       },
+      { property: "og:title", content: "Become an Eterna Partner" },
+      {
+        property: "og:description",
+        content: "Apply to join the Eterna Partner Programme and earn a 10% commission.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PartnerApplyPage,
@@ -237,8 +243,7 @@ function PartnerApplyPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Become an Eterna Partner</h1>
           <p className="mt-2 text-slate-500 max-w-2xl">
-            Refer clients to Eterna Sentinel Defence LLC and earn 25% commission (₹1,25,000) per
-            qualifying paid client of the ₹5,00,000 Eterna Protection Programme.
+            Refer qualifying paid clients to Eterna Sentinel Defence LLC and earn 10% commission.
           </p>
         </div>
 
@@ -391,7 +396,7 @@ function PartnerApplyPage() {
                 onChange={(v) => setDecl((d) => ({ ...d, accurate: v }))}
               />
               <Decl
-                label="I agree to the commercial terms: Eterna price ₹5,00,000 per client, partner commission 25% (₹1,25,000), Eterna gross ₹3,75,000. Commission is payable only after Eterna receives cleared payment; taxes, discounts, refunds, cancellations and chargebacks are excluded."
+                label="I agree to the commercial terms: partner commission is 10% of qualifying net service revenue. Commission is payable only after Eterna receives cleared payment; taxes, discounts, refunds, cancellations and chargebacks are excluded."
                 checked={decl.commercial_terms}
                 onChange={(v) => setDecl((d) => ({ ...d, commercial_terms: v }))}
               />

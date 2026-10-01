@@ -279,7 +279,7 @@ export const decidePartnerApplication = createServerFn({ method: "POST" })
         referral_code: referralCode,
         legal_company_name: app.legal_company_name,
         territory: data.territory ?? app.territory,
-        commission_pct: 25,
+        commission_pct: 10,
         status: "ACTIVE",
       });
 

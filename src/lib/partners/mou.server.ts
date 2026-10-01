@@ -159,14 +159,11 @@ export async function generatePartnerMou(input: MouInput): Promise<Uint8Array> {
   c = bullet(doc, c, `Referral Code: ${input.referralCode}`);
 
   c = heading(doc, c, "3. Commercial Terms");
-  c = bullet(doc, c, "Eterna service price per client: INR 5,00,000 (Indian Rupees Five Lakhs).");
   c = bullet(
     doc,
     c,
-    "Partner commission: 25% of the Eterna service price for each qualifying paid client.",
+    "Partner commission: 10% of qualifying net service revenue for each qualifying paid client.",
   );
-  c = bullet(doc, c, "Partner earning per qualifying sale: INR 1,25,000.");
-  c = bullet(doc, c, "Eterna gross balance per qualifying sale: INR 3,75,000.");
 
   c = heading(doc, c, "4. Commission Payability");
   c = paragraph(

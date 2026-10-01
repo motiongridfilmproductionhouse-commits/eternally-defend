@@ -107,7 +107,7 @@ export const registerPartnerLead = createServerFn({ method: "POST" })
       notes: data.notes ?? null,
       status: "LEAD",
       sale_amount_inr: 500000,
-      commission_amount_inr: 125000,
+      commission_amount_inr: 50000,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -148,8 +148,8 @@ export const generatePartnerProposalUrl = createServerFn({ method: "POST" })
     line("• Persistent Channel Watch for impersonation and harassment.");
     line("• Verification Certificate and enforcement package.");
     y -= 6;
-    line("Investment", 13, true);
-    line("Eterna Protection Programme — INR 5,00,000 per client (all-inclusive, annual).");
+    line("Commercial terms", 13, true);
+    line("Partner commission: 10% of qualifying net service revenue.");
     y -= 6;
     line("Next Steps", 13, true);
     line(`Share this proposal and your referral link with the client:`);
