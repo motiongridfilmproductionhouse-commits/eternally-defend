@@ -21,6 +21,7 @@ export const Route = createFileRoute("/newsroom_/how-colleges-respond-to-deepfak
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
       { property: "article:published_time", content: PUBLISHED },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),

@@ -22,6 +22,7 @@ export const Route = createFileRoute("/methodology")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -75,6 +76,7 @@ function MethodologyPage() {
   return (
     <PublicPage
       eyebrow="Methodology"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "Verification Methodology" }]}
       title="What counts as verified, and why it matters."
       intro="Detection technology can flag something as suspicious. It doesn't tell you whether a platform, a court or a newsroom will act on it. That gap is a documentation and verification question: this is the standard Eterna applies to close it."
     >

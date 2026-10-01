@@ -46,26 +46,28 @@ const CANONICAL = "https://protectbyeterna.com/";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Eterna Sentinel: Digital Identity Protection" },
+      { title: "Eterna Sentinel | Digital Identity Protection & Deepfake Defense" },
       {
         name: "description",
         content:
-          "Digital identity protection for people and organizations in the public eye, with evidence-led investigation and human review.",
+          "Protect your digital identity with Eterna Sentinel. Deepfake defense, impersonation monitoring, reputation protection, incident response and Eterna Image Immunization for individuals, public figures and organizations.",
       },
-      { property: "og:title", content: "Eterna Sentinel: Digital Identity Protection" },
+      { name: "robots", content: "index, follow" },
+      { property: "og:title", content: "Eterna Sentinel | Digital Identity Protection & Deepfake Defense" },
       {
         property: "og:description",
         content:
-          "Detect impersonation, synthetic media, unauthorized content and emerging reputation threats.",
+          "Protect your digital identity with Eterna Sentinel. Deepfake defense, impersonation monitoring, reputation protection, incident response and Eterna Image Immunization for individuals, public figures and organizations.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Eterna Sentinel: Digital Identity Protection" },
+      { name: "twitter:title", content: "Eterna Sentinel | Digital Identity Protection & Deepfake Defense" },
       {
         name: "twitter:description",
         content:
-          "Detect impersonation, synthetic media, unauthorized content and emerging reputation threats.",
+          "Protect your digital identity with Eterna Sentinel. Deepfake defense, impersonation monitoring, reputation protection, incident response and Eterna Image Immunization for individuals, public figures and organizations.",
       },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -74,14 +76,50 @@ export const Route = createFileRoute("/")({
 
 const organizationSchema = JSON.stringify({
   "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Eterna Sentinel",
-  alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
-  url: CANONICAL,
-  description:
-    "Digital identity protection for people and organizations in the public eye, with evidence-led investigation and human review.",
-  sameAs: [],
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://protectbyeterna.com/#organization",
+      name: "Eterna Sentinel",
+      alternateName: ["Eterna", "Protect by Eterna"],
+      url: "https://protectbyeterna.com/",
+      logo: "https://protectbyeterna.com/eterna-icon-180.png",
+      description:
+        "Digital identity protection, deepfake defense, impersonation monitoring and reputation protection.",
+      areaServed: "Worldwide",
+      knowsAbout: [
+        "Deepfake protection",
+        "Impersonation protection",
+        "Online reputation protection",
+        "Digital identity incident response",
+        "Image Immunization",
+      ],
+      contactPoint: [
+        { "@type": "ContactPoint", contactType: "customer support", email: "relations@protectbyeterna.com" },
+        { "@type": "ContactPoint", contactType: "media", email: "press@protectbyeterna.com" },
+        { "@type": "ContactPoint", contactType: "partnerships", email: "partnerships@protectbyeterna.com" },
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://protectbyeterna.com/#website",
+      name: "Eterna Sentinel",
+      alternateName: "Protect by Eterna",
+      url: "https://protectbyeterna.com/",
+      publisher: { "@id": "https://protectbyeterna.com/#organization" },
+    },
+  ],
 });
+
+const keyPages = [
+  ["Explore Image Immunization", "/image-immunization"],
+  ["Deepfake Protection", "/deepfake-protection"],
+  ["Impersonation Protection", "/ai-impersonation"],
+  ["Enterprise Protection", "/enterprise-protection"],
+  ["How Eterna Sentinel Works", "/how-it-works"],
+  ["Newsroom & Research", "/newsroom"],
+  ["Request Digital Identity Protection", "/request-protection"],
+] as const;
 
 const protections = [
   [ScanFace, "Deepfake & synthetic media", "Assess synthetic and unauthorized identity use."],
@@ -382,7 +420,7 @@ function LandingPageContent() {
             <div className="landing-hero-content relative z-10 flex min-h-[650px] flex-col items-center justify-end px-5 pb-24 pt-20 text-center text-landing-on-media md:min-h-[750px]">
               <p className="landing-kicker text-landing-accent">Protection with judgment</p>
               <h1 className="mt-5 max-w-5xl text-balance text-5xl font-medium leading-[0.98] md:text-7xl">
-                Digital identity protection for people and organizations in the public eye.
+                Digital Identity Protection for the AI Era
               </h1>
               <p className="mt-7 max-w-3xl text-pretty text-sm leading-6 text-landing-on-media-muted md:text-base">
                 Eterna Sentinel detects impersonation, synthetic media, unauthorized content and
@@ -548,6 +586,17 @@ function LandingPageContent() {
                 </article>
               ))}
             </div>
+            <nav aria-label="Eterna Sentinel services" className="mt-10">
+              <ul className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+                {keyPages.map(([label, href]) => (
+                  <li key={href}>
+                    <Link to={href} className="landing-link">
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           </div>
         </section>
 

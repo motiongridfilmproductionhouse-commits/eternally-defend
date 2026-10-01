@@ -17,6 +17,7 @@ export const Route = createFileRoute("/privacy")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://protectbyeterna.com/privacy" },
     ],
     links: [{ rel: "canonical", href: "https://protectbyeterna.com/privacy" }],
   }),

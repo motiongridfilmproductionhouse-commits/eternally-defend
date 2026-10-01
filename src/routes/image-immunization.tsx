@@ -34,6 +34,7 @@ export const Route = createFileRoute("/image-immunization")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -61,6 +62,7 @@ function ImageImmunizationPage() {
   return (
     <PublicPage
       eyebrow="Eterna Image Immunization"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Platform" }, { label: "Image Immunization" }]}
       title="Protect the Image Before Misuse Begins."
       intro="EIP, Eterna Image Immunization, is Eterna's proprietary pre-publication image protection technology: developed through Eterna's internal research and development, and currently under validation. EIP is designed to help reduce the risk of deepfake creation, AI identity replication and unauthorized likeness reuse, while preserving the image's natural appearance for people."
       image={{

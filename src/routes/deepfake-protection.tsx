@@ -44,6 +44,7 @@ export const Route = createFileRoute("/deepfake-protection")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -169,6 +170,7 @@ function DeepfakeProtectionPage() {
   return (
     <PublicPage
       eyebrow="Deepfake Protection"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Solutions" }, { label: "Deepfake Protection" }]}
       title="Deepfake Protection for Public Identities and Organizations"
       intro="Eterna helps authorized individuals and organizations identify, verify, preserve evidence around, respond to and monitor manipulated media and identity misuse."
     >

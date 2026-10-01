@@ -13,5 +13,9 @@ Allow: /partner-apply
 Disallow: /verify/
 Disallow: /face-handoff/
 Disallow: /api/
+Disallow: /staff
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /settings
 
 Sitemap: https://protectbyeterna.com/sitemap.xml

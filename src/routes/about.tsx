@@ -20,6 +20,7 @@ export const Route = createFileRoute("/about")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://protectbyeterna.com/about" },
     ],
     links: [{ rel: "canonical", href: "https://protectbyeterna.com/about" }],
   }),
@@ -68,6 +69,7 @@ function AboutPage() {
   return (
     <PublicPage
       eyebrow="Company"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "About" }]}
       title="Protection built for the realities of public identity."
       intro="Eterna Sentinel is a managed digital protection operation and technology platform for public figures, executives, organizations and their authorized representatives."
     >

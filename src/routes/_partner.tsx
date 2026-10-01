@@ -14,6 +14,7 @@ import {
 
 export const Route = createFileRoute("/_partner")({
   ssr: false,
+  head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
   component: PartnerLayout,
 });
 

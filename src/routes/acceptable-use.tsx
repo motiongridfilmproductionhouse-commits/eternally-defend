@@ -19,6 +19,7 @@ export const Route = createFileRoute("/acceptable-use")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://protectbyeterna.com/acceptable-use" },
     ],
     links: [{ rel: "canonical", href: "https://protectbyeterna.com/acceptable-use" }],
   }),

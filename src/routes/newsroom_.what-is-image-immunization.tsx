@@ -21,6 +21,7 @@ export const Route = createFileRoute("/newsroom_/what-is-image-immunization")({
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -43,6 +44,12 @@ function EducationalPage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="What Is Image Immunization?"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "What Is Image Immunization?" },
+      ]}
+      breadcrumbJsonLd
       intro="Written for public figures, creators, executives, students, families and organizations, in plain language."
       image={{
         src: "/images/newsroom/image-immunization-audiences.png",

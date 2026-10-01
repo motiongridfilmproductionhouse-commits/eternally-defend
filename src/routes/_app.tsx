@@ -20,6 +20,7 @@ function isDemoUser(email: string | undefined): boolean {
 
 export const Route = createFileRoute("/_app")({
   ssr: false,
+  head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });

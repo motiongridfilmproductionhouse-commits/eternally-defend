@@ -21,6 +21,7 @@ export const Route = createFileRoute("/newsroom_/detection-is-not-prevention")({
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -43,6 +44,12 @@ function DetectionIsNotPreventionPage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="Detection Is Not Prevention."
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "Detection Is Not Prevention." },
+      ]}
+      breadcrumbJsonLd
       intro="Most digital-identity protection, Eterna's included, has historically worked the same way: something is published, then it's found. That order matters more than it usually gets credit for."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

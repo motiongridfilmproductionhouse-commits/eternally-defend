@@ -43,6 +43,7 @@ export const Route = createFileRoute("/ai-impersonation")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -161,6 +162,7 @@ function AiImpersonationPage() {
   return (
     <PublicPage
       eyebrow="AI Impersonation"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Solutions" }, { label: "Impersonation Protection" }]}
       title="AI Impersonation Protection for Identities That Operate in Public"
       intro="Eterna helps authorized individuals and organizations detect, verify and respond to fake profiles, cloned voices, fake endorsements and other AI-driven identity misuse."
     >

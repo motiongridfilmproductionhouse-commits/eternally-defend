@@ -63,92 +63,38 @@ const navigationCategories: NavCategory[] = [
   {
     label: "Platform",
     items: [
-      {
-        label: "Platform Overview",
-        href: "/#platform",
-        description: "One operating view, from signal to governed decision.",
-      },
-      {
-        label: "How It Works",
-        href: "/#how-it-works",
-        description: "A continuous, human-governed protection cycle.",
-      },
-      {
-        label: "Image Immunization",
-        to: "/image-immunization" as const,
-        description: "Preventative protection for authorized images.",
-        emphasis: true,
-      },
+      { label: "Eterna AI", to: "/eterna-ai" as const, description: "Technology developed and operated by Eterna Sentinel." },
+      { label: "How It Works", to: "/how-it-works" as const, description: "A continuous, human-governed protection cycle." },
+      { label: "Monitoring", href: "/#platform", description: "One operating view, from signal to governed decision." },
+      { label: "Incident Response", to: "/incident-response" as const, description: "Verify, preserve evidence and respond." },
+      { label: "Image Immunization", to: "/image-immunization" as const, description: "Preventative protection for authorized images.", emphasis: true },
     ],
   },
   {
     label: "Solutions",
     items: [
-      {
-        label: "Solutions Overview",
-        href: "/#solutions",
-        description: "Identity, reputation and content, seen together.",
-      },
-      {
-        label: "Deepfake Protection",
-        to: "/eterna-ai" as const,
-        description: "Detection, response and preventative protection.",
-      },
-      {
-        label: "AI Impersonation",
-        to: "/newsroom/ai-impersonation-reputation-damage" as const,
-        description: "Celebrity scams, executive fraud and cloned voices.",
-      },
-      {
-        label: "Online Reputation Protection",
-        to: "/newsroom/why-companies-need-reputation-monitoring" as const,
-        description: "Evidence-led response to defamatory content.",
-      },
+      { label: "Deepfake Protection", to: "/deepfake-protection" as const, description: "Detection, verification and response." },
+      { label: "Impersonation Protection", to: "/ai-impersonation" as const, description: "Fake accounts, cloned voices and scams." },
+      { label: "Online Reputation Protection", to: "/online-reputation-protection" as const, description: "Evidence-led response to defamatory content." },
+      { label: "Enterprise Protection", to: "/enterprise-protection" as const, description: "Executives, brands and institutions." },
     ],
   },
   {
     label: "Research",
     items: [
-      {
-        label: "Observatory",
-        to: "/identity-response-observatory" as const,
-        description: "Research and response intelligence.",
-      },
-      {
-        label: "Newsroom",
-        to: "/newsroom" as const,
-        description: "Guides, announcements and analysis.",
-      },
-      {
-        label: "Methodology",
-        to: "/methodology" as const,
-        description: "How Eterna verifies and assesses information.",
-      },
+      { label: "Research", to: "/research" as const, description: "Eterna research on synthetic media." },
+      { label: "Observatory", to: "/identity-response-observatory" as const, description: "Research and response intelligence." },
+      { label: "Newsroom", to: "/newsroom" as const, description: "Guides, announcements and analysis." },
+      { label: "Digital Safety Resources", to: "/student-digital-safety" as const, description: "Guidance for students and families." },
     ],
   },
   {
     label: "Company",
     items: [
-      {
-        label: "About Eterna",
-        to: "/about" as const,
-        description: "Who Eterna Sentinel is and how we operate.",
-      },
-      {
-        label: "Security",
-        to: "/security" as const,
-        description: "Governance, verification and evidence practices.",
-      },
-      {
-        label: "Responsible Disclosure",
-        href: "/security#responsible-disclosure",
-        description: "Report a security issue responsibly.",
-      },
-      {
-        label: "Contact",
-        to: "/contact" as const,
-        description: "Protection requests, partnerships and media enquiries.",
-      },
+      { label: "About Eterna Sentinel", to: "/about" as const, description: "Who Eterna Sentinel is and how we operate." },
+      { label: "Verification Methodology", to: "/methodology" as const, description: "How Eterna verifies and assesses information." },
+      { label: "Security", to: "/security" as const, description: "Governance, verification and evidence practices." },
+      { label: "Contact", to: "/contact" as const, description: "Protection requests, partnerships and media enquiries." },
     ],
   },
 ];
@@ -644,32 +590,30 @@ export function PublicFooter() {
     {
       title: "Platform",
       links: [
-        { label: "Protection", href: "/#solutions" },
-        { label: "Image Immunization (EIP)", to: "/image-immunization" as const },
-        { label: "How It Works", href: "/#how-it-works" },
-        { label: "Identity Response Observatory", to: "/identity-response-observatory" as const },
+        { label: "Eterna AI", to: "/eterna-ai" as const },
+        { label: "Image Immunization", to: "/image-immunization" as const },
+        { label: "How It Works", to: "/how-it-works" as const },
+        { label: "Monitoring", href: "/#platform" },
+        { label: "Incident Response", to: "/incident-response" as const },
       ],
     },
     {
-      title: "Newsroom",
+      title: "Solutions",
       links: [
-        { label: "All guides", to: "/newsroom" as const },
-        {
-          label: "Eterna Introduces Image Immunization",
-          to: "/newsroom/eterna-introduces-image-immunization" as const,
-        },
-        {
-          label: "Deepfake Verification Guide",
-          to: "/newsroom/deepfake-verification-guide" as const,
-        },
-        {
-          label: "Impersonation Response Guide",
-          to: "/newsroom/impersonation-response-guide" as const,
-        },
-        {
-          label: "Executive First-Hour Playbook",
-          to: "/newsroom/executive-first-hour-playbook" as const,
-        },
+        { label: "Deepfake Protection", to: "/deepfake-protection" as const },
+        { label: "Impersonation Protection", to: "/ai-impersonation" as const },
+        { label: "Reputation Protection", to: "/online-reputation-protection" as const },
+        { label: "Enterprise Protection", to: "/enterprise-protection" as const },
+        { label: "Request Protection", to: "/request-protection" as const },
+      ],
+    },
+    {
+      title: "Resources",
+      links: [
+        { label: "Research", to: "/research" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "Observatory", to: "/identity-response-observatory" as const },
+        { label: "Digital Safety", to: "/student-digital-safety" as const },
       ],
     },
     {
@@ -677,9 +621,9 @@ export function PublicFooter() {
       links: [
         { label: "About", to: "/about" as const },
         { label: "Methodology", to: "/methodology" as const },
+        { label: "Security", to: "/security" as const },
         { label: "Contact", to: "/contact" as const },
-        { label: "Leadership", href: "/about#leadership" },
-        { label: "Careers", href: "/about#careers" },
+        { label: "Client Sign In", to: "/auth" as const },
       ],
     },
     {
@@ -691,14 +635,6 @@ export function PublicFooter() {
         { label: "Acceptable Use", to: "/acceptable-use" as const },
       ],
     },
-    {
-      title: "Client Access",
-      links: [
-        { label: "Sign In", to: "/auth" as const },
-        { label: "Security & Governance", to: "/security" as const },
-        { label: "Responsible Disclosure", href: "/security#responsible-disclosure" },
-      ],
-    },
   ];
   return (
     <footer className="border-t border-landing-line bg-landing">
@@ -706,11 +642,11 @@ export function PublicFooter() {
         <div>
           <EternaLogo className="h-5" />
           <p className="mt-5 max-w-xs text-sm leading-6 text-landing-muted">
-            Digital identity, reputation and content protection with evidence-led human review.
+            Eterna Sentinel is a digital identity protection and deepfake defense company, with evidence-led human review.
           </p>
           <p className="mt-5 text-xs font-semibold text-landing-ink">Eterna Sentinel</p>
         </div>
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
           {groups.map((group) => (
             <div key={group.title}>
               <h2 className="text-xs font-semibold uppercase text-landing-ink">{group.title}</h2>
@@ -755,6 +691,7 @@ export function PublicPage({
   category,
   publishedDate,
   readTime,
+  breadcrumbJsonLd,
   children,
 }: {
   eyebrow: string;
@@ -769,6 +706,8 @@ export function PublicPage({
   category?: string;
   publishedDate?: string;
   readTime?: string;
+  /** Emit BreadcrumbList JSON-LD (defaults to true except for newsroom pages, which declare their own). */
+  breadcrumbJsonLd?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -844,9 +783,66 @@ export function PublicPage({
             </section>
           )}
           {children}
+          {breadcrumb && breadcrumb[1]?.to === "/newsroom" ? (
+            <RelatedProtectionResources title={title} />
+          ) : null}
+          {breadcrumb && breadcrumb.length > 1 && (breadcrumbJsonLd ?? breadcrumb[1]?.to !== "/newsroom") ? (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: breadcrumbSchema(breadcrumb) }}
+            />
+          ) : null}
         </main>
         <PublicFooter />
       </div>
     </EnquiryModalProvider>
+  );
+}
+
+function breadcrumbSchema(items: ArticleBreadcrumbItem[]) {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.label,
+      ...(typeof item.to === "string" ? { item: `https://protectbyeterna.com${item.to === "/" ? "/" : item.to}` } : {}),
+    })),
+  });
+}
+
+const relatedRules: { test: RegExp; label: string; to: NavRouteTo }[] = [
+  { test: /deepfake|synthetic|explicit|morph/i, label: "Deepfake Protection", to: "/deepfake-protection" as const },
+  { test: /impersonat|fake account|scam/i, label: "Impersonation Protection", to: "/ai-impersonation" as const },
+  { test: /reputation|allegation|search result|crisis|brand/i, label: "Online Reputation Protection", to: "/online-reputation-protection" as const },
+  { test: /image|immuniz|photo/i, label: "Explore Image Immunization", to: "/image-immunization" as const },
+  { test: /student|college|school/i, label: "Digital Safety Resources", to: "/student-digital-safety" as const },
+  { test: /executive|compan|business|enterprise/i, label: "Enterprise Protection", to: "/enterprise-protection" as const },
+  { test: /leak|blackmail|threat|first|hour|respond/i, label: "Incident Response", to: "/incident-response" as const },
+];
+
+function RelatedProtectionResources({ title }: { title: string }) {
+  const matched = relatedRules.filter((rule) => rule.test.test(title)).slice(0, 3);
+  const links = [
+    ...matched,
+    { label: "How Eterna Sentinel Works", to: "/how-it-works" as const },
+    { label: "Request Digital Identity Protection", to: "/request-protection" as const },
+  ];
+  return (
+    <section className="border-t border-landing-line bg-landing-soft py-14">
+      <div className="mx-auto max-w-3xl px-6">
+        <h2 className="text-xl font-medium">Related Eterna Protection Resources</h2>
+        <ul className="mt-5 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+          {links.map((link) => (
+            <li key={link.label}>
+              <Link to={link.to} className="landing-link">
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }

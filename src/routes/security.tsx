@@ -20,6 +20,7 @@ export const Route = createFileRoute("/security")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://protectbyeterna.com/security" },
     ],
     links: [{ rel: "canonical", href: "https://protectbyeterna.com/security" }],
   }),
@@ -78,6 +79,7 @@ function SecurityPage() {
   return (
     <PublicPage
       eyebrow="Security & governance"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "Security" }]}
       title="Evidence preserved. Actions governed."
       intro="Eterna combines technical controls with human review so protection work remains authorized, traceable and proportionate."
     >

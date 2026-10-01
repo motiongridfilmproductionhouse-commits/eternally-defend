@@ -26,6 +26,7 @@ export const Route = createFileRoute("/newsroom_/executive-first-hour-playbook")
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
       { property: "article:published_time", content: PUBLISHED },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
@@ -73,6 +74,12 @@ function GuidePage() {
     <PublicPage
       eyebrow="Newsroom · Eterna-owned guide"
       title="The Executive First Hour Response Playbook"
+      breadcrumb={[
+        { label: "Home", to: "/" as const },
+        { label: "Newsroom", to: "/newsroom" as const },
+        { label: "The Executive First Hour Response Playbook" },
+      ]}
+      breadcrumbJsonLd
       intro="A condensed playbook for executives and communications leads: the decisions that matter most in the first hour, before the fuller response process begins."
       image={{
         src: "/images/newsroom/deepfake-verification-guide.png",
