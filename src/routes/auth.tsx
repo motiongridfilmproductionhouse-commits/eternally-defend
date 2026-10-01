@@ -425,7 +425,7 @@ function AuthPage() {
               Become a Partner →
             </a>
             <p className="mt-2 text-[11px] text-center text-muted-foreground">
-              Refer clients and earn 25% commission on Eterna Protection sales.
+              Refer clients and earn 10% commission on qualifying Eterna Protection sales.
             </p>
           </div>
         </div>

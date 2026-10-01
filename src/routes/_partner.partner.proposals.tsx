@@ -56,7 +56,7 @@ function PartnerProposalsPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Proposals</h1>
         <p className="text-sm text-slate-500">
-          Generate branded ₹5 Lakh proposals for {partnerName ?? "your partner account"}.
+          Generate branded proposals for {partnerName ?? "your partner account"}.
         </p>
       </header>
 

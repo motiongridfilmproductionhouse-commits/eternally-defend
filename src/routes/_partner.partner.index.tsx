@@ -195,7 +195,7 @@ function PartnerDashboard() {
         </Card>
 
         <Card className="border border-slate-200 bg-white p-6 rounded-xl shadow-sm">
-          <div className="font-semibold mb-4">Generate ₹5 Lakh Proposal</div>
+          <div className="font-semibold mb-4">Generate Proposal</div>
           <div className="space-y-3">
             <Input
               placeholder="Client / prospect name"
