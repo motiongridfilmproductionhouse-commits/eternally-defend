@@ -43,7 +43,7 @@ export const Route = createFileRoute("/_app")({
   errorComponent: WorkspaceError,
 });
 
-function WorkspaceError({ error, reset }: { error: Error; reset: () => void }) {
+function WorkspaceError({ error, reset }: ErrorComponentProps) {
   return (
     <div className="min-h-screen grid place-items-center bg-background px-6">
       <div className="max-w-md w-full rounded-xl border border-border bg-card p-6 text-center">
