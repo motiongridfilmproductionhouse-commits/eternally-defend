@@ -100,22 +100,32 @@ export function getFirecrawlConfigInfo(): {
  * fire 100+ queries at once, so cap in-flight requests and space starts,
  * and pause everything after a 429 until the provider's retry window ends.
  */
-const MAX_IN_FLIGHT = 3;
-const MIN_START_GAP_MS = 1300;
+const MAX_IN_FLIGHT = 5;
+const MIN_START_GAP_MS = 800;
+/** A query that would wait longer than this is skipped so the whole scan
+ *  finishes inside the hosted request budget instead of hanging. */
+const MAX_QUEUE_WAIT_MS = 25_000;
 let inFlight = 0;
 let lastStart = 0;
 let pauseUntil = 0;
 const waiters: Array<() => void> = [];
 
-async function acquirePacingSlot(): Promise<void> {
+async function acquirePacingSlot(): Promise<boolean> {
+  const enqueuedAt = Date.now();
   while (inFlight >= MAX_IN_FLIGHT) {
-    await new Promise<void>((r) => waiters.push(r));
+    if (Date.now() - enqueuedAt > MAX_QUEUE_WAIT_MS) return false;
+    await new Promise<void>((r) => {
+      waiters.push(r);
+      setTimeout(r, 2_000);
+    });
   }
-  inFlight++;
   const now = Date.now();
   const startAt = Math.max(now, pauseUntil, lastStart + MIN_START_GAP_MS);
+  if (startAt - enqueuedAt > MAX_QUEUE_WAIT_MS) return false;
+  inFlight++;
   lastStart = startAt;
   if (startAt > now) await new Promise((r) => setTimeout(r, startAt - now));
+  return true;
 }
 
 function releasePacingSlot(): void {
@@ -159,7 +169,13 @@ async function firecrawlRequest(
   const startTime = Date.now();
 
   for (let attempt = 0; attempt <= maxRetries + 1; attempt++) {
-    await acquirePacingSlot();
+    if (!(await acquirePacingSlot())) {
+      return {
+        status: 429,
+        text: "Rate limit: search queue saturated, query skipped",
+        latencyMs: Date.now() - startTime,
+      };
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
