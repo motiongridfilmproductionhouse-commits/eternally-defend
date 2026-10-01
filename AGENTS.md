@@ -14,3 +14,4 @@
 - Search discovery uses Firecrawl plus the owner-approved Brave provider, gated by src/lib/scan/search-policy.ts; all other providers remain disabled — why: broaden auditable coverage without silent fallback.
 - Manipulation analysis may inspect non-unrelated media awaiting identity review, but only MATCHED discoveries appear in findings or risk totals — why: find genuine signals without attributing uncertain identities.
 - Public surfaces must not expose client-derived stories, identities, identifiers, or dates; certificate verification returns status only — why: client confidentiality applies platform-wide.
+- Public SEO landing pages use src/components/public/ServiceLanding.tsx (landingHead + Service/WebPage JSON-LD + breadcrumbs); PublicPage emits BreadcrumbList and newsroom related links — why: consistent canonical, schema and internal linking across public pages.
