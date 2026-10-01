@@ -169,6 +169,7 @@ function DeepfakeProtectionPage() {
   return (
     <PublicPage
       eyebrow="Deepfake Protection"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Solutions" }, { label: "Deepfake Protection" }]}
       title="Deepfake Protection for Public Identities and Organizations"
       intro="Eterna helps authorized individuals and organizations identify, verify, preserve evidence around, respond to and monitor manipulated media and identity misuse."
     >

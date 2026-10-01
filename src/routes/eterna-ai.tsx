@@ -123,6 +123,7 @@ function EternaAiPage() {
   return (
     <PublicPage
       eyebrow="Eterna AI"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Platform" }, { label: "Eterna AI" }]}
       title="Eterna AI: Protecting Digital Identity in the Age of Generative AI"
       intro="Eterna AI is the artificial intelligence protection and research capability developed by Eterna Sentinel. It focuses on protecting people and organizations from deepfakes, AI impersonation, unauthorized likeness reuse and emerging forms of synthetic identity misuse."
     >

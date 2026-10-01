@@ -108,6 +108,7 @@ function ResearchPage() {
   return (
     <PublicPage
       eyebrow="Eterna Research"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Research" }, { label: "Research" }]}
       title="Researching How Identity Survives the Synthetic Media Era"
       intro="Eterna Research develops and validates the methodology, initiatives and standards behind Eterna's identity-protection and digital-risk work."
     >

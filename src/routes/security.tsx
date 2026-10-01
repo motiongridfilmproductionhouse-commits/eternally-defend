@@ -78,6 +78,7 @@ function SecurityPage() {
   return (
     <PublicPage
       eyebrow="Security & governance"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "Security" }]}
       title="Evidence preserved. Actions governed."
       intro="Eterna combines technical controls with human review so protection work remains authorized, traceable and proportionate."
     >

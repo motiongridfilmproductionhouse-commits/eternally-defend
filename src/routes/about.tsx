@@ -68,6 +68,7 @@ function AboutPage() {
   return (
     <PublicPage
       eyebrow="Company"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "About" }]}
       title="Protection built for the realities of public identity."
       intro="Eterna Sentinel is a managed digital protection operation and technology platform for public figures, executives, organizations and their authorized representatives."
     >

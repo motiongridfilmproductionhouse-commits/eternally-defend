@@ -169,6 +169,7 @@ function OnlineReputationProtectionPage() {
   return (
     <PublicPage
       eyebrow="Online Reputation Protection"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Solutions" }, { label: "Online Reputation Protection" }]}
       title="Online Reputation Protection Built for High-Risk Digital Environments"
       intro="Eterna monitors, verifies and responds to identity misuse, false claims and coordinated attacks across the surfaces that carry real risk, for individuals and organizations."
     >
