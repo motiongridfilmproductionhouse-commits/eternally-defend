@@ -714,6 +714,7 @@ export function PublicPage({
   breadcrumbJsonLd?: boolean;
   children: ReactNode;
 }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <EnquiryModalProvider>
       <div className="landing-shell min-h-screen bg-landing text-landing-ink">
