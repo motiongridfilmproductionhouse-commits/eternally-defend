@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu";
 import { ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
@@ -793,7 +793,7 @@ export function PublicPage({
           {breadcrumb && breadcrumb.length > 1 && (breadcrumbJsonLd ?? breadcrumb[1]?.to !== "/newsroom") ? (
             <script
               type="application/ld+json"
-              dangerouslySetInnerHTML={{ __html: breadcrumbSchema(breadcrumb) }}
+              dangerouslySetInnerHTML={{ __html: breadcrumbSchema(breadcrumb, pathname) }}
             />
           ) : null}
         </main>
@@ -803,16 +803,21 @@ export function PublicPage({
   );
 }
 
-function breadcrumbSchema(items: ArticleBreadcrumbItem[]) {
+function breadcrumbSchema(items: ArticleBreadcrumbItem[], pathname: string) {
+  const base = "https://protectbyeterna.com";
+  const abs = (to: string) => (to === "/" ? `${base}/` : `${base}${to}`);
+  const last = items.length - 1;
+  // Only items with a real URL are emitted; the final item uses the current page URL.
+  const linked = items
+    .map((item, index) => {
+      if (index === last) return { name: item.label, item: abs(pathname.replace(/\/$/, "") || "/") };
+      return typeof item.to === "string" ? { name: item.label, item: abs(item.to) } : null;
+    })
+    .filter((x): x is { name: string; item: string } => x !== null);
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: items.map((item, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: item.label,
-      ...(typeof item.to === "string" ? { item: `https://protectbyeterna.com${item.to === "/" ? "/" : item.to}` } : {}),
-    })),
+    itemListElement: linked.map((entry, index) => ({ "@type": "ListItem", position: index + 1, ...entry })),
   });
 }
 
