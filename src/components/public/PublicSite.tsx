@@ -586,8 +586,10 @@ export function PublicHeader() {
   );
 }
 
+type FooterLink = { label: string; to?: NavRouteTo; href?: string };
+
 export function PublicFooter() {
-  const groups = [
+  const groups: { title: string; links: FooterLink[] }[] = [
     {
       title: "Platform",
       links: [

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/partner-apply")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Become an Eterna Partner" },
+      { title: "Become an Eterna Partner | Eterna Sentinel" },
       {
         name: "description",
         content: "Apply to join the Eterna Partner Programme and earn a 10% commission.",
@@ -31,7 +31,9 @@ export const Route = createFileRoute("/partner-apply")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://protectbyeterna.com/partner-apply" },
     ],
+    links: [{ rel: "canonical", href: "https://protectbyeterna.com/partner-apply" }],
   }),
   component: PartnerApplyPage,
 });

@@ -345,9 +345,9 @@ function ReputationBusinessGrowthPage() {
                   "Why more companies are managing reputation like any other core business risk.",
               },
               {
-                to: "/newsroom/removing-one-post-does-not-solve-reputation-problem",
-                title: "Why Removing One Harmful Post Does Not Always Solve a Reputation Problem",
-                description: "Why removal and resolution aren't the same thing.",
+                to: "/online-reputation-protection",
+                title: "Online Reputation Protection",
+                description: "How Eterna Sentinel assesses and responds to reputation threats.",
               },
               {
                 to: "/newsroom/why-companies-need-reputation-monitoring",
