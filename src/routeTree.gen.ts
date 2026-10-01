@@ -15,6 +15,7 @@ import { Route as StudentDigitalSafetyRouteImport } from './routes/student-digit
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as ResearchRouteImport } from './routes/research'
+import { Route as RequestProtectionRouteImport } from './routes/request-protection'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PartnerStatusRouteImport } from './routes/partner-status'
 import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
@@ -22,9 +23,12 @@ import { Route as OnlineReputationProtectionRouteImport } from './routes/online-
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NewsroomRouteImport } from './routes/newsroom'
 import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as IncidentResponseRouteImport } from './routes/incident-response'
 import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
 import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as EternaAiRouteImport } from './routes/eterna-ai'
+import { Route as EnterpriseProtectionRouteImport } from './routes/enterprise-protection'
 import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -172,6 +176,11 @@ const ResearchRoute = ResearchRouteImport.update({
   path: '/research',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RequestProtectionRoute = RequestProtectionRouteImport.update({
+  id: '/request-protection',
+  path: '/request-protection',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -208,6 +217,11 @@ const MethodologyRoute = MethodologyRouteImport.update({
   path: '/methodology',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IncidentResponseRoute = IncidentResponseRouteImport.update({
+  id: '/incident-response',
+  path: '/incident-response',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImageImmunizationRoute = ImageImmunizationRouteImport.update({
   id: '/image-immunization',
   path: '/image-immunization',
@@ -219,9 +233,19 @@ const IdentityResponseObservatoryRoute =
     path: '/identity-response-observatory',
     getParentRoute: () => rootRouteImport,
   } as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EternaAiRoute = EternaAiRouteImport.update({
   id: '/eterna-ai',
   path: '/eterna-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnterpriseProtectionRoute = EnterpriseProtectionRouteImport.update({
+  id: '/enterprise-protection',
+  path: '/enterprise-protection',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeepfakeProtectionRoute = DeepfakeProtectionRouteImport.update({
@@ -876,9 +900,12 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
+  '/enterprise-protection': typeof EnterpriseProtectionRoute
   '/eterna-ai': typeof EternaAiRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
+  '/incident-response': typeof IncidentResponseRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
@@ -886,6 +913,7 @@ export interface FileRoutesByFullPath {
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/request-protection': typeof RequestProtectionRoute
   '/research': typeof ResearchRoute
   '/security': typeof SecurityRoute
   '/staff': typeof StaffRouteWithChildren
@@ -1008,9 +1036,12 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
+  '/enterprise-protection': typeof EnterpriseProtectionRoute
   '/eterna-ai': typeof EternaAiRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
+  '/incident-response': typeof IncidentResponseRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
@@ -1018,6 +1049,7 @@ export interface FileRoutesByTo {
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/request-protection': typeof RequestProtectionRoute
   '/research': typeof ResearchRoute
   '/security': typeof SecurityRoute
   '/student-digital-safety': typeof StudentDigitalSafetyRoute
@@ -1141,9 +1173,12 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/deepfake-protection': typeof DeepfakeProtectionRoute
+  '/enterprise-protection': typeof EnterpriseProtectionRoute
   '/eterna-ai': typeof EternaAiRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
+  '/incident-response': typeof IncidentResponseRoute
   '/methodology': typeof MethodologyRoute
   '/newsroom': typeof NewsroomRoute
   '/onboarding': typeof OnboardingRoute
@@ -1151,6 +1186,7 @@ export interface FileRoutesById {
   '/partner-apply': typeof PartnerApplyRoute
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
+  '/request-protection': typeof RequestProtectionRoute
   '/research': typeof ResearchRoute
   '/security': typeof SecurityRoute
   '/staff': typeof StaffRouteWithChildren
@@ -1275,9 +1311,12 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
+    | '/enterprise-protection'
     | '/eterna-ai'
+    | '/how-it-works'
     | '/identity-response-observatory'
     | '/image-immunization'
+    | '/incident-response'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
@@ -1285,6 +1324,7 @@ export interface FileRouteTypes {
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/request-protection'
     | '/research'
     | '/security'
     | '/staff'
@@ -1407,9 +1447,12 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
+    | '/enterprise-protection'
     | '/eterna-ai'
+    | '/how-it-works'
     | '/identity-response-observatory'
     | '/image-immunization'
+    | '/incident-response'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
@@ -1417,6 +1460,7 @@ export interface FileRouteTypes {
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/request-protection'
     | '/research'
     | '/security'
     | '/student-digital-safety'
@@ -1539,9 +1583,12 @@ export interface FileRouteTypes {
     | '/contact'
     | '/cookies'
     | '/deepfake-protection'
+    | '/enterprise-protection'
     | '/eterna-ai'
+    | '/how-it-works'
     | '/identity-response-observatory'
     | '/image-immunization'
+    | '/incident-response'
     | '/methodology'
     | '/newsroom'
     | '/onboarding'
@@ -1549,6 +1596,7 @@ export interface FileRouteTypes {
     | '/partner-apply'
     | '/partner-status'
     | '/privacy'
+    | '/request-protection'
     | '/research'
     | '/security'
     | '/staff'
@@ -1674,9 +1722,12 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
   DeepfakeProtectionRoute: typeof DeepfakeProtectionRoute
+  EnterpriseProtectionRoute: typeof EnterpriseProtectionRoute
   EternaAiRoute: typeof EternaAiRoute
+  HowItWorksRoute: typeof HowItWorksRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
   ImageImmunizationRoute: typeof ImageImmunizationRoute
+  IncidentResponseRoute: typeof IncidentResponseRoute
   MethodologyRoute: typeof MethodologyRoute
   NewsroomRoute: typeof NewsroomRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -1684,6 +1735,7 @@ export interface RootRouteChildren {
   PartnerApplyRoute: typeof PartnerApplyRoute
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
+  RequestProtectionRoute: typeof RequestProtectionRoute
   ResearchRoute: typeof ResearchRoute
   SecurityRoute: typeof SecurityRoute
   StaffRoute: typeof StaffRouteWithChildren
@@ -1790,6 +1842,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/request-protection': {
+      id: '/request-protection'
+      path: '/request-protection'
+      fullPath: '/request-protection'
+      preLoaderRoute: typeof RequestProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -1839,6 +1898,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MethodologyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/incident-response': {
+      id: '/incident-response'
+      path: '/incident-response'
+      fullPath: '/incident-response'
+      preLoaderRoute: typeof IncidentResponseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/image-immunization': {
       id: '/image-immunization'
       path: '/image-immunization'
@@ -1853,11 +1919,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdentityResponseObservatoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/eterna-ai': {
       id: '/eterna-ai'
       path: '/eterna-ai'
       fullPath: '/eterna-ai'
       preLoaderRoute: typeof EternaAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enterprise-protection': {
+      id: '/enterprise-protection'
+      path: '/enterprise-protection'
+      fullPath: '/enterprise-protection'
+      preLoaderRoute: typeof EnterpriseProtectionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deepfake-protection': {
@@ -2834,9 +2914,12 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
   DeepfakeProtectionRoute: DeepfakeProtectionRoute,
+  EnterpriseProtectionRoute: EnterpriseProtectionRoute,
   EternaAiRoute: EternaAiRoute,
+  HowItWorksRoute: HowItWorksRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
   ImageImmunizationRoute: ImageImmunizationRoute,
+  IncidentResponseRoute: IncidentResponseRoute,
   MethodologyRoute: MethodologyRoute,
   NewsroomRoute: NewsroomRoute,
   OnboardingRoute: OnboardingRoute,
@@ -2844,6 +2927,7 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerApplyRoute: PartnerApplyRoute,
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
+  RequestProtectionRoute: RequestProtectionRoute,
   ResearchRoute: ResearchRoute,
   SecurityRoute: SecurityRoute,
   StaffRoute: StaffRouteWithChildren,
