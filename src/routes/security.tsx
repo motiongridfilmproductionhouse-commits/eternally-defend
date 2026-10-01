@@ -142,10 +142,10 @@ function SecurityPage() {
               could degrade service for others. Include enough detail to reproduce the issue.
             </p>
             <a
-              href="mailto:security@eternasentinel.com"
+              href="mailto:legal@protectbyeterna.com"
               className="inline-flex items-center gap-1 text-sm font-semibold text-landing-ink"
             >
-              security@eternasentinel.com
+              legal@protectbyeterna.com
             </a>
           </div>
         </div>

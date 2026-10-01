@@ -243,10 +243,10 @@ function PrivacyPage() {
             <p>
               To exercise these rights, contact us at{" "}
               <a
-                href="mailto:privacy@eternasentinel.com"
+                href="mailto:legal@protectbyeterna.com"
                 className="text-primary underline underline-offset-4 hover:opacity-80"
               >
-                privacy@eternasentinel.com
+                legal@protectbyeterna.com
               </a>
               .
             </p>
@@ -308,10 +308,10 @@ function PrivacyPage() {
               <p className="mt-1">
                 Email:{" "}
                 <a
-                  href="mailto:privacy@eternasentinel.com"
+                  href="mailto:legal@protectbyeterna.com"
                   className="text-primary underline underline-offset-4 hover:opacity-80"
                 >
-                  privacy@eternasentinel.com
+                  legal@protectbyeterna.com
                 </a>
               </p>
               <p>
