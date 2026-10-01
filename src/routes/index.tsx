@@ -114,7 +114,11 @@ const organizationSchema = JSON.stringify({
 const keyPages = [
   ["Explore Image Immunization", "/image-immunization"],
   ["Deepfake Protection", "/deepfake-protection"],
+  ["Monitoring", "/monitoring"],
   ["Impersonation Protection", "/ai-impersonation"],
+  ["Online Reputation Protection", "/online-reputation-protection"],
+  ["Incident Response", "/incident-response"],
+  ["Public Figure Protection", "/public-figure-protection"],
   ["Enterprise Protection", "/enterprise-protection"],
   ["How Eterna Sentinel Works", "/how-it-works"],
   ["Newsroom & Research", "/newsroom"],
