@@ -9,240 +9,222 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WaitinglistRouteImport } from './routes/waitinglist'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as StudentDigitalSafetyRouteImport } from './routes/student-digital-safety'
-import { Route as StaffRouteImport } from './routes/staff'
-import { Route as SecurityRouteImport } from './routes/security'
-import { Route as ResearchRouteImport } from './routes/research'
-import { Route as RequestProtectionRouteImport } from './routes/request-protection'
-import { Route as PublicFigureProtectionRouteImport } from './routes/public-figure-protection'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as PartnerStatusRouteImport } from './routes/partner-status'
-import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
-import { Route as OnlineReputationProtectionRouteImport } from './routes/online-reputation-protection'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as NewsroomRouteImport } from './routes/newsroom'
-import { Route as MonitoringRouteImport } from './routes/monitoring'
-import { Route as MethodologyRouteImport } from './routes/methodology'
-import { Route as IncidentResponseRouteImport } from './routes/incident-response'
-import { Route as ImpersonationProtectionRouteImport } from './routes/impersonation-protection'
-import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
-import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
-import { Route as HowItWorksRouteImport } from './routes/how-it-works'
-import { Route as EternaAiRouteImport } from './routes/eterna-ai'
-import { Route as EnterpriseProtectionRouteImport } from './routes/enterprise-protection'
-import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
-import { Route as CookiesRouteImport } from './routes/cookies'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AiImpersonationRouteImport } from './routes/ai-impersonation'
-import { Route as AgentAssessmentRouteImport } from './routes/agent-assessment'
-import { Route as AgentAdminRouteImport } from './routes/agent-admin'
-import { Route as AgentRouteImport } from './routes/agent'
-import { Route as AcceptableUseRouteImport } from './routes/acceptable-use'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as PartnerRouteImport } from './routes/_partner'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as PartnerRouteImport } from './routes/_partner'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AcceptableUseRouteImport } from './routes/acceptable-use'
+import { Route as AgentRouteImport } from './routes/agent'
+import { Route as AgentAdminRouteImport } from './routes/agent-admin'
+import { Route as AgentAssessmentRouteImport } from './routes/agent-assessment'
+import { Route as AiImpersonationRouteImport } from './routes/ai-impersonation'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
+import { Route as EnterpriseProtectionRouteImport } from './routes/enterprise-protection'
+import { Route as EternaAiRouteImport } from './routes/eterna-ai'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
+import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
+import { Route as ImpersonationProtectionRouteImport } from './routes/impersonation-protection'
+import { Route as IncidentResponseRouteImport } from './routes/incident-response'
+import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as MonitoringRouteImport } from './routes/monitoring'
+import { Route as NewsroomRouteImport } from './routes/newsroom'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as OnlineReputationProtectionRouteImport } from './routes/online-reputation-protection'
+import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
+import { Route as PartnerStatusRouteImport } from './routes/partner-status'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PublicFigureProtectionRouteImport } from './routes/public-figure-protection'
+import { Route as RequestProtectionRouteImport } from './routes/request-protection'
+import { Route as ResearchRouteImport } from './routes/research'
+import { Route as SecurityRouteImport } from './routes/security'
+import { Route as StaffRouteImport } from './routes/staff'
+import { Route as StudentDigitalSafetyRouteImport } from './routes/student-digital-safety'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as WaitinglistRouteImport } from './routes/waitinglist'
+import { Route as AppAssetsRouteImport } from './routes/_app.assets'
+import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as AppCasesRouteImport } from './routes/_app.cases'
+import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
+import { Route as AppCopyrightIntelRouteImport } from './routes/_app.copyright-intel'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppDeepfakeIntelRouteImport } from './routes/_app.deepfake-intel'
+import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
+import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
+import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protection'
+import { Route as AppFaceReferencesRouteImport } from './routes/_app.face-references'
+import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
+import { Route as AppNarrativeIntelligenceRouteImport } from './routes/_app.narrative-intelligence'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
+import { Route as AppReportsRouteImport } from './routes/_app.reports'
+import { Route as AppScanRouteImport } from './routes/_app.scan'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppThreatMonitoringRouteImport } from './routes/_app.threat-monitoring'
+import { Route as AppThreatRadarRouteImport } from './routes/_app.threat-radar'
+import { Route as AppYoutubeRemovalRouteImport } from './routes/_app.youtube-removal'
+import { Route as PartnerPartnerRouteImport } from './routes/_partner.partner'
+import { Route as ApiScanRouteImport } from './routes/api/scan'
+import { Route as FaceHandoffTokenRouteImport } from './routes/face-handoff.$token'
+import { Route as NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRouteImport } from './routes/newsroom_.ai-generated-explicit-images-student-safety-guide'
+import { Route as NewsroomAiImpersonationReputationDamageRouteImport } from './routes/newsroom_.ai-impersonation-reputation-damage'
+import { Route as NewsroomBrandReputationRiskBusinessRiskRouteImport } from './routes/newsroom_.brand-reputation-risk-business-risk'
+import { Route as NewsroomCollegeStudentDeepfakesRouteImport } from './routes/newsroom_.college-student-deepfakes'
+import { Route as NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRouteImport } from './routes/newsroom_.content-removal-vs-search-suppression-vs-reputation-recovery'
+import { Route as NewsroomDeepfakeReuploadsAfterRemovalRouteImport } from './routes/newsroom_.deepfake-reuploads-after-removal'
+import { Route as NewsroomDeepfakeVerificationGuideRouteImport } from './routes/newsroom_.deepfake-verification-guide'
+import { Route as NewsroomDetectionIsNotPreventionRouteImport } from './routes/newsroom_.detection-is-not-prevention'
+import { Route as NewsroomEternaIntroducesImageImmunizationRouteImport } from './routes/newsroom_.eterna-introduces-image-immunization'
+import { Route as NewsroomExecutiveFirstHourPlaybookRouteImport } from './routes/newsroom_.executive-first-hour-playbook'
+import { Route as NewsroomFakeAccountUsingMyNamePhotosRouteImport } from './routes/newsroom_.fake-account-using-my-name-photos'
+import { Route as NewsroomFalseAllegationsOnlineWhatToDoRouteImport } from './routes/newsroom_.false-allegations-online-what-to-do'
+import { Route as NewsroomFirst24HoursOnlineReputationCrisisRouteImport } from './routes/newsroom_.first-24-hours-online-reputation-crisis'
+import { Route as NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport } from './routes/newsroom_.how-colleges-respond-to-deepfake-abuse'
+import { Route as NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport } from './routes/newsroom_.how-eterna-validates-image-immunization-responsibly'
+import { Route as NewsroomHowToPreserveDeepfakeEvidenceRouteImport } from './routes/newsroom_.how-to-preserve-deepfake-evidence'
+import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom_.impersonation-response-guide'
+import { Route as NewsroomInsideEternaImageImmunizationRouteImport } from './routes/newsroom_.inside-eterna-image-immunization'
+import { Route as NewsroomNegativeSearchResultsBrandReputationRouteImport } from './routes/newsroom_.negative-search-results-brand-reputation'
+import { Route as NewsroomOnlineReputationProblemsBusinessGrowthRouteImport } from './routes/newsroom_.online-reputation-problems-business-growth'
+import { Route as NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport } from './routes/newsroom_.private-video-leak-online-blackmail-first-steps'
+import { Route as NewsroomSomeoneMadeADeepfakeOfMeRouteImport } from './routes/newsroom_.someone-made-a-deepfake-of-me'
+import { Route as NewsroomThreatenedToPublishPrivateImagesWhatToDoRouteImport } from './routes/newsroom_.threatened-to-publish-private-images-what-to-do'
+import { Route as NewsroomWhatIsADeepfakeRouteImport } from './routes/newsroom_.what-is-a-deepfake'
+import { Route as NewsroomWhatIsImageImmunizationRouteImport } from './routes/newsroom_.what-is-image-immunization'
+import { Route as NewsroomWhyCompaniesNeedReputationMonitoringRouteImport } from './routes/newsroom_.why-companies-need-reputation-monitoring'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as VerifySlugRouteImport } from './routes/verify.$slug'
-import { Route as NewsroomWhyCompaniesNeedReputationMonitoringRouteImport } from './routes/newsroom_.why-companies-need-reputation-monitoring'
-import { Route as NewsroomWhatIsImageImmunizationRouteImport } from './routes/newsroom_.what-is-image-immunization'
-import { Route as NewsroomWhatIsADeepfakeRouteImport } from './routes/newsroom_.what-is-a-deepfake'
-import { Route as NewsroomThreatenedToPublishPrivateImagesWhatToDoRouteImport } from './routes/newsroom_.threatened-to-publish-private-images-what-to-do'
-import { Route as NewsroomSomeoneMadeADeepfakeOfMeRouteImport } from './routes/newsroom_.someone-made-a-deepfake-of-me'
-import { Route as NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport } from './routes/newsroom_.private-video-leak-online-blackmail-first-steps'
-import { Route as NewsroomOnlineReputationProblemsBusinessGrowthRouteImport } from './routes/newsroom_.online-reputation-problems-business-growth'
-import { Route as NewsroomNegativeSearchResultsBrandReputationRouteImport } from './routes/newsroom_.negative-search-results-brand-reputation'
-import { Route as NewsroomInsideEternaImageImmunizationRouteImport } from './routes/newsroom_.inside-eterna-image-immunization'
-import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom_.impersonation-response-guide'
-import { Route as NewsroomHowToPreserveDeepfakeEvidenceRouteImport } from './routes/newsroom_.how-to-preserve-deepfake-evidence'
-import { Route as NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport } from './routes/newsroom_.how-eterna-validates-image-immunization-responsibly'
-import { Route as NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport } from './routes/newsroom_.how-colleges-respond-to-deepfake-abuse'
-import { Route as NewsroomFirst24HoursOnlineReputationCrisisRouteImport } from './routes/newsroom_.first-24-hours-online-reputation-crisis'
-import { Route as NewsroomFalseAllegationsOnlineWhatToDoRouteImport } from './routes/newsroom_.false-allegations-online-what-to-do'
-import { Route as NewsroomFakeAccountUsingMyNamePhotosRouteImport } from './routes/newsroom_.fake-account-using-my-name-photos'
-import { Route as NewsroomExecutiveFirstHourPlaybookRouteImport } from './routes/newsroom_.executive-first-hour-playbook'
-import { Route as NewsroomEternaIntroducesImageImmunizationRouteImport } from './routes/newsroom_.eterna-introduces-image-immunization'
-import { Route as NewsroomDetectionIsNotPreventionRouteImport } from './routes/newsroom_.detection-is-not-prevention'
-import { Route as NewsroomDeepfakeVerificationGuideRouteImport } from './routes/newsroom_.deepfake-verification-guide'
-import { Route as NewsroomDeepfakeReuploadsAfterRemovalRouteImport } from './routes/newsroom_.deepfake-reuploads-after-removal'
-import { Route as NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRouteImport } from './routes/newsroom_.content-removal-vs-search-suppression-vs-reputation-recovery'
-import { Route as NewsroomCollegeStudentDeepfakesRouteImport } from './routes/newsroom_.college-student-deepfakes'
-import { Route as NewsroomBrandReputationRiskBusinessRiskRouteImport } from './routes/newsroom_.brand-reputation-risk-business-risk'
-import { Route as NewsroomAiImpersonationReputationDamageRouteImport } from './routes/newsroom_.ai-impersonation-reputation-damage'
-import { Route as NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRouteImport } from './routes/newsroom_.ai-generated-explicit-images-student-safety-guide'
-import { Route as FaceHandoffTokenRouteImport } from './routes/face-handoff.$token'
-import { Route as ApiScanRouteImport } from './routes/api/scan'
-import { Route as PartnerPartnerRouteImport } from './routes/_partner.partner'
-import { Route as AppYoutubeRemovalRouteImport } from './routes/_app.youtube-removal'
-import { Route as AppThreatRadarRouteImport } from './routes/_app.threat-radar'
-import { Route as AppThreatMonitoringRouteImport } from './routes/_app.threat-monitoring'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppScanRouteImport } from './routes/_app.scan'
-import { Route as AppReportsRouteImport } from './routes/_app.reports'
-import { Route as AppRemovalsRouteImport } from './routes/_app.removals'
-import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppNarrativeIntelligenceRouteImport } from './routes/_app.narrative-intelligence'
-import { Route as AppIntelligenceRouteImport } from './routes/_app.intelligence'
-import { Route as AppFaceReferencesRouteImport } from './routes/_app.face-references'
-import { Route as AppFaceProtectionRouteImport } from './routes/_app.face-protection'
-import { Route as AppEvidenceVaultRouteImport } from './routes/_app.evidence-vault'
-import { Route as AppEnforcementRouteImport } from './routes/_app.enforcement'
-import { Route as AppDeepfakeIntelRouteImport } from './routes/_app.deepfake-intel'
-import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppCopyrightIntelRouteImport } from './routes/_app.copyright-intel'
-import { Route as AppChannelWatchRouteImport } from './routes/_app.channel-watch'
-import { Route as AppCasesRouteImport } from './routes/_app.cases'
-import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
-import { Route as AppAssetsRouteImport } from './routes/_app.assets'
-import { Route as PartnerPartnerIndexRouteImport } from './routes/_partner.partner.index'
-import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
-import { Route as StaffReportScanIdRouteImport } from './routes/staff.report.$scanId'
-import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
-import { Route as ApiPublicOnboardingCompletionBackfillRouteImport } from './routes/api/public/onboarding-completion-backfill'
-import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/image-proxy'
-import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
-import { Route as PartnerPartnerProposalsRouteImport } from './routes/_partner.partner.proposals'
-import { Route as PartnerPartnerPaymentsRouteImport } from './routes/_partner.partner.payments'
-import { Route as PartnerPartnerMarketingRouteImport } from './routes/_partner.partner.marketing'
-import { Route as PartnerPartnerCommissionsRouteImport } from './routes/_partner.partner.commissions'
-import { Route as PartnerPartnerClientsRouteImport } from './routes/_partner.partner.clients'
-import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
-import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
-import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
-import { Route as AppProtectionSourcesRouteImport } from './routes/_app.protection.sources'
-import { Route as AppDashboardImageImmunizationRouteImport } from './routes/_app.dashboard_.image-immunization'
-import { Route as AppAdminWaitlistRouteImport } from './routes/_app.admin.waitlist'
-import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
-import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.removal-routes'
-import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
-import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.admin.onboarding-reviews'
-import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
-import { Route as AppAdminInvitesRouteImport } from './routes/_app.admin.invites'
-import { Route as AppAdminIdentityReviewRouteImport } from './routes/_app.admin.identity-review'
-import { Route as AppAdminEipRouteImport } from './routes/_app.admin.eip'
-import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
 import { Route as AppAdminApprovedSourcesReviewRouteImport } from './routes/_app.admin.approved-sources-review'
+import { Route as AppAdminDiagnosticsRouteImport } from './routes/_app.admin.diagnostics'
+import { Route as AppAdminEipRouteImport } from './routes/_app.admin.eip'
+import { Route as AppAdminIdentityReviewRouteImport } from './routes/_app.admin.identity-review'
+import { Route as AppAdminInvitesRouteImport } from './routes/_app.admin.invites'
+import { Route as AppAdminMultimediaHealthRouteImport } from './routes/_app.admin.multimedia-health'
+import { Route as AppAdminOnboardingReviewsRouteImport } from './routes/_app.admin.onboarding-reviews'
+import { Route as AppAdminProviderActivationRouteImport } from './routes/_app.admin.provider-activation'
+import { Route as AppAdminRemovalRoutesRouteImport } from './routes/_app.admin.removal-routes'
+import { Route as AppAdminSensitiveProtectionRouteImport } from './routes/_app.admin.sensitive-protection'
+import { Route as AppAdminWaitlistRouteImport } from './routes/_app.admin.waitlist'
+import { Route as AppDashboardImageImmunizationRouteImport } from './routes/_app.dashboard_.image-immunization'
+import { Route as AppProtectionSourcesRouteImport } from './routes/_app.protection.sources'
+import { Route as AppReportsReportIdRouteImport } from './routes/_app.reports.$reportId'
+import { Route as AppSensitiveProtectionIndexRouteImport } from './routes/_app.sensitive-protection.index'
+import { Route as AppSensitiveProtectionEmergencyRouteImport } from './routes/_app.sensitive-protection.emergency'
+import { Route as AppSensitiveProtectionRemovalCasesRouteImport } from './routes/_app.sensitive-protection.removal-cases'
+import { Route as PartnerPartnerIndexRouteImport } from './routes/_partner.partner.index'
+import { Route as PartnerPartnerClientsRouteImport } from './routes/_partner.partner.clients'
+import { Route as PartnerPartnerCommissionsRouteImport } from './routes/_partner.partner.commissions'
+import { Route as PartnerPartnerMarketingRouteImport } from './routes/_partner.partner.marketing'
+import { Route as PartnerPartnerPaymentsRouteImport } from './routes/_partner.partner.payments'
+import { Route as PartnerPartnerProposalsRouteImport } from './routes/_partner.partner.proposals'
+import { Route as ApiMediaPreviewRouteImport } from './routes/api/media.preview'
+import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/image-proxy'
+import { Route as ApiPublicOnboardingCompletionBackfillRouteImport } from './routes/api/public/onboarding-completion-backfill'
+import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
+import { Route as StaffReportScanIdRouteImport } from './routes/staff.report.$scanId'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
-import { Route as ApiPublicHooksScanOrchestratorRouteImport } from './routes/api/public/hooks/scan-orchestrator'
-import { Route as ApiPublicHooksResendWebhookRouteImport } from './routes/api/public/hooks/resend-webhook'
-import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
-import { Route as ApiPublicHooksProtectionSchedulerTokenRouteImport } from './routes/api/public/hooks/protection-scheduler-token'
-import { Route as ApiPublicHooksProtectionAutopilotRouteImport } from './routes/api/public/hooks/protection-autopilot'
-import { Route as ApiPublicHooksProtectionActivationRepairRouteImport } from './routes/api/public/hooks/protection-activation-repair'
-import { Route as ApiPublicHooksProspectScanWorkerRouteImport } from './routes/api/public/hooks/prospect-scan-worker'
-import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
-import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
-import { Route as ApiPublicHooksEipWorkerRouteImport } from './routes/api/public/hooks/eip-worker'
-import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
-import { Route as ApiPublicHooksDeepfakeScanExecuteRouteImport } from './routes/api/public/hooks/deepfake-scan-execute'
-import { Route as ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport } from './routes/api/public/hooks/deepfake-manual-evidence-execute'
-import { Route as ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport } from './routes/api/public/hooks/deepfake-google-images-worker'
-import { Route as ApiPublicHooksCopyrightScanExecuteRouteImport } from './routes/api/public/hooks/copyright-scan-execute'
-import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
-import { Route as ApiPublicHooksAutomationStatusCheckRouteImport } from './routes/api/public/hooks/automation-status-check'
-import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
-import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/public/hooks/automation-fetch'
-import { Route as ApiPublicHooksApprovedSourcesPollRouteImport } from './routes/api/public/hooks/approved-sources-poll'
-import { Route as ApiPublicHooksAgentAssessmentsRouteImport } from './routes/api/public/hooks/agent-assessments'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
+import { Route as ApiPublicHooksAgentAssessmentsRouteImport } from './routes/api/public/hooks/agent-assessments'
+import { Route as ApiPublicHooksApprovedSourcesPollRouteImport } from './routes/api/public/hooks/approved-sources-poll'
+import { Route as ApiPublicHooksAutomationFetchRouteImport } from './routes/api/public/hooks/automation-fetch'
+import { Route as ApiPublicHooksAutomationStatusRouteImport } from './routes/api/public/hooks/automation-status'
+import { Route as ApiPublicHooksAutomationStatusCheckRouteImport } from './routes/api/public/hooks/automation-status-check'
+import { Route as ApiPublicHooksChannelWatchPollRouteImport } from './routes/api/public/hooks/channel-watch-poll'
+import { Route as ApiPublicHooksCopyrightScanExecuteRouteImport } from './routes/api/public/hooks/copyright-scan-execute'
+import { Route as ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport } from './routes/api/public/hooks/deepfake-google-images-worker'
+import { Route as ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport } from './routes/api/public/hooks/deepfake-manual-evidence-execute'
+import { Route as ApiPublicHooksDeepfakeScanExecuteRouteImport } from './routes/api/public/hooks/deepfake-scan-execute'
+import { Route as ApiPublicHooksDistributionMonitorRouteImport } from './routes/api/public/hooks/distribution-monitor'
+import { Route as ApiPublicHooksEipWorkerRouteImport } from './routes/api/public/hooks/eip-worker'
+import { Route as ApiPublicHooksEnforcementWorkerRouteImport } from './routes/api/public/hooks/enforcement-worker'
+import { Route as ApiPublicHooksPostmarkWebhookRouteImport } from './routes/api/public/hooks/postmark-webhook'
+import { Route as ApiPublicHooksProspectScanWorkerRouteImport } from './routes/api/public/hooks/prospect-scan-worker'
+import { Route as ApiPublicHooksProtectionActivationRepairRouteImport } from './routes/api/public/hooks/protection-activation-repair'
+import { Route as ApiPublicHooksProtectionAutopilotRouteImport } from './routes/api/public/hooks/protection-autopilot'
+import { Route as ApiPublicHooksProtectionSchedulerTokenRouteImport } from './routes/api/public/hooks/protection-scheduler-token'
+import { Route as ApiPublicHooksReleaseProtectionMonitorRouteImport } from './routes/api/public/hooks/release-protection-monitor'
+import { Route as ApiPublicHooksResendWebhookRouteImport } from './routes/api/public/hooks/resend-webhook'
+import { Route as ApiPublicHooksScanOrchestratorRouteImport } from './routes/api/public/hooks/scan-orchestrator'
 
-const WaitinglistRoute = WaitinglistRouteImport.update({
-  id: '/waitinglist',
-  path: '/waitinglist',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudentDigitalSafetyRoute = StudentDigitalSafetyRouteImport.update({
-  id: '/student-digital-safety',
-  path: '/student-digital-safety',
+const PartnerRoute = PartnerRouteImport.update({
+  id: '/_partner',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StaffRoute = StaffRouteImport.update({
-  id: '/staff',
-  path: '/staff',
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SecurityRoute = SecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
+const AcceptableUseRoute = AcceptableUseRouteImport.update({
+  id: '/acceptable-use',
+  path: '/acceptable-use',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResearchRoute = ResearchRouteImport.update({
-  id: '/research',
-  path: '/research',
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RequestProtectionRoute = RequestProtectionRouteImport.update({
-  id: '/request-protection',
-  path: '/request-protection',
+const AgentAdminRoute = AgentAdminRouteImport.update({
+  id: '/agent-admin',
+  path: '/agent-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PublicFigureProtectionRoute = PublicFigureProtectionRouteImport.update({
-  id: '/public-figure-protection',
-  path: '/public-figure-protection',
+const AgentAssessmentRoute = AgentAssessmentRouteImport.update({
+  id: '/agent-assessment',
+  path: '/agent-assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
+const AiImpersonationRoute = AiImpersonationRouteImport.update({
+  id: '/ai-impersonation',
+  path: '/ai-impersonation',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PartnerStatusRoute = PartnerStatusRouteImport.update({
-  id: '/partner-status',
-  path: '/partner-status',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PartnerApplyRoute = PartnerApplyRouteImport.update({
-  id: '/partner-apply',
-  path: '/partner-apply',
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OnlineReputationProtectionRoute =
-  OnlineReputationProtectionRouteImport.update({
-    id: '/online-reputation-protection',
-    path: '/online-reputation-protection',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NewsroomRoute = NewsroomRouteImport.update({
-  id: '/newsroom',
-  path: '/newsroom',
+const DeepfakeProtectionRoute = DeepfakeProtectionRouteImport.update({
+  id: '/deepfake-protection',
+  path: '/deepfake-protection',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MonitoringRoute = MonitoringRouteImport.update({
-  id: '/monitoring',
-  path: '/monitoring',
+const EnterpriseProtectionRoute = EnterpriseProtectionRouteImport.update({
+  id: '/enterprise-protection',
+  path: '/enterprise-protection',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MethodologyRoute = MethodologyRouteImport.update({
-  id: '/methodology',
-  path: '/methodology',
+const EternaAiRoute = EternaAiRouteImport.update({
+  id: '/eterna-ai',
+  path: '/eterna-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IncidentResponseRoute = IncidentResponseRouteImport.update({
-  id: '/incident-response',
-  path: '/incident-response',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImpersonationProtectionRoute = ImpersonationProtectionRouteImport.update({
-  id: '/impersonation-protection',
-  path: '/impersonation-protection',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImageImmunizationRoute = ImageImmunizationRouteImport.update({
-  id: '/image-immunization',
-  path: '/image-immunization',
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IdentityResponseObservatoryRoute =
@@ -251,217 +233,245 @@ const IdentityResponseObservatoryRoute =
     path: '/identity-response-observatory',
     getParentRoute: () => rootRouteImport,
   } as any)
-const HowItWorksRoute = HowItWorksRouteImport.update({
-  id: '/how-it-works',
-  path: '/how-it-works',
+const ImageImmunizationRoute = ImageImmunizationRouteImport.update({
+  id: '/image-immunization',
+  path: '/image-immunization',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EternaAiRoute = EternaAiRouteImport.update({
-  id: '/eterna-ai',
-  path: '/eterna-ai',
+const ImpersonationProtectionRoute = ImpersonationProtectionRouteImport.update({
+  id: '/impersonation-protection',
+  path: '/impersonation-protection',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EnterpriseProtectionRoute = EnterpriseProtectionRouteImport.update({
-  id: '/enterprise-protection',
-  path: '/enterprise-protection',
+const IncidentResponseRoute = IncidentResponseRouteImport.update({
+  id: '/incident-response',
+  path: '/incident-response',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DeepfakeProtectionRoute = DeepfakeProtectionRouteImport.update({
-  id: '/deepfake-protection',
-  path: '/deepfake-protection',
+const MethodologyRoute = MethodologyRouteImport.update({
+  id: '/methodology',
+  path: '/methodology',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CookiesRoute = CookiesRouteImport.update({
-  id: '/cookies',
-  path: '/cookies',
+const MonitoringRoute = MonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
+const NewsroomRoute = NewsroomRouteImport.update({
+  id: '/newsroom',
+  path: '/newsroom',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AiImpersonationRoute = AiImpersonationRouteImport.update({
-  id: '/ai-impersonation',
-  path: '/ai-impersonation',
+const OnlineReputationProtectionRoute =
+  OnlineReputationProtectionRouteImport.update({
+    id: '/online-reputation-protection',
+    path: '/online-reputation-protection',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PartnerApplyRoute = PartnerApplyRouteImport.update({
+  id: '/partner-apply',
+  path: '/partner-apply',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AgentAssessmentRoute = AgentAssessmentRouteImport.update({
-  id: '/agent-assessment',
-  path: '/agent-assessment',
+const PartnerStatusRoute = PartnerStatusRouteImport.update({
+  id: '/partner-status',
+  path: '/partner-status',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AgentAdminRoute = AgentAdminRouteImport.update({
-  id: '/agent-admin',
-  path: '/agent-admin',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AgentRoute = AgentRouteImport.update({
-  id: '/agent',
-  path: '/agent',
+const PublicFigureProtectionRoute = PublicFigureProtectionRouteImport.update({
+  id: '/public-figure-protection',
+  path: '/public-figure-protection',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AcceptableUseRoute = AcceptableUseRouteImport.update({
-  id: '/acceptable-use',
-  path: '/acceptable-use',
+const RequestProtectionRoute = RequestProtectionRouteImport.update({
+  id: '/request-protection',
+  path: '/request-protection',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
+const ResearchRoute = ResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PartnerRoute = PartnerRouteImport.update({
-  id: '/_partner',
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
+const StaffRoute = StaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const StudentDigitalSafetyRoute = StudentDigitalSafetyRouteImport.update({
+  id: '/student-digital-safety',
+  path: '/student-digital-safety',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StaffIndexRoute = StaffIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => StaffRoute,
-} as any)
-const VerifySlugRoute = VerifySlugRouteImport.update({
-  id: '/verify/$slug',
-  path: '/verify/$slug',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NewsroomWhyCompaniesNeedReputationMonitoringRoute =
-  NewsroomWhyCompaniesNeedReputationMonitoringRouteImport.update({
-    id: '/newsroom_/why-companies-need-reputation-monitoring',
-    path: '/newsroom/why-companies-need-reputation-monitoring',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomWhatIsImageImmunizationRoute =
-  NewsroomWhatIsImageImmunizationRouteImport.update({
-    id: '/newsroom_/what-is-image-immunization',
-    path: '/newsroom/what-is-image-immunization',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomWhatIsADeepfakeRoute = NewsroomWhatIsADeepfakeRouteImport.update({
-  id: '/newsroom_/what-is-a-deepfake',
-  path: '/newsroom/what-is-a-deepfake',
+const WaitinglistRoute = WaitinglistRouteImport.update({
+  id: '/waitinglist',
+  path: '/waitinglist',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute =
-  NewsroomThreatenedToPublishPrivateImagesWhatToDoRouteImport.update({
-    id: '/newsroom_/threatened-to-publish-private-images-what-to-do',
-    path: '/newsroom/threatened-to-publish-private-images-what-to-do',
+const AppAssetsRoute = AppAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampaignsRoute = AppCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCasesRoute = AppCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChannelWatchRoute = AppChannelWatchRouteImport.update({
+  id: '/channel-watch',
+  path: '/channel-watch',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCopyrightIntelRoute = AppCopyrightIntelRouteImport.update({
+  id: '/copyright-intel',
+  path: '/copyright-intel',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDeepfakeIntelRoute = AppDeepfakeIntelRouteImport.update({
+  id: '/deepfake-intel',
+  path: '/deepfake-intel',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEnforcementRoute = AppEnforcementRouteImport.update({
+  id: '/enforcement',
+  path: '/enforcement',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEvidenceVaultRoute = AppEvidenceVaultRouteImport.update({
+  id: '/evidence-vault',
+  path: '/evidence-vault',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFaceProtectionRoute = AppFaceProtectionRouteImport.update({
+  id: '/face-protection',
+  path: '/face-protection',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFaceReferencesRoute = AppFaceReferencesRouteImport.update({
+  id: '/face-references',
+  path: '/face-references',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntelligenceRoute = AppIntelligenceRouteImport.update({
+  id: '/intelligence',
+  path: '/intelligence',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNarrativeIntelligenceRoute =
+  AppNarrativeIntelligenceRouteImport.update({
+    id: '/narrative-intelligence',
+    path: '/narrative-intelligence',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRemovalsRoute = AppRemovalsRouteImport.update({
+  id: '/removals',
+  path: '/removals',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScanRoute = AppScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppThreatMonitoringRoute = AppThreatMonitoringRouteImport.update({
+  id: '/threat-monitoring',
+  path: '/threat-monitoring',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppThreatRadarRoute = AppThreatRadarRouteImport.update({
+  id: '/threat-radar',
+  path: '/threat-radar',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppYoutubeRemovalRoute = AppYoutubeRemovalRouteImport.update({
+  id: '/youtube-removal',
+  path: '/youtube-removal',
+  getParentRoute: () => AppRoute,
+} as any)
+const PartnerPartnerRoute = PartnerPartnerRouteImport.update({
+  id: '/partner',
+  path: '/partner',
+  getParentRoute: () => PartnerRoute,
+} as any)
+const ApiScanRoute = ApiScanRouteImport.update({
+  id: '/api/scan',
+  path: '/api/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaceHandoffTokenRoute = FaceHandoffTokenRouteImport.update({
+  id: '/face-handoff/$token',
+  path: '/face-handoff/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRoute =
+  NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRouteImport.update({
+    id: '/newsroom_/ai-generated-explicit-images-student-safety-guide',
+    path: '/newsroom/ai-generated-explicit-images-student-safety-guide',
     getParentRoute: () => rootRouteImport,
   } as any)
-const NewsroomSomeoneMadeADeepfakeOfMeRoute =
-  NewsroomSomeoneMadeADeepfakeOfMeRouteImport.update({
-    id: '/newsroom_/someone-made-a-deepfake-of-me',
-    path: '/newsroom/someone-made-a-deepfake-of-me',
+const NewsroomAiImpersonationReputationDamageRoute =
+  NewsroomAiImpersonationReputationDamageRouteImport.update({
+    id: '/newsroom_/ai-impersonation-reputation-damage',
+    path: '/newsroom/ai-impersonation-reputation-damage',
     getParentRoute: () => rootRouteImport,
   } as any)
-const NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute =
-  NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport.update({
-    id: '/newsroom_/private-video-leak-online-blackmail-first-steps',
-    path: '/newsroom/private-video-leak-online-blackmail-first-steps',
+const NewsroomBrandReputationRiskBusinessRiskRoute =
+  NewsroomBrandReputationRiskBusinessRiskRouteImport.update({
+    id: '/newsroom_/brand-reputation-risk-business-risk',
+    path: '/newsroom/brand-reputation-risk-business-risk',
     getParentRoute: () => rootRouteImport,
   } as any)
-const NewsroomOnlineReputationProblemsBusinessGrowthRoute =
-  NewsroomOnlineReputationProblemsBusinessGrowthRouteImport.update({
-    id: '/newsroom_/online-reputation-problems-business-growth',
-    path: '/newsroom/online-reputation-problems-business-growth',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomNegativeSearchResultsBrandReputationRoute =
-  NewsroomNegativeSearchResultsBrandReputationRouteImport.update({
-    id: '/newsroom_/negative-search-results-brand-reputation',
-    path: '/newsroom/negative-search-results-brand-reputation',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomInsideEternaImageImmunizationRoute =
-  NewsroomInsideEternaImageImmunizationRouteImport.update({
-    id: '/newsroom_/inside-eterna-image-immunization',
-    path: '/newsroom/inside-eterna-image-immunization',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomImpersonationResponseGuideRoute =
-  NewsroomImpersonationResponseGuideRouteImport.update({
-    id: '/newsroom_/impersonation-response-guide',
-    path: '/newsroom/impersonation-response-guide',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomHowToPreserveDeepfakeEvidenceRoute =
-  NewsroomHowToPreserveDeepfakeEvidenceRouteImport.update({
-    id: '/newsroom_/how-to-preserve-deepfake-evidence',
-    path: '/newsroom/how-to-preserve-deepfake-evidence',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute =
-  NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport.update({
-    id: '/newsroom_/how-eterna-validates-image-immunization-responsibly',
-    path: '/newsroom/how-eterna-validates-image-immunization-responsibly',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomHowCollegesRespondToDeepfakeAbuseRoute =
-  NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport.update({
-    id: '/newsroom_/how-colleges-respond-to-deepfake-abuse',
-    path: '/newsroom/how-colleges-respond-to-deepfake-abuse',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomFirst24HoursOnlineReputationCrisisRoute =
-  NewsroomFirst24HoursOnlineReputationCrisisRouteImport.update({
-    id: '/newsroom_/first-24-hours-online-reputation-crisis',
-    path: '/newsroom/first-24-hours-online-reputation-crisis',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomFalseAllegationsOnlineWhatToDoRoute =
-  NewsroomFalseAllegationsOnlineWhatToDoRouteImport.update({
-    id: '/newsroom_/false-allegations-online-what-to-do',
-    path: '/newsroom/false-allegations-online-what-to-do',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomFakeAccountUsingMyNamePhotosRoute =
-  NewsroomFakeAccountUsingMyNamePhotosRouteImport.update({
-    id: '/newsroom_/fake-account-using-my-name-photos',
-    path: '/newsroom/fake-account-using-my-name-photos',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomExecutiveFirstHourPlaybookRoute =
-  NewsroomExecutiveFirstHourPlaybookRouteImport.update({
-    id: '/newsroom_/executive-first-hour-playbook',
-    path: '/newsroom/executive-first-hour-playbook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomEternaIntroducesImageImmunizationRoute =
-  NewsroomEternaIntroducesImageImmunizationRouteImport.update({
-    id: '/newsroom_/eterna-introduces-image-immunization',
-    path: '/newsroom/eterna-introduces-image-immunization',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomDetectionIsNotPreventionRoute =
-  NewsroomDetectionIsNotPreventionRouteImport.update({
-    id: '/newsroom_/detection-is-not-prevention',
-    path: '/newsroom/detection-is-not-prevention',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomDeepfakeVerificationGuideRoute =
-  NewsroomDeepfakeVerificationGuideRouteImport.update({
-    id: '/newsroom_/deepfake-verification-guide',
-    path: '/newsroom/deepfake-verification-guide',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewsroomDeepfakeReuploadsAfterRemovalRoute =
-  NewsroomDeepfakeReuploadsAfterRemovalRouteImport.update({
-    id: '/newsroom_/deepfake-reuploads-after-removal',
-    path: '/newsroom/deepfake-reuploads-after-removal',
+const NewsroomCollegeStudentDeepfakesRoute =
+  NewsroomCollegeStudentDeepfakesRouteImport.update({
+    id: '/newsroom_/college-student-deepfakes',
+    path: '/newsroom/college-student-deepfakes',
     getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute =
@@ -472,262 +482,171 @@ const NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute =
       getParentRoute: () => rootRouteImport,
     } as any,
   )
-const NewsroomCollegeStudentDeepfakesRoute =
-  NewsroomCollegeStudentDeepfakesRouteImport.update({
-    id: '/newsroom_/college-student-deepfakes',
-    path: '/newsroom/college-student-deepfakes',
+const NewsroomDeepfakeReuploadsAfterRemovalRoute =
+  NewsroomDeepfakeReuploadsAfterRemovalRouteImport.update({
+    id: '/newsroom_/deepfake-reuploads-after-removal',
+    path: '/newsroom/deepfake-reuploads-after-removal',
     getParentRoute: () => rootRouteImport,
   } as any)
-const NewsroomBrandReputationRiskBusinessRiskRoute =
-  NewsroomBrandReputationRiskBusinessRiskRouteImport.update({
-    id: '/newsroom_/brand-reputation-risk-business-risk',
-    path: '/newsroom/brand-reputation-risk-business-risk',
+const NewsroomDeepfakeVerificationGuideRoute =
+  NewsroomDeepfakeVerificationGuideRouteImport.update({
+    id: '/newsroom_/deepfake-verification-guide',
+    path: '/newsroom/deepfake-verification-guide',
     getParentRoute: () => rootRouteImport,
   } as any)
-const NewsroomAiImpersonationReputationDamageRoute =
-  NewsroomAiImpersonationReputationDamageRouteImport.update({
-    id: '/newsroom_/ai-impersonation-reputation-damage',
-    path: '/newsroom/ai-impersonation-reputation-damage',
+const NewsroomDetectionIsNotPreventionRoute =
+  NewsroomDetectionIsNotPreventionRouteImport.update({
+    id: '/newsroom_/detection-is-not-prevention',
+    path: '/newsroom/detection-is-not-prevention',
     getParentRoute: () => rootRouteImport,
   } as any)
-const NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRoute =
-  NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRouteImport.update({
-    id: '/newsroom_/ai-generated-explicit-images-student-safety-guide',
-    path: '/newsroom/ai-generated-explicit-images-student-safety-guide',
+const NewsroomEternaIntroducesImageImmunizationRoute =
+  NewsroomEternaIntroducesImageImmunizationRouteImport.update({
+    id: '/newsroom_/eterna-introduces-image-immunization',
+    path: '/newsroom/eterna-introduces-image-immunization',
     getParentRoute: () => rootRouteImport,
   } as any)
-const FaceHandoffTokenRoute = FaceHandoffTokenRouteImport.update({
-  id: '/face-handoff/$token',
-  path: '/face-handoff/$token',
+const NewsroomExecutiveFirstHourPlaybookRoute =
+  NewsroomExecutiveFirstHourPlaybookRouteImport.update({
+    id: '/newsroom_/executive-first-hour-playbook',
+    path: '/newsroom/executive-first-hour-playbook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomFakeAccountUsingMyNamePhotosRoute =
+  NewsroomFakeAccountUsingMyNamePhotosRouteImport.update({
+    id: '/newsroom_/fake-account-using-my-name-photos',
+    path: '/newsroom/fake-account-using-my-name-photos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomFalseAllegationsOnlineWhatToDoRoute =
+  NewsroomFalseAllegationsOnlineWhatToDoRouteImport.update({
+    id: '/newsroom_/false-allegations-online-what-to-do',
+    path: '/newsroom/false-allegations-online-what-to-do',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomFirst24HoursOnlineReputationCrisisRoute =
+  NewsroomFirst24HoursOnlineReputationCrisisRouteImport.update({
+    id: '/newsroom_/first-24-hours-online-reputation-crisis',
+    path: '/newsroom/first-24-hours-online-reputation-crisis',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomHowCollegesRespondToDeepfakeAbuseRoute =
+  NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport.update({
+    id: '/newsroom_/how-colleges-respond-to-deepfake-abuse',
+    path: '/newsroom/how-colleges-respond-to-deepfake-abuse',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute =
+  NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport.update({
+    id: '/newsroom_/how-eterna-validates-image-immunization-responsibly',
+    path: '/newsroom/how-eterna-validates-image-immunization-responsibly',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomHowToPreserveDeepfakeEvidenceRoute =
+  NewsroomHowToPreserveDeepfakeEvidenceRouteImport.update({
+    id: '/newsroom_/how-to-preserve-deepfake-evidence',
+    path: '/newsroom/how-to-preserve-deepfake-evidence',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomImpersonationResponseGuideRoute =
+  NewsroomImpersonationResponseGuideRouteImport.update({
+    id: '/newsroom_/impersonation-response-guide',
+    path: '/newsroom/impersonation-response-guide',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomInsideEternaImageImmunizationRoute =
+  NewsroomInsideEternaImageImmunizationRouteImport.update({
+    id: '/newsroom_/inside-eterna-image-immunization',
+    path: '/newsroom/inside-eterna-image-immunization',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomNegativeSearchResultsBrandReputationRoute =
+  NewsroomNegativeSearchResultsBrandReputationRouteImport.update({
+    id: '/newsroom_/negative-search-results-brand-reputation',
+    path: '/newsroom/negative-search-results-brand-reputation',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomOnlineReputationProblemsBusinessGrowthRoute =
+  NewsroomOnlineReputationProblemsBusinessGrowthRouteImport.update({
+    id: '/newsroom_/online-reputation-problems-business-growth',
+    path: '/newsroom/online-reputation-problems-business-growth',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute =
+  NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport.update({
+    id: '/newsroom_/private-video-leak-online-blackmail-first-steps',
+    path: '/newsroom/private-video-leak-online-blackmail-first-steps',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomSomeoneMadeADeepfakeOfMeRoute =
+  NewsroomSomeoneMadeADeepfakeOfMeRouteImport.update({
+    id: '/newsroom_/someone-made-a-deepfake-of-me',
+    path: '/newsroom/someone-made-a-deepfake-of-me',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute =
+  NewsroomThreatenedToPublishPrivateImagesWhatToDoRouteImport.update({
+    id: '/newsroom_/threatened-to-publish-private-images-what-to-do',
+    path: '/newsroom/threatened-to-publish-private-images-what-to-do',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomWhatIsADeepfakeRoute = NewsroomWhatIsADeepfakeRouteImport.update({
+  id: '/newsroom_/what-is-a-deepfake',
+  path: '/newsroom/what-is-a-deepfake',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiScanRoute = ApiScanRouteImport.update({
-  id: '/api/scan',
-  path: '/api/scan',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PartnerPartnerRoute = PartnerPartnerRouteImport.update({
-  id: '/partner',
-  path: '/partner',
-  getParentRoute: () => PartnerRoute,
-} as any)
-const AppYoutubeRemovalRoute = AppYoutubeRemovalRouteImport.update({
-  id: '/youtube-removal',
-  path: '/youtube-removal',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppThreatRadarRoute = AppThreatRadarRouteImport.update({
-  id: '/threat-radar',
-  path: '/threat-radar',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppThreatMonitoringRoute = AppThreatMonitoringRouteImport.update({
-  id: '/threat-monitoring',
-  path: '/threat-monitoring',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppScanRoute = AppScanRouteImport.update({
-  id: '/scan',
-  path: '/scan',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReportsRoute = AppReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRemovalsRoute = AppRemovalsRouteImport.update({
-  id: '/removals',
-  path: '/removals',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNotificationsRoute = AppNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNarrativeIntelligenceRoute =
-  AppNarrativeIntelligenceRouteImport.update({
-    id: '/narrative-intelligence',
-    path: '/narrative-intelligence',
-    getParentRoute: () => AppRoute,
+const NewsroomWhatIsImageImmunizationRoute =
+  NewsroomWhatIsImageImmunizationRouteImport.update({
+    id: '/newsroom_/what-is-image-immunization',
+    path: '/newsroom/what-is-image-immunization',
+    getParentRoute: () => rootRouteImport,
   } as any)
-const AppIntelligenceRoute = AppIntelligenceRouteImport.update({
-  id: '/intelligence',
-  path: '/intelligence',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFaceReferencesRoute = AppFaceReferencesRouteImport.update({
-  id: '/face-references',
-  path: '/face-references',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFaceProtectionRoute = AppFaceProtectionRouteImport.update({
-  id: '/face-protection',
-  path: '/face-protection',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEvidenceVaultRoute = AppEvidenceVaultRouteImport.update({
-  id: '/evidence-vault',
-  path: '/evidence-vault',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEnforcementRoute = AppEnforcementRouteImport.update({
-  id: '/enforcement',
-  path: '/enforcement',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDeepfakeIntelRoute = AppDeepfakeIntelRouteImport.update({
-  id: '/deepfake-intel',
-  path: '/deepfake-intel',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCopyrightIntelRoute = AppCopyrightIntelRouteImport.update({
-  id: '/copyright-intel',
-  path: '/copyright-intel',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChannelWatchRoute = AppChannelWatchRouteImport.update({
-  id: '/channel-watch',
-  path: '/channel-watch',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCasesRoute = AppCasesRouteImport.update({
-  id: '/cases',
-  path: '/cases',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCampaignsRoute = AppCampaignsRouteImport.update({
-  id: '/campaigns',
-  path: '/campaigns',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAssetsRoute = AppAssetsRouteImport.update({
-  id: '/assets',
-  path: '/assets',
-  getParentRoute: () => AppRoute,
-} as any)
-const PartnerPartnerIndexRoute = PartnerPartnerIndexRouteImport.update({
+const NewsroomWhyCompaniesNeedReputationMonitoringRoute =
+  NewsroomWhyCompaniesNeedReputationMonitoringRouteImport.update({
+    id: '/newsroom_/why-companies-need-reputation-monitoring',
+    path: '/newsroom/why-companies-need-reputation-monitoring',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const StaffIndexRoute = StaffIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => PartnerPartnerRoute,
-} as any)
-const AppSensitiveProtectionIndexRoute =
-  AppSensitiveProtectionIndexRouteImport.update({
-    id: '/sensitive-protection/',
-    path: '/sensitive-protection/',
-    getParentRoute: () => AppRoute,
-  } as any)
-const StaffReportScanIdRoute = StaffReportScanIdRouteImport.update({
-  id: '/report/$scanId',
-  path: '/report/$scanId',
   getParentRoute: () => StaffRoute,
 } as any)
-const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
-  id: '/api/public/veriff-webhook',
-  path: '/api/public/veriff-webhook',
+const VerifySlugRoute = VerifySlugRouteImport.update({
+  id: '/verify/$slug',
+  path: '/verify/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicOnboardingCompletionBackfillRoute =
-  ApiPublicOnboardingCompletionBackfillRouteImport.update({
-    id: '/api/public/onboarding-completion-backfill',
-    path: '/api/public/onboarding-completion-backfill',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicImageProxyRoute = ApiPublicImageProxyRouteImport.update({
-  id: '/api/public/image-proxy',
-  path: '/api/public/image-proxy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMediaPreviewRoute = ApiMediaPreviewRouteImport.update({
-  id: '/api/media/preview',
-  path: '/api/media/preview',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PartnerPartnerProposalsRoute = PartnerPartnerProposalsRouteImport.update({
-  id: '/proposals',
-  path: '/proposals',
-  getParentRoute: () => PartnerPartnerRoute,
-} as any)
-const PartnerPartnerPaymentsRoute = PartnerPartnerPaymentsRouteImport.update({
-  id: '/payments',
-  path: '/payments',
-  getParentRoute: () => PartnerPartnerRoute,
-} as any)
-const PartnerPartnerMarketingRoute = PartnerPartnerMarketingRouteImport.update({
-  id: '/marketing',
-  path: '/marketing',
-  getParentRoute: () => PartnerPartnerRoute,
-} as any)
-const PartnerPartnerCommissionsRoute =
-  PartnerPartnerCommissionsRouteImport.update({
-    id: '/commissions',
-    path: '/commissions',
-    getParentRoute: () => PartnerPartnerRoute,
-  } as any)
-const PartnerPartnerClientsRoute = PartnerPartnerClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
-  getParentRoute: () => PartnerPartnerRoute,
-} as any)
-const AppSensitiveProtectionRemovalCasesRoute =
-  AppSensitiveProtectionRemovalCasesRouteImport.update({
-    id: '/sensitive-protection/removal-cases',
-    path: '/sensitive-protection/removal-cases',
+const AppAdminApprovedSourcesReviewRoute =
+  AppAdminApprovedSourcesReviewRouteImport.update({
+    id: '/admin/approved-sources-review',
+    path: '/admin/approved-sources-review',
     getParentRoute: () => AppRoute,
   } as any)
-const AppSensitiveProtectionEmergencyRoute =
-  AppSensitiveProtectionEmergencyRouteImport.update({
-    id: '/sensitive-protection/emergency',
-    path: '/sensitive-protection/emergency',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppReportsReportIdRoute = AppReportsReportIdRouteImport.update({
-  id: '/$reportId',
-  path: '/$reportId',
-  getParentRoute: () => AppReportsRoute,
-} as any)
-const AppProtectionSourcesRoute = AppProtectionSourcesRouteImport.update({
-  id: '/protection/sources',
-  path: '/protection/sources',
+const AppAdminDiagnosticsRoute = AppAdminDiagnosticsRouteImport.update({
+  id: '/admin/diagnostics',
+  path: '/admin/diagnostics',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDashboardImageImmunizationRoute =
-  AppDashboardImageImmunizationRouteImport.update({
-    id: '/dashboard_/image-immunization',
-    path: '/dashboard/image-immunization',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppAdminWaitlistRoute = AppAdminWaitlistRouteImport.update({
-  id: '/admin/waitlist',
-  path: '/admin/waitlist',
+const AppAdminEipRoute = AppAdminEipRouteImport.update({
+  id: '/admin/eip',
+  path: '/admin/eip',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminSensitiveProtectionRoute =
-  AppAdminSensitiveProtectionRouteImport.update({
-    id: '/admin/sensitive-protection',
-    path: '/admin/sensitive-protection',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppAdminRemovalRoutesRoute = AppAdminRemovalRoutesRouteImport.update({
-  id: '/admin/removal-routes',
-  path: '/admin/removal-routes',
+const AppAdminIdentityReviewRoute = AppAdminIdentityReviewRouteImport.update({
+  id: '/admin/identity-review',
+  path: '/admin/identity-review',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminProviderActivationRoute =
-  AppAdminProviderActivationRouteImport.update({
-    id: '/admin/provider-activation',
-    path: '/admin/provider-activation',
+const AppAdminInvitesRoute = AppAdminInvitesRouteImport.update({
+  id: '/admin/invites',
+  path: '/admin/invites',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminMultimediaHealthRoute =
+  AppAdminMultimediaHealthRouteImport.update({
+    id: '/admin/multimedia-health',
+    path: '/admin/multimedia-health',
     getParentRoute: () => AppRoute,
   } as any)
 const AppAdminOnboardingReviewsRoute =
@@ -736,155 +655,135 @@ const AppAdminOnboardingReviewsRoute =
     path: '/admin/onboarding-reviews',
     getParentRoute: () => AppRoute,
   } as any)
-const AppAdminMultimediaHealthRoute =
-  AppAdminMultimediaHealthRouteImport.update({
-    id: '/admin/multimedia-health',
-    path: '/admin/multimedia-health',
+const AppAdminProviderActivationRoute =
+  AppAdminProviderActivationRouteImport.update({
+    id: '/admin/provider-activation',
+    path: '/admin/provider-activation',
     getParentRoute: () => AppRoute,
   } as any)
-const AppAdminInvitesRoute = AppAdminInvitesRouteImport.update({
-  id: '/admin/invites',
-  path: '/admin/invites',
+const AppAdminRemovalRoutesRoute = AppAdminRemovalRoutesRouteImport.update({
+  id: '/admin/removal-routes',
+  path: '/admin/removal-routes',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminIdentityReviewRoute = AppAdminIdentityReviewRouteImport.update({
-  id: '/admin/identity-review',
-  path: '/admin/identity-review',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminEipRoute = AppAdminEipRouteImport.update({
-  id: '/admin/eip',
-  path: '/admin/eip',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminDiagnosticsRoute = AppAdminDiagnosticsRouteImport.update({
-  id: '/admin/diagnostics',
-  path: '/admin/diagnostics',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminApprovedSourcesReviewRoute =
-  AppAdminApprovedSourcesReviewRouteImport.update({
-    id: '/admin/approved-sources-review',
-    path: '/admin/approved-sources-review',
+const AppAdminSensitiveProtectionRoute =
+  AppAdminSensitiveProtectionRouteImport.update({
+    id: '/admin/sensitive-protection',
+    path: '/admin/sensitive-protection',
     getParentRoute: () => AppRoute,
   } as any)
+const AppAdminWaitlistRoute = AppAdminWaitlistRouteImport.update({
+  id: '/admin/waitlist',
+  path: '/admin/waitlist',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardImageImmunizationRoute =
+  AppDashboardImageImmunizationRouteImport.update({
+    id: '/dashboard_/image-immunization',
+    path: '/dashboard/image-immunization',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppProtectionSourcesRoute = AppProtectionSourcesRouteImport.update({
+  id: '/protection/sources',
+  path: '/protection/sources',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsReportIdRoute = AppReportsReportIdRouteImport.update({
+  id: '/$reportId',
+  path: '/$reportId',
+  getParentRoute: () => AppReportsRoute,
+} as any)
+const AppSensitiveProtectionIndexRoute =
+  AppSensitiveProtectionIndexRouteImport.update({
+    id: '/sensitive-protection/',
+    path: '/sensitive-protection/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSensitiveProtectionEmergencyRoute =
+  AppSensitiveProtectionEmergencyRouteImport.update({
+    id: '/sensitive-protection/emergency',
+    path: '/sensitive-protection/emergency',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppSensitiveProtectionRemovalCasesRoute =
+  AppSensitiveProtectionRemovalCasesRouteImport.update({
+    id: '/sensitive-protection/removal-cases',
+    path: '/sensitive-protection/removal-cases',
+    getParentRoute: () => AppRoute,
+  } as any)
+const PartnerPartnerIndexRoute = PartnerPartnerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const PartnerPartnerClientsRoute = PartnerPartnerClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const PartnerPartnerCommissionsRoute =
+  PartnerPartnerCommissionsRouteImport.update({
+    id: '/commissions',
+    path: '/commissions',
+    getParentRoute: () => PartnerPartnerRoute,
+  } as any)
+const PartnerPartnerMarketingRoute = PartnerPartnerMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const PartnerPartnerPaymentsRoute = PartnerPartnerPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const PartnerPartnerProposalsRoute = PartnerPartnerProposalsRouteImport.update({
+  id: '/proposals',
+  path: '/proposals',
+  getParentRoute: () => PartnerPartnerRoute,
+} as any)
+const ApiMediaPreviewRoute = ApiMediaPreviewRouteImport.update({
+  id: '/api/media/preview',
+  path: '/api/media/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicImageProxyRoute = ApiPublicImageProxyRouteImport.update({
+  id: '/api/public/image-proxy',
+  path: '/api/public/image-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOnboardingCompletionBackfillRoute =
+  ApiPublicOnboardingCompletionBackfillRouteImport.update({
+    id: '/api/public/onboarding-completion-backfill',
+    path: '/api/public/onboarding-completion-backfill',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicVeriffWebhookRoute = ApiPublicVeriffWebhookRouteImport.update({
+  id: '/api/public/veriff-webhook',
+  path: '/api/public/veriff-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffReportScanIdRoute = StaffReportScanIdRouteImport.update({
+  id: '/report/$scanId',
+  path: '/report/$scanId',
+  getParentRoute: () => StaffRoute,
+} as any)
 const AppSensitiveProtectionResultsIndexRoute =
   AppSensitiveProtectionResultsIndexRouteImport.update({
     id: '/sensitive-protection/results/',
     path: '/sensitive-protection/results/',
     getParentRoute: () => AppRoute,
   } as any)
-const ApiPublicHooksScanOrchestratorRoute =
-  ApiPublicHooksScanOrchestratorRouteImport.update({
-    id: '/api/public/hooks/scan-orchestrator',
-    path: '/api/public/hooks/scan-orchestrator',
-    getParentRoute: () => rootRouteImport,
+const AppSensitiveProtectionResultsIdRoute =
+  AppSensitiveProtectionResultsIdRouteImport.update({
+    id: '/sensitive-protection/results/$id',
+    path: '/sensitive-protection/results/$id',
+    getParentRoute: () => AppRoute,
   } as any)
-const ApiPublicHooksResendWebhookRoute =
-  ApiPublicHooksResendWebhookRouteImport.update({
-    id: '/api/public/hooks/resend-webhook',
-    path: '/api/public/hooks/resend-webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksReleaseProtectionMonitorRoute =
-  ApiPublicHooksReleaseProtectionMonitorRouteImport.update({
-    id: '/api/public/hooks/release-protection-monitor',
-    path: '/api/public/hooks/release-protection-monitor',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksProtectionSchedulerTokenRoute =
-  ApiPublicHooksProtectionSchedulerTokenRouteImport.update({
-    id: '/api/public/hooks/protection-scheduler-token',
-    path: '/api/public/hooks/protection-scheduler-token',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksProtectionAutopilotRoute =
-  ApiPublicHooksProtectionAutopilotRouteImport.update({
-    id: '/api/public/hooks/protection-autopilot',
-    path: '/api/public/hooks/protection-autopilot',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksProtectionActivationRepairRoute =
-  ApiPublicHooksProtectionActivationRepairRouteImport.update({
-    id: '/api/public/hooks/protection-activation-repair',
-    path: '/api/public/hooks/protection-activation-repair',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksProspectScanWorkerRoute =
-  ApiPublicHooksProspectScanWorkerRouteImport.update({
-    id: '/api/public/hooks/prospect-scan-worker',
-    path: '/api/public/hooks/prospect-scan-worker',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksPostmarkWebhookRoute =
-  ApiPublicHooksPostmarkWebhookRouteImport.update({
-    id: '/api/public/hooks/postmark-webhook',
-    path: '/api/public/hooks/postmark-webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksEnforcementWorkerRoute =
-  ApiPublicHooksEnforcementWorkerRouteImport.update({
-    id: '/api/public/hooks/enforcement-worker',
-    path: '/api/public/hooks/enforcement-worker',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksEipWorkerRoute = ApiPublicHooksEipWorkerRouteImport.update({
-  id: '/api/public/hooks/eip-worker',
-  path: '/api/public/hooks/eip-worker',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicHooksDistributionMonitorRoute =
-  ApiPublicHooksDistributionMonitorRouteImport.update({
-    id: '/api/public/hooks/distribution-monitor',
-    path: '/api/public/hooks/distribution-monitor',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksDeepfakeScanExecuteRoute =
-  ApiPublicHooksDeepfakeScanExecuteRouteImport.update({
-    id: '/api/public/hooks/deepfake-scan-execute',
-    path: '/api/public/hooks/deepfake-scan-execute',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksDeepfakeManualEvidenceExecuteRoute =
-  ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport.update({
-    id: '/api/public/hooks/deepfake-manual-evidence-execute',
-    path: '/api/public/hooks/deepfake-manual-evidence-execute',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksDeepfakeGoogleImagesWorkerRoute =
-  ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport.update({
-    id: '/api/public/hooks/deepfake-google-images-worker',
-    path: '/api/public/hooks/deepfake-google-images-worker',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksCopyrightScanExecuteRoute =
-  ApiPublicHooksCopyrightScanExecuteRouteImport.update({
-    id: '/api/public/hooks/copyright-scan-execute',
-    path: '/api/public/hooks/copyright-scan-execute',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksChannelWatchPollRoute =
-  ApiPublicHooksChannelWatchPollRouteImport.update({
-    id: '/api/public/hooks/channel-watch-poll',
-    path: '/api/public/hooks/channel-watch-poll',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksAutomationStatusCheckRoute =
-  ApiPublicHooksAutomationStatusCheckRouteImport.update({
-    id: '/api/public/hooks/automation-status-check',
-    path: '/api/public/hooks/automation-status-check',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksAutomationStatusRoute =
-  ApiPublicHooksAutomationStatusRouteImport.update({
-    id: '/api/public/hooks/automation-status',
-    path: '/api/public/hooks/automation-status',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksAutomationFetchRoute =
-  ApiPublicHooksAutomationFetchRouteImport.update({
-    id: '/api/public/hooks/automation-fetch',
-    path: '/api/public/hooks/automation-fetch',
+const ApiPublicHooksAgentAssessmentsRoute =
+  ApiPublicHooksAgentAssessmentsRouteImport.update({
+    id: '/api/public/hooks/agent-assessments',
+    path: '/api/public/hooks/agent-assessments',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksApprovedSourcesPollRoute =
@@ -893,17 +792,118 @@ const ApiPublicHooksApprovedSourcesPollRoute =
     path: '/api/public/hooks/approved-sources-poll',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksAgentAssessmentsRoute =
-  ApiPublicHooksAgentAssessmentsRouteImport.update({
-    id: '/api/public/hooks/agent-assessments',
-    path: '/api/public/hooks/agent-assessments',
+const ApiPublicHooksAutomationFetchRoute =
+  ApiPublicHooksAutomationFetchRouteImport.update({
+    id: '/api/public/hooks/automation-fetch',
+    path: '/api/public/hooks/automation-fetch',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AppSensitiveProtectionResultsIdRoute =
-  AppSensitiveProtectionResultsIdRouteImport.update({
-    id: '/sensitive-protection/results/$id',
-    path: '/sensitive-protection/results/$id',
-    getParentRoute: () => AppRoute,
+const ApiPublicHooksAutomationStatusRoute =
+  ApiPublicHooksAutomationStatusRouteImport.update({
+    id: '/api/public/hooks/automation-status',
+    path: '/api/public/hooks/automation-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksAutomationStatusCheckRoute =
+  ApiPublicHooksAutomationStatusCheckRouteImport.update({
+    id: '/api/public/hooks/automation-status-check',
+    path: '/api/public/hooks/automation-status-check',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksChannelWatchPollRoute =
+  ApiPublicHooksChannelWatchPollRouteImport.update({
+    id: '/api/public/hooks/channel-watch-poll',
+    path: '/api/public/hooks/channel-watch-poll',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksCopyrightScanExecuteRoute =
+  ApiPublicHooksCopyrightScanExecuteRouteImport.update({
+    id: '/api/public/hooks/copyright-scan-execute',
+    path: '/api/public/hooks/copyright-scan-execute',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksDeepfakeGoogleImagesWorkerRoute =
+  ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport.update({
+    id: '/api/public/hooks/deepfake-google-images-worker',
+    path: '/api/public/hooks/deepfake-google-images-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksDeepfakeManualEvidenceExecuteRoute =
+  ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport.update({
+    id: '/api/public/hooks/deepfake-manual-evidence-execute',
+    path: '/api/public/hooks/deepfake-manual-evidence-execute',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksDeepfakeScanExecuteRoute =
+  ApiPublicHooksDeepfakeScanExecuteRouteImport.update({
+    id: '/api/public/hooks/deepfake-scan-execute',
+    path: '/api/public/hooks/deepfake-scan-execute',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksDistributionMonitorRoute =
+  ApiPublicHooksDistributionMonitorRouteImport.update({
+    id: '/api/public/hooks/distribution-monitor',
+    path: '/api/public/hooks/distribution-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksEipWorkerRoute = ApiPublicHooksEipWorkerRouteImport.update({
+  id: '/api/public/hooks/eip-worker',
+  path: '/api/public/hooks/eip-worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksEnforcementWorkerRoute =
+  ApiPublicHooksEnforcementWorkerRouteImport.update({
+    id: '/api/public/hooks/enforcement-worker',
+    path: '/api/public/hooks/enforcement-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksPostmarkWebhookRoute =
+  ApiPublicHooksPostmarkWebhookRouteImport.update({
+    id: '/api/public/hooks/postmark-webhook',
+    path: '/api/public/hooks/postmark-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksProspectScanWorkerRoute =
+  ApiPublicHooksProspectScanWorkerRouteImport.update({
+    id: '/api/public/hooks/prospect-scan-worker',
+    path: '/api/public/hooks/prospect-scan-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksProtectionActivationRepairRoute =
+  ApiPublicHooksProtectionActivationRepairRouteImport.update({
+    id: '/api/public/hooks/protection-activation-repair',
+    path: '/api/public/hooks/protection-activation-repair',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksProtectionAutopilotRoute =
+  ApiPublicHooksProtectionAutopilotRouteImport.update({
+    id: '/api/public/hooks/protection-autopilot',
+    path: '/api/public/hooks/protection-autopilot',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksProtectionSchedulerTokenRoute =
+  ApiPublicHooksProtectionSchedulerTokenRouteImport.update({
+    id: '/api/public/hooks/protection-scheduler-token',
+    path: '/api/public/hooks/protection-scheduler-token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksReleaseProtectionMonitorRoute =
+  ApiPublicHooksReleaseProtectionMonitorRouteImport.update({
+    id: '/api/public/hooks/release-protection-monitor',
+    path: '/api/public/hooks/release-protection-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksResendWebhookRoute =
+  ApiPublicHooksResendWebhookRouteImport.update({
+    id: '/api/public/hooks/resend-webhook',
+    path: '/api/public/hooks/resend-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksScanOrchestratorRoute =
+  ApiPublicHooksScanOrchestratorRouteImport.update({
+    id: '/api/public/hooks/scan-orchestrator',
+    path: '/api/public/hooks/scan-orchestrator',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -1839,242 +1839,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/waitinglist': {
-      id: '/waitinglist'
-      path: '/waitinglist'
-      fullPath: '/waitinglist'
-      preLoaderRoute: typeof WaitinglistRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/student-digital-safety': {
-      id: '/student-digital-safety'
-      path: '/student-digital-safety'
-      fullPath: '/student-digital-safety'
-      preLoaderRoute: typeof StudentDigitalSafetyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/staff': {
-      id: '/staff'
-      path: '/staff'
-      fullPath: '/staff'
-      preLoaderRoute: typeof StaffRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/security': {
-      id: '/security'
-      path: '/security'
-      fullPath: '/security'
-      preLoaderRoute: typeof SecurityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/research': {
-      id: '/research'
-      path: '/research'
-      fullPath: '/research'
-      preLoaderRoute: typeof ResearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/request-protection': {
-      id: '/request-protection'
-      path: '/request-protection'
-      fullPath: '/request-protection'
-      preLoaderRoute: typeof RequestProtectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/public-figure-protection': {
-      id: '/public-figure-protection'
-      path: '/public-figure-protection'
-      fullPath: '/public-figure-protection'
-      preLoaderRoute: typeof PublicFigureProtectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/partner-status': {
-      id: '/partner-status'
-      path: '/partner-status'
-      fullPath: '/partner-status'
-      preLoaderRoute: typeof PartnerStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/partner-apply': {
-      id: '/partner-apply'
-      path: '/partner-apply'
-      fullPath: '/partner-apply'
-      preLoaderRoute: typeof PartnerApplyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/online-reputation-protection': {
-      id: '/online-reputation-protection'
-      path: '/online-reputation-protection'
-      fullPath: '/online-reputation-protection'
-      preLoaderRoute: typeof OnlineReputationProtectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom': {
-      id: '/newsroom'
-      path: '/newsroom'
-      fullPath: '/newsroom'
-      preLoaderRoute: typeof NewsroomRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitoring': {
-      id: '/monitoring'
-      path: '/monitoring'
-      fullPath: '/monitoring'
-      preLoaderRoute: typeof MonitoringRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/methodology': {
-      id: '/methodology'
-      path: '/methodology'
-      fullPath: '/methodology'
-      preLoaderRoute: typeof MethodologyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/incident-response': {
-      id: '/incident-response'
-      path: '/incident-response'
-      fullPath: '/incident-response'
-      preLoaderRoute: typeof IncidentResponseRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/impersonation-protection': {
-      id: '/impersonation-protection'
-      path: '/impersonation-protection'
-      fullPath: '/impersonation-protection'
-      preLoaderRoute: typeof ImpersonationProtectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/image-immunization': {
-      id: '/image-immunization'
-      path: '/image-immunization'
-      fullPath: '/image-immunization'
-      preLoaderRoute: typeof ImageImmunizationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/identity-response-observatory': {
-      id: '/identity-response-observatory'
-      path: '/identity-response-observatory'
-      fullPath: '/identity-response-observatory'
-      preLoaderRoute: typeof IdentityResponseObservatoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/how-it-works': {
-      id: '/how-it-works'
-      path: '/how-it-works'
-      fullPath: '/how-it-works'
-      preLoaderRoute: typeof HowItWorksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/eterna-ai': {
-      id: '/eterna-ai'
-      path: '/eterna-ai'
-      fullPath: '/eterna-ai'
-      preLoaderRoute: typeof EternaAiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/enterprise-protection': {
-      id: '/enterprise-protection'
-      path: '/enterprise-protection'
-      fullPath: '/enterprise-protection'
-      preLoaderRoute: typeof EnterpriseProtectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/deepfake-protection': {
-      id: '/deepfake-protection'
-      path: '/deepfake-protection'
-      fullPath: '/deepfake-protection'
-      preLoaderRoute: typeof DeepfakeProtectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cookies': {
-      id: '/cookies'
-      path: '/cookies'
-      fullPath: '/cookies'
-      preLoaderRoute: typeof CookiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ai-impersonation': {
-      id: '/ai-impersonation'
-      path: '/ai-impersonation'
-      fullPath: '/ai-impersonation'
-      preLoaderRoute: typeof AiImpersonationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agent-assessment': {
-      id: '/agent-assessment'
-      path: '/agent-assessment'
-      fullPath: '/agent-assessment'
-      preLoaderRoute: typeof AgentAssessmentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agent-admin': {
-      id: '/agent-admin'
-      path: '/agent-admin'
-      fullPath: '/agent-admin'
-      preLoaderRoute: typeof AgentAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agent': {
-      id: '/agent'
-      path: '/agent'
-      fullPath: '/agent'
-      preLoaderRoute: typeof AgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/acceptable-use': {
-      id: '/acceptable-use'
-      path: '/acceptable-use'
-      fullPath: '/acceptable-use'
-      preLoaderRoute: typeof AcceptableUseRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_partner': {
-      id: '/_partner'
-      path: ''
+    '/': {
+      id: '/'
+      path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof PartnerRouteImport
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -2084,11 +1853,592 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
+    '/_partner': {
+      id: '/_partner'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof PartnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acceptable-use': {
+      id: '/acceptable-use'
+      path: '/acceptable-use'
+      fullPath: '/acceptable-use'
+      preLoaderRoute: typeof AcceptableUseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent-admin': {
+      id: '/agent-admin'
+      path: '/agent-admin'
+      fullPath: '/agent-admin'
+      preLoaderRoute: typeof AgentAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent-assessment': {
+      id: '/agent-assessment'
+      path: '/agent-assessment'
+      fullPath: '/agent-assessment'
+      preLoaderRoute: typeof AgentAssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-impersonation': {
+      id: '/ai-impersonation'
+      path: '/ai-impersonation'
+      fullPath: '/ai-impersonation'
+      preLoaderRoute: typeof AiImpersonationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/deepfake-protection': {
+      id: '/deepfake-protection'
+      path: '/deepfake-protection'
+      fullPath: '/deepfake-protection'
+      preLoaderRoute: typeof DeepfakeProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enterprise-protection': {
+      id: '/enterprise-protection'
+      path: '/enterprise-protection'
+      fullPath: '/enterprise-protection'
+      preLoaderRoute: typeof EnterpriseProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eterna-ai': {
+      id: '/eterna-ai'
+      path: '/eterna-ai'
+      fullPath: '/eterna-ai'
+      preLoaderRoute: typeof EternaAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/identity-response-observatory': {
+      id: '/identity-response-observatory'
+      path: '/identity-response-observatory'
+      fullPath: '/identity-response-observatory'
+      preLoaderRoute: typeof IdentityResponseObservatoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/image-immunization': {
+      id: '/image-immunization'
+      path: '/image-immunization'
+      fullPath: '/image-immunization'
+      preLoaderRoute: typeof ImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/impersonation-protection': {
+      id: '/impersonation-protection'
+      path: '/impersonation-protection'
+      fullPath: '/impersonation-protection'
+      preLoaderRoute: typeof ImpersonationProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/incident-response': {
+      id: '/incident-response'
+      path: '/incident-response'
+      fullPath: '/incident-response'
+      preLoaderRoute: typeof IncidentResponseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/methodology': {
+      id: '/methodology'
+      path: '/methodology'
+      fullPath: '/methodology'
+      preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitoring': {
+      id: '/monitoring'
+      path: '/monitoring'
+      fullPath: '/monitoring'
+      preLoaderRoute: typeof MonitoringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom': {
+      id: '/newsroom'
+      path: '/newsroom'
+      fullPath: '/newsroom'
+      preLoaderRoute: typeof NewsroomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/online-reputation-protection': {
+      id: '/online-reputation-protection'
+      path: '/online-reputation-protection'
+      fullPath: '/online-reputation-protection'
+      preLoaderRoute: typeof OnlineReputationProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partner-apply': {
+      id: '/partner-apply'
+      path: '/partner-apply'
+      fullPath: '/partner-apply'
+      preLoaderRoute: typeof PartnerApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partner-status': {
+      id: '/partner-status'
+      path: '/partner-status'
+      fullPath: '/partner-status'
+      preLoaderRoute: typeof PartnerStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/public-figure-protection': {
+      id: '/public-figure-protection'
+      path: '/public-figure-protection'
+      fullPath: '/public-figure-protection'
+      preLoaderRoute: typeof PublicFigureProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request-protection': {
+      id: '/request-protection'
+      path: '/request-protection'
+      fullPath: '/request-protection'
+      preLoaderRoute: typeof RequestProtectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/research': {
+      id: '/research'
+      path: '/research'
+      fullPath: '/research'
+      preLoaderRoute: typeof ResearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff': {
+      id: '/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof StaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student-digital-safety': {
+      id: '/student-digital-safety'
+      path: '/student-digital-safety'
+      fullPath: '/student-digital-safety'
+      preLoaderRoute: typeof StudentDigitalSafetyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/waitinglist': {
+      id: '/waitinglist'
+      path: '/waitinglist'
+      fullPath: '/waitinglist'
+      preLoaderRoute: typeof WaitinglistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/assets': {
+      id: '/_app/assets'
+      path: '/assets'
+      fullPath: '/assets'
+      preLoaderRoute: typeof AppAssetsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/campaigns': {
+      id: '/_app/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof AppCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cases': {
+      id: '/_app/cases'
+      path: '/cases'
+      fullPath: '/cases'
+      preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/channel-watch': {
+      id: '/_app/channel-watch'
+      path: '/channel-watch'
+      fullPath: '/channel-watch'
+      preLoaderRoute: typeof AppChannelWatchRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/copyright-intel': {
+      id: '/_app/copyright-intel'
+      path: '/copyright-intel'
+      fullPath: '/copyright-intel'
+      preLoaderRoute: typeof AppCopyrightIntelRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/deepfake-intel': {
+      id: '/_app/deepfake-intel'
+      path: '/deepfake-intel'
+      fullPath: '/deepfake-intel'
+      preLoaderRoute: typeof AppDeepfakeIntelRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/enforcement': {
+      id: '/_app/enforcement'
+      path: '/enforcement'
+      fullPath: '/enforcement'
+      preLoaderRoute: typeof AppEnforcementRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/evidence-vault': {
+      id: '/_app/evidence-vault'
+      path: '/evidence-vault'
+      fullPath: '/evidence-vault'
+      preLoaderRoute: typeof AppEvidenceVaultRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/face-protection': {
+      id: '/_app/face-protection'
+      path: '/face-protection'
+      fullPath: '/face-protection'
+      preLoaderRoute: typeof AppFaceProtectionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/face-references': {
+      id: '/_app/face-references'
+      path: '/face-references'
+      fullPath: '/face-references'
+      preLoaderRoute: typeof AppFaceReferencesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/intelligence': {
+      id: '/_app/intelligence'
+      path: '/intelligence'
+      fullPath: '/intelligence'
+      preLoaderRoute: typeof AppIntelligenceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/narrative-intelligence': {
+      id: '/_app/narrative-intelligence'
+      path: '/narrative-intelligence'
+      fullPath: '/narrative-intelligence'
+      preLoaderRoute: typeof AppNarrativeIntelligenceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/removals': {
+      id: '/_app/removals'
+      path: '/removals'
+      fullPath: '/removals'
+      preLoaderRoute: typeof AppRemovalsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/scan': {
+      id: '/_app/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof AppScanRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/threat-monitoring': {
+      id: '/_app/threat-monitoring'
+      path: '/threat-monitoring'
+      fullPath: '/threat-monitoring'
+      preLoaderRoute: typeof AppThreatMonitoringRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/threat-radar': {
+      id: '/_app/threat-radar'
+      path: '/threat-radar'
+      fullPath: '/threat-radar'
+      preLoaderRoute: typeof AppThreatRadarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/youtube-removal': {
+      id: '/_app/youtube-removal'
+      path: '/youtube-removal'
+      fullPath: '/youtube-removal'
+      preLoaderRoute: typeof AppYoutubeRemovalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_partner/partner': {
+      id: '/_partner/partner'
+      path: '/partner'
+      fullPath: '/partner'
+      preLoaderRoute: typeof PartnerPartnerRouteImport
+      parentRoute: typeof PartnerRoute
+    }
+    '/api/scan': {
+      id: '/api/scan'
+      path: '/api/scan'
+      fullPath: '/api/scan'
+      preLoaderRoute: typeof ApiScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/face-handoff/$token': {
+      id: '/face-handoff/$token'
+      path: '/face-handoff/$token'
+      fullPath: '/face-handoff/$token'
+      preLoaderRoute: typeof FaceHandoffTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/ai-generated-explicit-images-student-safety-guide': {
+      id: '/newsroom_/ai-generated-explicit-images-student-safety-guide'
+      path: '/newsroom/ai-generated-explicit-images-student-safety-guide'
+      fullPath: '/newsroom/ai-generated-explicit-images-student-safety-guide'
+      preLoaderRoute: typeof NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/ai-impersonation-reputation-damage': {
+      id: '/newsroom_/ai-impersonation-reputation-damage'
+      path: '/newsroom/ai-impersonation-reputation-damage'
+      fullPath: '/newsroom/ai-impersonation-reputation-damage'
+      preLoaderRoute: typeof NewsroomAiImpersonationReputationDamageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/brand-reputation-risk-business-risk': {
+      id: '/newsroom_/brand-reputation-risk-business-risk'
+      path: '/newsroom/brand-reputation-risk-business-risk'
+      fullPath: '/newsroom/brand-reputation-risk-business-risk'
+      preLoaderRoute: typeof NewsroomBrandReputationRiskBusinessRiskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/college-student-deepfakes': {
+      id: '/newsroom_/college-student-deepfakes'
+      path: '/newsroom/college-student-deepfakes'
+      fullPath: '/newsroom/college-student-deepfakes'
+      preLoaderRoute: typeof NewsroomCollegeStudentDeepfakesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery': {
+      id: '/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery'
+      path: '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery'
+      fullPath: '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery'
+      preLoaderRoute: typeof NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/deepfake-reuploads-after-removal': {
+      id: '/newsroom_/deepfake-reuploads-after-removal'
+      path: '/newsroom/deepfake-reuploads-after-removal'
+      fullPath: '/newsroom/deepfake-reuploads-after-removal'
+      preLoaderRoute: typeof NewsroomDeepfakeReuploadsAfterRemovalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/deepfake-verification-guide': {
+      id: '/newsroom_/deepfake-verification-guide'
+      path: '/newsroom/deepfake-verification-guide'
+      fullPath: '/newsroom/deepfake-verification-guide'
+      preLoaderRoute: typeof NewsroomDeepfakeVerificationGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/detection-is-not-prevention': {
+      id: '/newsroom_/detection-is-not-prevention'
+      path: '/newsroom/detection-is-not-prevention'
+      fullPath: '/newsroom/detection-is-not-prevention'
+      preLoaderRoute: typeof NewsroomDetectionIsNotPreventionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/eterna-introduces-image-immunization': {
+      id: '/newsroom_/eterna-introduces-image-immunization'
+      path: '/newsroom/eterna-introduces-image-immunization'
+      fullPath: '/newsroom/eterna-introduces-image-immunization'
+      preLoaderRoute: typeof NewsroomEternaIntroducesImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/executive-first-hour-playbook': {
+      id: '/newsroom_/executive-first-hour-playbook'
+      path: '/newsroom/executive-first-hour-playbook'
+      fullPath: '/newsroom/executive-first-hour-playbook'
+      preLoaderRoute: typeof NewsroomExecutiveFirstHourPlaybookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/fake-account-using-my-name-photos': {
+      id: '/newsroom_/fake-account-using-my-name-photos'
+      path: '/newsroom/fake-account-using-my-name-photos'
+      fullPath: '/newsroom/fake-account-using-my-name-photos'
+      preLoaderRoute: typeof NewsroomFakeAccountUsingMyNamePhotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/false-allegations-online-what-to-do': {
+      id: '/newsroom_/false-allegations-online-what-to-do'
+      path: '/newsroom/false-allegations-online-what-to-do'
+      fullPath: '/newsroom/false-allegations-online-what-to-do'
+      preLoaderRoute: typeof NewsroomFalseAllegationsOnlineWhatToDoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/first-24-hours-online-reputation-crisis': {
+      id: '/newsroom_/first-24-hours-online-reputation-crisis'
+      path: '/newsroom/first-24-hours-online-reputation-crisis'
+      fullPath: '/newsroom/first-24-hours-online-reputation-crisis'
+      preLoaderRoute: typeof NewsroomFirst24HoursOnlineReputationCrisisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/how-colleges-respond-to-deepfake-abuse': {
+      id: '/newsroom_/how-colleges-respond-to-deepfake-abuse'
+      path: '/newsroom/how-colleges-respond-to-deepfake-abuse'
+      fullPath: '/newsroom/how-colleges-respond-to-deepfake-abuse'
+      preLoaderRoute: typeof NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/how-eterna-validates-image-immunization-responsibly': {
+      id: '/newsroom_/how-eterna-validates-image-immunization-responsibly'
+      path: '/newsroom/how-eterna-validates-image-immunization-responsibly'
+      fullPath: '/newsroom/how-eterna-validates-image-immunization-responsibly'
+      preLoaderRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/how-to-preserve-deepfake-evidence': {
+      id: '/newsroom_/how-to-preserve-deepfake-evidence'
+      path: '/newsroom/how-to-preserve-deepfake-evidence'
+      fullPath: '/newsroom/how-to-preserve-deepfake-evidence'
+      preLoaderRoute: typeof NewsroomHowToPreserveDeepfakeEvidenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/impersonation-response-guide': {
+      id: '/newsroom_/impersonation-response-guide'
+      path: '/newsroom/impersonation-response-guide'
+      fullPath: '/newsroom/impersonation-response-guide'
+      preLoaderRoute: typeof NewsroomImpersonationResponseGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/inside-eterna-image-immunization': {
+      id: '/newsroom_/inside-eterna-image-immunization'
+      path: '/newsroom/inside-eterna-image-immunization'
+      fullPath: '/newsroom/inside-eterna-image-immunization'
+      preLoaderRoute: typeof NewsroomInsideEternaImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/negative-search-results-brand-reputation': {
+      id: '/newsroom_/negative-search-results-brand-reputation'
+      path: '/newsroom/negative-search-results-brand-reputation'
+      fullPath: '/newsroom/negative-search-results-brand-reputation'
+      preLoaderRoute: typeof NewsroomNegativeSearchResultsBrandReputationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/online-reputation-problems-business-growth': {
+      id: '/newsroom_/online-reputation-problems-business-growth'
+      path: '/newsroom/online-reputation-problems-business-growth'
+      fullPath: '/newsroom/online-reputation-problems-business-growth'
+      preLoaderRoute: typeof NewsroomOnlineReputationProblemsBusinessGrowthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/private-video-leak-online-blackmail-first-steps': {
+      id: '/newsroom_/private-video-leak-online-blackmail-first-steps'
+      path: '/newsroom/private-video-leak-online-blackmail-first-steps'
+      fullPath: '/newsroom/private-video-leak-online-blackmail-first-steps'
+      preLoaderRoute: typeof NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/someone-made-a-deepfake-of-me': {
+      id: '/newsroom_/someone-made-a-deepfake-of-me'
+      path: '/newsroom/someone-made-a-deepfake-of-me'
+      fullPath: '/newsroom/someone-made-a-deepfake-of-me'
+      preLoaderRoute: typeof NewsroomSomeoneMadeADeepfakeOfMeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/threatened-to-publish-private-images-what-to-do': {
+      id: '/newsroom_/threatened-to-publish-private-images-what-to-do'
+      path: '/newsroom/threatened-to-publish-private-images-what-to-do'
+      fullPath: '/newsroom/threatened-to-publish-private-images-what-to-do'
+      preLoaderRoute: typeof NewsroomThreatenedToPublishPrivateImagesWhatToDoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/what-is-a-deepfake': {
+      id: '/newsroom_/what-is-a-deepfake'
+      path: '/newsroom/what-is-a-deepfake'
+      fullPath: '/newsroom/what-is-a-deepfake'
+      preLoaderRoute: typeof NewsroomWhatIsADeepfakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/what-is-image-immunization': {
+      id: '/newsroom_/what-is-image-immunization'
+      path: '/newsroom/what-is-image-immunization'
+      fullPath: '/newsroom/what-is-image-immunization'
+      preLoaderRoute: typeof NewsroomWhatIsImageImmunizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/why-companies-need-reputation-monitoring': {
+      id: '/newsroom_/why-companies-need-reputation-monitoring'
+      path: '/newsroom/why-companies-need-reputation-monitoring'
+      fullPath: '/newsroom/why-companies-need-reputation-monitoring'
+      preLoaderRoute: typeof NewsroomWhyCompaniesNeedReputationMonitoringRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/staff/': {
@@ -2105,536 +2455,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/newsroom_/why-companies-need-reputation-monitoring': {
-      id: '/newsroom_/why-companies-need-reputation-monitoring'
-      path: '/newsroom/why-companies-need-reputation-monitoring'
-      fullPath: '/newsroom/why-companies-need-reputation-monitoring'
-      preLoaderRoute: typeof NewsroomWhyCompaniesNeedReputationMonitoringRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/what-is-image-immunization': {
-      id: '/newsroom_/what-is-image-immunization'
-      path: '/newsroom/what-is-image-immunization'
-      fullPath: '/newsroom/what-is-image-immunization'
-      preLoaderRoute: typeof NewsroomWhatIsImageImmunizationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/what-is-a-deepfake': {
-      id: '/newsroom_/what-is-a-deepfake'
-      path: '/newsroom/what-is-a-deepfake'
-      fullPath: '/newsroom/what-is-a-deepfake'
-      preLoaderRoute: typeof NewsroomWhatIsADeepfakeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/threatened-to-publish-private-images-what-to-do': {
-      id: '/newsroom_/threatened-to-publish-private-images-what-to-do'
-      path: '/newsroom/threatened-to-publish-private-images-what-to-do'
-      fullPath: '/newsroom/threatened-to-publish-private-images-what-to-do'
-      preLoaderRoute: typeof NewsroomThreatenedToPublishPrivateImagesWhatToDoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/someone-made-a-deepfake-of-me': {
-      id: '/newsroom_/someone-made-a-deepfake-of-me'
-      path: '/newsroom/someone-made-a-deepfake-of-me'
-      fullPath: '/newsroom/someone-made-a-deepfake-of-me'
-      preLoaderRoute: typeof NewsroomSomeoneMadeADeepfakeOfMeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/private-video-leak-online-blackmail-first-steps': {
-      id: '/newsroom_/private-video-leak-online-blackmail-first-steps'
-      path: '/newsroom/private-video-leak-online-blackmail-first-steps'
-      fullPath: '/newsroom/private-video-leak-online-blackmail-first-steps'
-      preLoaderRoute: typeof NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/online-reputation-problems-business-growth': {
-      id: '/newsroom_/online-reputation-problems-business-growth'
-      path: '/newsroom/online-reputation-problems-business-growth'
-      fullPath: '/newsroom/online-reputation-problems-business-growth'
-      preLoaderRoute: typeof NewsroomOnlineReputationProblemsBusinessGrowthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/negative-search-results-brand-reputation': {
-      id: '/newsroom_/negative-search-results-brand-reputation'
-      path: '/newsroom/negative-search-results-brand-reputation'
-      fullPath: '/newsroom/negative-search-results-brand-reputation'
-      preLoaderRoute: typeof NewsroomNegativeSearchResultsBrandReputationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/inside-eterna-image-immunization': {
-      id: '/newsroom_/inside-eterna-image-immunization'
-      path: '/newsroom/inside-eterna-image-immunization'
-      fullPath: '/newsroom/inside-eterna-image-immunization'
-      preLoaderRoute: typeof NewsroomInsideEternaImageImmunizationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/impersonation-response-guide': {
-      id: '/newsroom_/impersonation-response-guide'
-      path: '/newsroom/impersonation-response-guide'
-      fullPath: '/newsroom/impersonation-response-guide'
-      preLoaderRoute: typeof NewsroomImpersonationResponseGuideRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/how-to-preserve-deepfake-evidence': {
-      id: '/newsroom_/how-to-preserve-deepfake-evidence'
-      path: '/newsroom/how-to-preserve-deepfake-evidence'
-      fullPath: '/newsroom/how-to-preserve-deepfake-evidence'
-      preLoaderRoute: typeof NewsroomHowToPreserveDeepfakeEvidenceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/how-eterna-validates-image-immunization-responsibly': {
-      id: '/newsroom_/how-eterna-validates-image-immunization-responsibly'
-      path: '/newsroom/how-eterna-validates-image-immunization-responsibly'
-      fullPath: '/newsroom/how-eterna-validates-image-immunization-responsibly'
-      preLoaderRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/how-colleges-respond-to-deepfake-abuse': {
-      id: '/newsroom_/how-colleges-respond-to-deepfake-abuse'
-      path: '/newsroom/how-colleges-respond-to-deepfake-abuse'
-      fullPath: '/newsroom/how-colleges-respond-to-deepfake-abuse'
-      preLoaderRoute: typeof NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/first-24-hours-online-reputation-crisis': {
-      id: '/newsroom_/first-24-hours-online-reputation-crisis'
-      path: '/newsroom/first-24-hours-online-reputation-crisis'
-      fullPath: '/newsroom/first-24-hours-online-reputation-crisis'
-      preLoaderRoute: typeof NewsroomFirst24HoursOnlineReputationCrisisRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/false-allegations-online-what-to-do': {
-      id: '/newsroom_/false-allegations-online-what-to-do'
-      path: '/newsroom/false-allegations-online-what-to-do'
-      fullPath: '/newsroom/false-allegations-online-what-to-do'
-      preLoaderRoute: typeof NewsroomFalseAllegationsOnlineWhatToDoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/fake-account-using-my-name-photos': {
-      id: '/newsroom_/fake-account-using-my-name-photos'
-      path: '/newsroom/fake-account-using-my-name-photos'
-      fullPath: '/newsroom/fake-account-using-my-name-photos'
-      preLoaderRoute: typeof NewsroomFakeAccountUsingMyNamePhotosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/executive-first-hour-playbook': {
-      id: '/newsroom_/executive-first-hour-playbook'
-      path: '/newsroom/executive-first-hour-playbook'
-      fullPath: '/newsroom/executive-first-hour-playbook'
-      preLoaderRoute: typeof NewsroomExecutiveFirstHourPlaybookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/eterna-introduces-image-immunization': {
-      id: '/newsroom_/eterna-introduces-image-immunization'
-      path: '/newsroom/eterna-introduces-image-immunization'
-      fullPath: '/newsroom/eterna-introduces-image-immunization'
-      preLoaderRoute: typeof NewsroomEternaIntroducesImageImmunizationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/detection-is-not-prevention': {
-      id: '/newsroom_/detection-is-not-prevention'
-      path: '/newsroom/detection-is-not-prevention'
-      fullPath: '/newsroom/detection-is-not-prevention'
-      preLoaderRoute: typeof NewsroomDetectionIsNotPreventionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/deepfake-verification-guide': {
-      id: '/newsroom_/deepfake-verification-guide'
-      path: '/newsroom/deepfake-verification-guide'
-      fullPath: '/newsroom/deepfake-verification-guide'
-      preLoaderRoute: typeof NewsroomDeepfakeVerificationGuideRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/deepfake-reuploads-after-removal': {
-      id: '/newsroom_/deepfake-reuploads-after-removal'
-      path: '/newsroom/deepfake-reuploads-after-removal'
-      fullPath: '/newsroom/deepfake-reuploads-after-removal'
-      preLoaderRoute: typeof NewsroomDeepfakeReuploadsAfterRemovalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery': {
-      id: '/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery'
-      path: '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery'
-      fullPath: '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery'
-      preLoaderRoute: typeof NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/college-student-deepfakes': {
-      id: '/newsroom_/college-student-deepfakes'
-      path: '/newsroom/college-student-deepfakes'
-      fullPath: '/newsroom/college-student-deepfakes'
-      preLoaderRoute: typeof NewsroomCollegeStudentDeepfakesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/brand-reputation-risk-business-risk': {
-      id: '/newsroom_/brand-reputation-risk-business-risk'
-      path: '/newsroom/brand-reputation-risk-business-risk'
-      fullPath: '/newsroom/brand-reputation-risk-business-risk'
-      preLoaderRoute: typeof NewsroomBrandReputationRiskBusinessRiskRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/ai-impersonation-reputation-damage': {
-      id: '/newsroom_/ai-impersonation-reputation-damage'
-      path: '/newsroom/ai-impersonation-reputation-damage'
-      fullPath: '/newsroom/ai-impersonation-reputation-damage'
-      preLoaderRoute: typeof NewsroomAiImpersonationReputationDamageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/newsroom_/ai-generated-explicit-images-student-safety-guide': {
-      id: '/newsroom_/ai-generated-explicit-images-student-safety-guide'
-      path: '/newsroom/ai-generated-explicit-images-student-safety-guide'
-      fullPath: '/newsroom/ai-generated-explicit-images-student-safety-guide'
-      preLoaderRoute: typeof NewsroomAiGeneratedExplicitImagesStudentSafetyGuideRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/face-handoff/$token': {
-      id: '/face-handoff/$token'
-      path: '/face-handoff/$token'
-      fullPath: '/face-handoff/$token'
-      preLoaderRoute: typeof FaceHandoffTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/scan': {
-      id: '/api/scan'
-      path: '/api/scan'
-      fullPath: '/api/scan'
-      preLoaderRoute: typeof ApiScanRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_partner/partner': {
-      id: '/_partner/partner'
-      path: '/partner'
-      fullPath: '/partner'
-      preLoaderRoute: typeof PartnerPartnerRouteImport
-      parentRoute: typeof PartnerRoute
-    }
-    '/_app/youtube-removal': {
-      id: '/_app/youtube-removal'
-      path: '/youtube-removal'
-      fullPath: '/youtube-removal'
-      preLoaderRoute: typeof AppYoutubeRemovalRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/threat-radar': {
-      id: '/_app/threat-radar'
-      path: '/threat-radar'
-      fullPath: '/threat-radar'
-      preLoaderRoute: typeof AppThreatRadarRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/threat-monitoring': {
-      id: '/_app/threat-monitoring'
-      path: '/threat-monitoring'
-      fullPath: '/threat-monitoring'
-      preLoaderRoute: typeof AppThreatMonitoringRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/scan': {
-      id: '/_app/scan'
-      path: '/scan'
-      fullPath: '/scan'
-      preLoaderRoute: typeof AppScanRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/reports': {
-      id: '/_app/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AppReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/removals': {
-      id: '/_app/removals'
-      path: '/removals'
-      fullPath: '/removals'
-      preLoaderRoute: typeof AppRemovalsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/notifications': {
-      id: '/_app/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AppNotificationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/narrative-intelligence': {
-      id: '/_app/narrative-intelligence'
-      path: '/narrative-intelligence'
-      fullPath: '/narrative-intelligence'
-      preLoaderRoute: typeof AppNarrativeIntelligenceRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/intelligence': {
-      id: '/_app/intelligence'
-      path: '/intelligence'
-      fullPath: '/intelligence'
-      preLoaderRoute: typeof AppIntelligenceRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/face-references': {
-      id: '/_app/face-references'
-      path: '/face-references'
-      fullPath: '/face-references'
-      preLoaderRoute: typeof AppFaceReferencesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/face-protection': {
-      id: '/_app/face-protection'
-      path: '/face-protection'
-      fullPath: '/face-protection'
-      preLoaderRoute: typeof AppFaceProtectionRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/evidence-vault': {
-      id: '/_app/evidence-vault'
-      path: '/evidence-vault'
-      fullPath: '/evidence-vault'
-      preLoaderRoute: typeof AppEvidenceVaultRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/enforcement': {
-      id: '/_app/enforcement'
-      path: '/enforcement'
-      fullPath: '/enforcement'
-      preLoaderRoute: typeof AppEnforcementRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/deepfake-intel': {
-      id: '/_app/deepfake-intel'
-      path: '/deepfake-intel'
-      fullPath: '/deepfake-intel'
-      preLoaderRoute: typeof AppDeepfakeIntelRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/copyright-intel': {
-      id: '/_app/copyright-intel'
-      path: '/copyright-intel'
-      fullPath: '/copyright-intel'
-      preLoaderRoute: typeof AppCopyrightIntelRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/channel-watch': {
-      id: '/_app/channel-watch'
-      path: '/channel-watch'
-      fullPath: '/channel-watch'
-      preLoaderRoute: typeof AppChannelWatchRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cases': {
-      id: '/_app/cases'
-      path: '/cases'
-      fullPath: '/cases'
-      preLoaderRoute: typeof AppCasesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/campaigns': {
-      id: '/_app/campaigns'
-      path: '/campaigns'
-      fullPath: '/campaigns'
-      preLoaderRoute: typeof AppCampaignsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/assets': {
-      id: '/_app/assets'
-      path: '/assets'
-      fullPath: '/assets'
-      preLoaderRoute: typeof AppAssetsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_partner/partner/': {
-      id: '/_partner/partner/'
-      path: '/'
-      fullPath: '/partner/'
-      preLoaderRoute: typeof PartnerPartnerIndexRouteImport
-      parentRoute: typeof PartnerPartnerRoute
-    }
-    '/_app/sensitive-protection/': {
-      id: '/_app/sensitive-protection/'
-      path: '/sensitive-protection'
-      fullPath: '/sensitive-protection/'
-      preLoaderRoute: typeof AppSensitiveProtectionIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/staff/report/$scanId': {
-      id: '/staff/report/$scanId'
-      path: '/report/$scanId'
-      fullPath: '/staff/report/$scanId'
-      preLoaderRoute: typeof StaffReportScanIdRouteImport
-      parentRoute: typeof StaffRoute
-    }
-    '/api/public/veriff-webhook': {
-      id: '/api/public/veriff-webhook'
-      path: '/api/public/veriff-webhook'
-      fullPath: '/api/public/veriff-webhook'
-      preLoaderRoute: typeof ApiPublicVeriffWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/onboarding-completion-backfill': {
-      id: '/api/public/onboarding-completion-backfill'
-      path: '/api/public/onboarding-completion-backfill'
-      fullPath: '/api/public/onboarding-completion-backfill'
-      preLoaderRoute: typeof ApiPublicOnboardingCompletionBackfillRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/image-proxy': {
-      id: '/api/public/image-proxy'
-      path: '/api/public/image-proxy'
-      fullPath: '/api/public/image-proxy'
-      preLoaderRoute: typeof ApiPublicImageProxyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/media/preview': {
-      id: '/api/media/preview'
-      path: '/api/media/preview'
-      fullPath: '/api/media/preview'
-      preLoaderRoute: typeof ApiMediaPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_partner/partner/proposals': {
-      id: '/_partner/partner/proposals'
-      path: '/proposals'
-      fullPath: '/partner/proposals'
-      preLoaderRoute: typeof PartnerPartnerProposalsRouteImport
-      parentRoute: typeof PartnerPartnerRoute
-    }
-    '/_partner/partner/payments': {
-      id: '/_partner/partner/payments'
-      path: '/payments'
-      fullPath: '/partner/payments'
-      preLoaderRoute: typeof PartnerPartnerPaymentsRouteImport
-      parentRoute: typeof PartnerPartnerRoute
-    }
-    '/_partner/partner/marketing': {
-      id: '/_partner/partner/marketing'
-      path: '/marketing'
-      fullPath: '/partner/marketing'
-      preLoaderRoute: typeof PartnerPartnerMarketingRouteImport
-      parentRoute: typeof PartnerPartnerRoute
-    }
-    '/_partner/partner/commissions': {
-      id: '/_partner/partner/commissions'
-      path: '/commissions'
-      fullPath: '/partner/commissions'
-      preLoaderRoute: typeof PartnerPartnerCommissionsRouteImport
-      parentRoute: typeof PartnerPartnerRoute
-    }
-    '/_partner/partner/clients': {
-      id: '/_partner/partner/clients'
-      path: '/clients'
-      fullPath: '/partner/clients'
-      preLoaderRoute: typeof PartnerPartnerClientsRouteImport
-      parentRoute: typeof PartnerPartnerRoute
-    }
-    '/_app/sensitive-protection/removal-cases': {
-      id: '/_app/sensitive-protection/removal-cases'
-      path: '/sensitive-protection/removal-cases'
-      fullPath: '/sensitive-protection/removal-cases'
-      preLoaderRoute: typeof AppSensitiveProtectionRemovalCasesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/sensitive-protection/emergency': {
-      id: '/_app/sensitive-protection/emergency'
-      path: '/sensitive-protection/emergency'
-      fullPath: '/sensitive-protection/emergency'
-      preLoaderRoute: typeof AppSensitiveProtectionEmergencyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/reports/$reportId': {
-      id: '/_app/reports/$reportId'
-      path: '/$reportId'
-      fullPath: '/reports/$reportId'
-      preLoaderRoute: typeof AppReportsReportIdRouteImport
-      parentRoute: typeof AppReportsRoute
-    }
-    '/_app/protection/sources': {
-      id: '/_app/protection/sources'
-      path: '/protection/sources'
-      fullPath: '/protection/sources'
-      preLoaderRoute: typeof AppProtectionSourcesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard_/image-immunization': {
-      id: '/_app/dashboard_/image-immunization'
-      path: '/dashboard/image-immunization'
-      fullPath: '/dashboard/image-immunization'
-      preLoaderRoute: typeof AppDashboardImageImmunizationRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/waitlist': {
-      id: '/_app/admin/waitlist'
-      path: '/admin/waitlist'
-      fullPath: '/admin/waitlist'
-      preLoaderRoute: typeof AppAdminWaitlistRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/sensitive-protection': {
-      id: '/_app/admin/sensitive-protection'
-      path: '/admin/sensitive-protection'
-      fullPath: '/admin/sensitive-protection'
-      preLoaderRoute: typeof AppAdminSensitiveProtectionRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/removal-routes': {
-      id: '/_app/admin/removal-routes'
-      path: '/admin/removal-routes'
-      fullPath: '/admin/removal-routes'
-      preLoaderRoute: typeof AppAdminRemovalRoutesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/provider-activation': {
-      id: '/_app/admin/provider-activation'
-      path: '/admin/provider-activation'
-      fullPath: '/admin/provider-activation'
-      preLoaderRoute: typeof AppAdminProviderActivationRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/onboarding-reviews': {
-      id: '/_app/admin/onboarding-reviews'
-      path: '/admin/onboarding-reviews'
-      fullPath: '/admin/onboarding-reviews'
-      preLoaderRoute: typeof AppAdminOnboardingReviewsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/multimedia-health': {
-      id: '/_app/admin/multimedia-health'
-      path: '/admin/multimedia-health'
-      fullPath: '/admin/multimedia-health'
-      preLoaderRoute: typeof AppAdminMultimediaHealthRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/invites': {
-      id: '/_app/admin/invites'
-      path: '/admin/invites'
-      fullPath: '/admin/invites'
-      preLoaderRoute: typeof AppAdminInvitesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/identity-review': {
-      id: '/_app/admin/identity-review'
-      path: '/admin/identity-review'
-      fullPath: '/admin/identity-review'
-      preLoaderRoute: typeof AppAdminIdentityReviewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/eip': {
-      id: '/_app/admin/eip'
-      path: '/admin/eip'
-      fullPath: '/admin/eip'
-      preLoaderRoute: typeof AppAdminEipRouteImport
+    '/_app/admin/approved-sources-review': {
+      id: '/_app/admin/approved-sources-review'
+      path: '/admin/approved-sources-review'
+      fullPath: '/admin/approved-sources-review'
+      preLoaderRoute: typeof AppAdminApprovedSourcesReviewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin/diagnostics': {
@@ -2644,12 +2469,187 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminDiagnosticsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/admin/approved-sources-review': {
-      id: '/_app/admin/approved-sources-review'
-      path: '/admin/approved-sources-review'
-      fullPath: '/admin/approved-sources-review'
-      preLoaderRoute: typeof AppAdminApprovedSourcesReviewRouteImport
+    '/_app/admin/eip': {
+      id: '/_app/admin/eip'
+      path: '/admin/eip'
+      fullPath: '/admin/eip'
+      preLoaderRoute: typeof AppAdminEipRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/admin/identity-review': {
+      id: '/_app/admin/identity-review'
+      path: '/admin/identity-review'
+      fullPath: '/admin/identity-review'
+      preLoaderRoute: typeof AppAdminIdentityReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/invites': {
+      id: '/_app/admin/invites'
+      path: '/admin/invites'
+      fullPath: '/admin/invites'
+      preLoaderRoute: typeof AppAdminInvitesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/multimedia-health': {
+      id: '/_app/admin/multimedia-health'
+      path: '/admin/multimedia-health'
+      fullPath: '/admin/multimedia-health'
+      preLoaderRoute: typeof AppAdminMultimediaHealthRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/onboarding-reviews': {
+      id: '/_app/admin/onboarding-reviews'
+      path: '/admin/onboarding-reviews'
+      fullPath: '/admin/onboarding-reviews'
+      preLoaderRoute: typeof AppAdminOnboardingReviewsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/provider-activation': {
+      id: '/_app/admin/provider-activation'
+      path: '/admin/provider-activation'
+      fullPath: '/admin/provider-activation'
+      preLoaderRoute: typeof AppAdminProviderActivationRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/removal-routes': {
+      id: '/_app/admin/removal-routes'
+      path: '/admin/removal-routes'
+      fullPath: '/admin/removal-routes'
+      preLoaderRoute: typeof AppAdminRemovalRoutesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/sensitive-protection': {
+      id: '/_app/admin/sensitive-protection'
+      path: '/admin/sensitive-protection'
+      fullPath: '/admin/sensitive-protection'
+      preLoaderRoute: typeof AppAdminSensitiveProtectionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/waitlist': {
+      id: '/_app/admin/waitlist'
+      path: '/admin/waitlist'
+      fullPath: '/admin/waitlist'
+      preLoaderRoute: typeof AppAdminWaitlistRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard_/image-immunization': {
+      id: '/_app/dashboard_/image-immunization'
+      path: '/dashboard/image-immunization'
+      fullPath: '/dashboard/image-immunization'
+      preLoaderRoute: typeof AppDashboardImageImmunizationRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/protection/sources': {
+      id: '/_app/protection/sources'
+      path: '/protection/sources'
+      fullPath: '/protection/sources'
+      preLoaderRoute: typeof AppProtectionSourcesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports/$reportId': {
+      id: '/_app/reports/$reportId'
+      path: '/$reportId'
+      fullPath: '/reports/$reportId'
+      preLoaderRoute: typeof AppReportsReportIdRouteImport
+      parentRoute: typeof AppReportsRoute
+    }
+    '/_app/sensitive-protection/': {
+      id: '/_app/sensitive-protection/'
+      path: '/sensitive-protection'
+      fullPath: '/sensitive-protection/'
+      preLoaderRoute: typeof AppSensitiveProtectionIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sensitive-protection/emergency': {
+      id: '/_app/sensitive-protection/emergency'
+      path: '/sensitive-protection/emergency'
+      fullPath: '/sensitive-protection/emergency'
+      preLoaderRoute: typeof AppSensitiveProtectionEmergencyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sensitive-protection/removal-cases': {
+      id: '/_app/sensitive-protection/removal-cases'
+      path: '/sensitive-protection/removal-cases'
+      fullPath: '/sensitive-protection/removal-cases'
+      preLoaderRoute: typeof AppSensitiveProtectionRemovalCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_partner/partner/': {
+      id: '/_partner/partner/'
+      path: '/'
+      fullPath: '/partner/'
+      preLoaderRoute: typeof PartnerPartnerIndexRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/clients': {
+      id: '/_partner/partner/clients'
+      path: '/clients'
+      fullPath: '/partner/clients'
+      preLoaderRoute: typeof PartnerPartnerClientsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/commissions': {
+      id: '/_partner/partner/commissions'
+      path: '/commissions'
+      fullPath: '/partner/commissions'
+      preLoaderRoute: typeof PartnerPartnerCommissionsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/marketing': {
+      id: '/_partner/partner/marketing'
+      path: '/marketing'
+      fullPath: '/partner/marketing'
+      preLoaderRoute: typeof PartnerPartnerMarketingRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/payments': {
+      id: '/_partner/partner/payments'
+      path: '/payments'
+      fullPath: '/partner/payments'
+      preLoaderRoute: typeof PartnerPartnerPaymentsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/_partner/partner/proposals': {
+      id: '/_partner/partner/proposals'
+      path: '/proposals'
+      fullPath: '/partner/proposals'
+      preLoaderRoute: typeof PartnerPartnerProposalsRouteImport
+      parentRoute: typeof PartnerPartnerRoute
+    }
+    '/api/media/preview': {
+      id: '/api/media/preview'
+      path: '/api/media/preview'
+      fullPath: '/api/media/preview'
+      preLoaderRoute: typeof ApiMediaPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/image-proxy': {
+      id: '/api/public/image-proxy'
+      path: '/api/public/image-proxy'
+      fullPath: '/api/public/image-proxy'
+      preLoaderRoute: typeof ApiPublicImageProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/onboarding-completion-backfill': {
+      id: '/api/public/onboarding-completion-backfill'
+      path: '/api/public/onboarding-completion-backfill'
+      fullPath: '/api/public/onboarding-completion-backfill'
+      preLoaderRoute: typeof ApiPublicOnboardingCompletionBackfillRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/veriff-webhook': {
+      id: '/api/public/veriff-webhook'
+      path: '/api/public/veriff-webhook'
+      fullPath: '/api/public/veriff-webhook'
+      preLoaderRoute: typeof ApiPublicVeriffWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/report/$scanId': {
+      id: '/staff/report/$scanId'
+      path: '/report/$scanId'
+      fullPath: '/staff/report/$scanId'
+      preLoaderRoute: typeof StaffReportScanIdRouteImport
+      parentRoute: typeof StaffRoute
     }
     '/_app/sensitive-protection/results/': {
       id: '/_app/sensitive-protection/results/'
@@ -2658,137 +2658,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSensitiveProtectionResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/api/public/hooks/scan-orchestrator': {
-      id: '/api/public/hooks/scan-orchestrator'
-      path: '/api/public/hooks/scan-orchestrator'
-      fullPath: '/api/public/hooks/scan-orchestrator'
-      preLoaderRoute: typeof ApiPublicHooksScanOrchestratorRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/sensitive-protection/results/$id': {
+      id: '/_app/sensitive-protection/results/$id'
+      path: '/sensitive-protection/results/$id'
+      fullPath: '/sensitive-protection/results/$id'
+      preLoaderRoute: typeof AppSensitiveProtectionResultsIdRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/api/public/hooks/resend-webhook': {
-      id: '/api/public/hooks/resend-webhook'
-      path: '/api/public/hooks/resend-webhook'
-      fullPath: '/api/public/hooks/resend-webhook'
-      preLoaderRoute: typeof ApiPublicHooksResendWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/release-protection-monitor': {
-      id: '/api/public/hooks/release-protection-monitor'
-      path: '/api/public/hooks/release-protection-monitor'
-      fullPath: '/api/public/hooks/release-protection-monitor'
-      preLoaderRoute: typeof ApiPublicHooksReleaseProtectionMonitorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/protection-scheduler-token': {
-      id: '/api/public/hooks/protection-scheduler-token'
-      path: '/api/public/hooks/protection-scheduler-token'
-      fullPath: '/api/public/hooks/protection-scheduler-token'
-      preLoaderRoute: typeof ApiPublicHooksProtectionSchedulerTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/protection-autopilot': {
-      id: '/api/public/hooks/protection-autopilot'
-      path: '/api/public/hooks/protection-autopilot'
-      fullPath: '/api/public/hooks/protection-autopilot'
-      preLoaderRoute: typeof ApiPublicHooksProtectionAutopilotRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/protection-activation-repair': {
-      id: '/api/public/hooks/protection-activation-repair'
-      path: '/api/public/hooks/protection-activation-repair'
-      fullPath: '/api/public/hooks/protection-activation-repair'
-      preLoaderRoute: typeof ApiPublicHooksProtectionActivationRepairRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/prospect-scan-worker': {
-      id: '/api/public/hooks/prospect-scan-worker'
-      path: '/api/public/hooks/prospect-scan-worker'
-      fullPath: '/api/public/hooks/prospect-scan-worker'
-      preLoaderRoute: typeof ApiPublicHooksProspectScanWorkerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/postmark-webhook': {
-      id: '/api/public/hooks/postmark-webhook'
-      path: '/api/public/hooks/postmark-webhook'
-      fullPath: '/api/public/hooks/postmark-webhook'
-      preLoaderRoute: typeof ApiPublicHooksPostmarkWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/enforcement-worker': {
-      id: '/api/public/hooks/enforcement-worker'
-      path: '/api/public/hooks/enforcement-worker'
-      fullPath: '/api/public/hooks/enforcement-worker'
-      preLoaderRoute: typeof ApiPublicHooksEnforcementWorkerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/eip-worker': {
-      id: '/api/public/hooks/eip-worker'
-      path: '/api/public/hooks/eip-worker'
-      fullPath: '/api/public/hooks/eip-worker'
-      preLoaderRoute: typeof ApiPublicHooksEipWorkerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/distribution-monitor': {
-      id: '/api/public/hooks/distribution-monitor'
-      path: '/api/public/hooks/distribution-monitor'
-      fullPath: '/api/public/hooks/distribution-monitor'
-      preLoaderRoute: typeof ApiPublicHooksDistributionMonitorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/deepfake-scan-execute': {
-      id: '/api/public/hooks/deepfake-scan-execute'
-      path: '/api/public/hooks/deepfake-scan-execute'
-      fullPath: '/api/public/hooks/deepfake-scan-execute'
-      preLoaderRoute: typeof ApiPublicHooksDeepfakeScanExecuteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/deepfake-manual-evidence-execute': {
-      id: '/api/public/hooks/deepfake-manual-evidence-execute'
-      path: '/api/public/hooks/deepfake-manual-evidence-execute'
-      fullPath: '/api/public/hooks/deepfake-manual-evidence-execute'
-      preLoaderRoute: typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/deepfake-google-images-worker': {
-      id: '/api/public/hooks/deepfake-google-images-worker'
-      path: '/api/public/hooks/deepfake-google-images-worker'
-      fullPath: '/api/public/hooks/deepfake-google-images-worker'
-      preLoaderRoute: typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/copyright-scan-execute': {
-      id: '/api/public/hooks/copyright-scan-execute'
-      path: '/api/public/hooks/copyright-scan-execute'
-      fullPath: '/api/public/hooks/copyright-scan-execute'
-      preLoaderRoute: typeof ApiPublicHooksCopyrightScanExecuteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/channel-watch-poll': {
-      id: '/api/public/hooks/channel-watch-poll'
-      path: '/api/public/hooks/channel-watch-poll'
-      fullPath: '/api/public/hooks/channel-watch-poll'
-      preLoaderRoute: typeof ApiPublicHooksChannelWatchPollRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/automation-status-check': {
-      id: '/api/public/hooks/automation-status-check'
-      path: '/api/public/hooks/automation-status-check'
-      fullPath: '/api/public/hooks/automation-status-check'
-      preLoaderRoute: typeof ApiPublicHooksAutomationStatusCheckRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/automation-status': {
-      id: '/api/public/hooks/automation-status'
-      path: '/api/public/hooks/automation-status'
-      fullPath: '/api/public/hooks/automation-status'
-      preLoaderRoute: typeof ApiPublicHooksAutomationStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/automation-fetch': {
-      id: '/api/public/hooks/automation-fetch'
-      path: '/api/public/hooks/automation-fetch'
-      fullPath: '/api/public/hooks/automation-fetch'
-      preLoaderRoute: typeof ApiPublicHooksAutomationFetchRouteImport
+    '/api/public/hooks/agent-assessments': {
+      id: '/api/public/hooks/agent-assessments'
+      path: '/api/public/hooks/agent-assessments'
+      fullPath: '/api/public/hooks/agent-assessments'
+      preLoaderRoute: typeof ApiPublicHooksAgentAssessmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/approved-sources-poll': {
@@ -2798,19 +2679,138 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksApprovedSourcesPollRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/agent-assessments': {
-      id: '/api/public/hooks/agent-assessments'
-      path: '/api/public/hooks/agent-assessments'
-      fullPath: '/api/public/hooks/agent-assessments'
-      preLoaderRoute: typeof ApiPublicHooksAgentAssessmentsRouteImport
+    '/api/public/hooks/automation-fetch': {
+      id: '/api/public/hooks/automation-fetch'
+      path: '/api/public/hooks/automation-fetch'
+      fullPath: '/api/public/hooks/automation-fetch'
+      preLoaderRoute: typeof ApiPublicHooksAutomationFetchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/sensitive-protection/results/$id': {
-      id: '/_app/sensitive-protection/results/$id'
-      path: '/sensitive-protection/results/$id'
-      fullPath: '/sensitive-protection/results/$id'
-      preLoaderRoute: typeof AppSensitiveProtectionResultsIdRouteImport
-      parentRoute: typeof AppRoute
+    '/api/public/hooks/automation-status': {
+      id: '/api/public/hooks/automation-status'
+      path: '/api/public/hooks/automation-status'
+      fullPath: '/api/public/hooks/automation-status'
+      preLoaderRoute: typeof ApiPublicHooksAutomationStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/automation-status-check': {
+      id: '/api/public/hooks/automation-status-check'
+      path: '/api/public/hooks/automation-status-check'
+      fullPath: '/api/public/hooks/automation-status-check'
+      preLoaderRoute: typeof ApiPublicHooksAutomationStatusCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/channel-watch-poll': {
+      id: '/api/public/hooks/channel-watch-poll'
+      path: '/api/public/hooks/channel-watch-poll'
+      fullPath: '/api/public/hooks/channel-watch-poll'
+      preLoaderRoute: typeof ApiPublicHooksChannelWatchPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/copyright-scan-execute': {
+      id: '/api/public/hooks/copyright-scan-execute'
+      path: '/api/public/hooks/copyright-scan-execute'
+      fullPath: '/api/public/hooks/copyright-scan-execute'
+      preLoaderRoute: typeof ApiPublicHooksCopyrightScanExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/deepfake-google-images-worker': {
+      id: '/api/public/hooks/deepfake-google-images-worker'
+      path: '/api/public/hooks/deepfake-google-images-worker'
+      fullPath: '/api/public/hooks/deepfake-google-images-worker'
+      preLoaderRoute: typeof ApiPublicHooksDeepfakeGoogleImagesWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/deepfake-manual-evidence-execute': {
+      id: '/api/public/hooks/deepfake-manual-evidence-execute'
+      path: '/api/public/hooks/deepfake-manual-evidence-execute'
+      fullPath: '/api/public/hooks/deepfake-manual-evidence-execute'
+      preLoaderRoute: typeof ApiPublicHooksDeepfakeManualEvidenceExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/deepfake-scan-execute': {
+      id: '/api/public/hooks/deepfake-scan-execute'
+      path: '/api/public/hooks/deepfake-scan-execute'
+      fullPath: '/api/public/hooks/deepfake-scan-execute'
+      preLoaderRoute: typeof ApiPublicHooksDeepfakeScanExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/distribution-monitor': {
+      id: '/api/public/hooks/distribution-monitor'
+      path: '/api/public/hooks/distribution-monitor'
+      fullPath: '/api/public/hooks/distribution-monitor'
+      preLoaderRoute: typeof ApiPublicHooksDistributionMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/eip-worker': {
+      id: '/api/public/hooks/eip-worker'
+      path: '/api/public/hooks/eip-worker'
+      fullPath: '/api/public/hooks/eip-worker'
+      preLoaderRoute: typeof ApiPublicHooksEipWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/enforcement-worker': {
+      id: '/api/public/hooks/enforcement-worker'
+      path: '/api/public/hooks/enforcement-worker'
+      fullPath: '/api/public/hooks/enforcement-worker'
+      preLoaderRoute: typeof ApiPublicHooksEnforcementWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/postmark-webhook': {
+      id: '/api/public/hooks/postmark-webhook'
+      path: '/api/public/hooks/postmark-webhook'
+      fullPath: '/api/public/hooks/postmark-webhook'
+      preLoaderRoute: typeof ApiPublicHooksPostmarkWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/prospect-scan-worker': {
+      id: '/api/public/hooks/prospect-scan-worker'
+      path: '/api/public/hooks/prospect-scan-worker'
+      fullPath: '/api/public/hooks/prospect-scan-worker'
+      preLoaderRoute: typeof ApiPublicHooksProspectScanWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/protection-activation-repair': {
+      id: '/api/public/hooks/protection-activation-repair'
+      path: '/api/public/hooks/protection-activation-repair'
+      fullPath: '/api/public/hooks/protection-activation-repair'
+      preLoaderRoute: typeof ApiPublicHooksProtectionActivationRepairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/protection-autopilot': {
+      id: '/api/public/hooks/protection-autopilot'
+      path: '/api/public/hooks/protection-autopilot'
+      fullPath: '/api/public/hooks/protection-autopilot'
+      preLoaderRoute: typeof ApiPublicHooksProtectionAutopilotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/protection-scheduler-token': {
+      id: '/api/public/hooks/protection-scheduler-token'
+      path: '/api/public/hooks/protection-scheduler-token'
+      fullPath: '/api/public/hooks/protection-scheduler-token'
+      preLoaderRoute: typeof ApiPublicHooksProtectionSchedulerTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/release-protection-monitor': {
+      id: '/api/public/hooks/release-protection-monitor'
+      path: '/api/public/hooks/release-protection-monitor'
+      fullPath: '/api/public/hooks/release-protection-monitor'
+      preLoaderRoute: typeof ApiPublicHooksReleaseProtectionMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/resend-webhook': {
+      id: '/api/public/hooks/resend-webhook'
+      path: '/api/public/hooks/resend-webhook'
+      fullPath: '/api/public/hooks/resend-webhook'
+      preLoaderRoute: typeof ApiPublicHooksResendWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/scan-orchestrator': {
+      id: '/api/public/hooks/scan-orchestrator'
+      path: '/api/public/hooks/scan-orchestrator'
+      fullPath: '/api/public/hooks/scan-orchestrator'
+      preLoaderRoute: typeof ApiPublicHooksScanOrchestratorRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
