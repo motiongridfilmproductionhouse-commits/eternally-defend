@@ -27,6 +27,7 @@ export const Route = createFileRoute("/newsroom_/private-video-leak-online-black
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
       { property: "article:published_time", content: PUBLISHED },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),

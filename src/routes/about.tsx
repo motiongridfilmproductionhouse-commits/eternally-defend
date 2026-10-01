@@ -20,6 +20,7 @@ export const Route = createFileRoute("/about")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://protectbyeterna.com/about" },
     ],
     links: [{ rel: "canonical", href: "https://protectbyeterna.com/about" }],
   }),

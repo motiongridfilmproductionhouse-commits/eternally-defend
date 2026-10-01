@@ -66,6 +66,7 @@ export const Route = createFileRoute("/")({
         content:
           "Detect impersonation, synthetic media, unauthorized content and emerging reputation threats.",
       },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),

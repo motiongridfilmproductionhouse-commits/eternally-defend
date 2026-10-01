@@ -25,6 +25,7 @@ export const Route = createFileRoute("/newsroom_/what-is-a-deepfake")({
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
       { property: "article:published_time", content: PUBLISHED },
+      { property: "og:url", content: CANONICAL },
     ],
     links: [{ rel: "canonical", href: CANONICAL }],
   }),
