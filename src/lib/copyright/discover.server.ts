@@ -169,7 +169,7 @@ export class CopyrightDiscoveryError extends Error {
 
 export function getCopyrightDiscoveryProviders(): CopyrightProviderId[] {
   const providers: CopyrightProviderId[] = [];
-  const fcKey = (process.env.FIRECRAWL_API_KEY ?? process.env.FIRECRAWL_API_KEY_1)?.trim();
+  const fcKey = (process.env.FIRECRAWL_API_KEY_1 || process.env.FIRECRAWL_API_KEY)?.trim();
   const lovKey = process.env.LOVABLE_API_KEY?.trim();
   const braveKey = process.env.BRAVE_API_KEY?.trim();
   const serpKey = process.env.SERPAPI_API_KEY?.trim();

@@ -128,7 +128,7 @@ export async function executeMultiProviderDiscovery({
     let lastError: { code: ProviderErrorCode; status: number | null; message: string } | null = null;
 
     // 1. Try Firecrawl
-    if ((process.env.FIRECRAWL_API_KEY ?? process.env.FIRECRAWL_API_KEY_1)?.trim()) {
+    if ((process.env.FIRECRAWL_API_KEY_1 || process.env.FIRECRAWL_API_KEY)?.trim()) {
       try {
         const fcHits = await firecrawlSearch(
           query,
