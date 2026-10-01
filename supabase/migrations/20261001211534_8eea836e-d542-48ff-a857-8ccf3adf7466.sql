@@ -1,0 +1,1 @@
+SELECT cron.alter_job(jobid, active := false) FROM cron.job WHERE jobname IN ('protection-autopilot-sweep','eterna-scan-orchestrator','eterna-channel-watch-poll','eterna-distribution-monitor','eterna-release-protection-monitor');
