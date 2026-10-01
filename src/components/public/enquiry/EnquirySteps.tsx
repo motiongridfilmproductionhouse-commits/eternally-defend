@@ -223,10 +223,10 @@ export function SecurityTopicStep({
           <p className="mt-1 text-landing-muted">
             Report it directly to{" "}
             <a
-              href="mailto:security@eternasentinel.com"
+              href="mailto:legal@protectbyeterna.com"
               className="font-medium text-landing-ink underline underline-offset-2"
             >
-              security@eternasentinel.com
+              legal@protectbyeterna.com
             </a>{" "}
             before disclosing it publicly — that's Eterna's dedicated responsible-disclosure channel
             and the fastest way to reach the security team. You're welcome to continue with this
@@ -270,10 +270,10 @@ export function PrivacyTopicStep({
       <p className="mt-4 text-xs leading-5 text-landing-muted">
         You can also reach the privacy team directly at{" "}
         <a
-          href="mailto:privacy@eternasentinel.com"
+          href="mailto:legal@protectbyeterna.com"
           className="font-medium text-landing-ink underline underline-offset-2"
         >
-          privacy@eternasentinel.com
+          legal@protectbyeterna.com
         </a>
         .
       </p>

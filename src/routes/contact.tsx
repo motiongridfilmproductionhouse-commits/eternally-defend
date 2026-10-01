@@ -110,10 +110,10 @@ function ContactPage() {
                 Observatory.
               </p>
               <a
-                href="mailto:press@eternasentinel.com"
+                href="mailto:press@protectbyeterna.com"
                 className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-landing-ink"
               >
-                press@eternasentinel.com <ArrowRight className="size-3.5" />
+                press@protectbyeterna.com <ArrowRight className="size-3.5" />
               </a>
             </article>
 
@@ -123,11 +123,19 @@ function ContactPage() {
               <p className="mt-3 text-sm leading-6 text-landing-muted">
                 Agencies, platforms and organizations proposing a partnership with Eterna.
               </p>
-              <Button asChild variant="link" className="mt-5 h-auto p-0 text-landing-ink">
-                <Link to="/partner-apply">
-                  Apply as a partner <ArrowRight className="size-3.5" />
-                </Link>
-              </Button>
+              <div className="mt-5 flex flex-wrap gap-4">
+                <Button asChild variant="link" className="h-auto p-0 text-landing-ink">
+                  <Link to="/partner-apply">
+                    Apply as a partner <ArrowRight className="size-3.5" />
+                  </Link>
+                </Button>
+                <a
+                  href="mailto:partnerships@protectbyeterna.com"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-landing-ink"
+                >
+                  partnerships@protectbyeterna.com <ArrowRight className="size-3.5" />
+                </a>
+              </div>
             </article>
 
             <article className="bg-landing p-8 md:col-span-2">
@@ -144,10 +152,10 @@ function ContactPage() {
                   </Link>
                 </Button>
                 <a
-                  href="mailto:support@eternasentinel.com"
+                  href="mailto:relations@protectbyeterna.com"
                   className="inline-flex items-center gap-1 text-sm font-semibold text-landing-ink"
                 >
-                  support@eternasentinel.com <ArrowRight className="size-3.5" />
+                  relations@protectbyeterna.com <ArrowRight className="size-3.5" />
                 </a>
               </div>
             </article>
