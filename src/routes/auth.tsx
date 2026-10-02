@@ -50,6 +50,7 @@ function AuthPage() {
   );
   const redirected = useRef(false);
   const [assessmentToken] = useState(() => {
+    if (agentMode) return null;
     const token = new URLSearchParams(window.location.search).get("assessment");
     if (token && /^[A-Za-z0-9_-]{43}$/.test(token))
       sessionStorage.setItem("eterna-assessment", token);
@@ -83,7 +84,7 @@ function AuthPage() {
   // A waitlist approval email links here as /auth?invite=CODE — prefill and validate it.
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("invite");
-    if (!code) return;
+    if (!code || agentMode) return;
     setMode("signup");
     setInviteCode(code);
     void (async () => {
@@ -164,7 +165,7 @@ function AuthPage() {
     setError(null);
     setLoading(true);
     try {
-      if (mode === "signup") {
+      if (!agentMode && mode === "signup") {
         // Account creation happens server-side, gated by the invitation code.
         const res = await signUpInvited({ data: { code: inviteCode, email, password } });
         if (!res.ok) {
@@ -265,20 +266,24 @@ function AuthPage() {
 
           <div>
             <h2 className="font-display font-bold text-3xl tracking-tight">
-              {mode === "signin"
-                ? "Welcome back"
-                : inviteAccepted
-                  ? "Create account"
-                  : "Enter invitation code"}
+              {agentMode
+                ? "Agent sign in"
+                : mode === "signin"
+                  ? "Welcome back"
+                  : inviteAccepted
+                    ? "Create account"
+                    : "Enter invitation code"}
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              {mode === "signin"
-                ? "Sign in to your Eterna AI workspace."
-                : inviteAccepted
-                  ? inviteAccountType
-                    ? `Invitation verified · ${inviteAccountType} account.`
-                    : "Invitation verified. Set up your credentials."
-                  : "Eterna is invitation-only. Enter the code you received to continue."}
+              {agentMode
+                ? "Enter your agent username and password."
+                : mode === "signin"
+                  ? "Sign in to your Eterna AI workspace."
+                  : inviteAccepted
+                    ? inviteAccountType
+                      ? `Invitation verified · ${inviteAccountType} account.`
+                      : "Invitation verified. Set up your credentials."
+                    : "Eterna is invitation-only. Enter the code you received to continue."}
             </p>
           </div>
 
@@ -342,7 +347,7 @@ function AuthPage() {
             </p>
           )}
 
-          {mode === "signup" && !inviteAccepted ? (
+          {!agentMode && mode === "signup" && !inviteAccepted ? (
             <form onSubmit={handleInviteSubmit} className="space-y-3">
               <Input
                 required
@@ -367,7 +372,9 @@ function AuthPage() {
               <Input
                 type="email"
                 required
-                placeholder="Email"
+                placeholder={agentMode ? "Username (email)" : "Email"}
+                aria-label={agentMode ? "Username (email)" : "Email"}
+                autoComplete="username"
                 className="h-11"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -375,7 +382,7 @@ function AuthPage() {
               <Input
                 type="password"
                 required
-                minLength={mode === "signup" ? 8 : 6}
+                minLength={!agentMode && mode === "signup" ? 8 : 6}
                 placeholder="Password"
                 className="h-11"
                 value={password}
@@ -388,28 +395,30 @@ function AuthPage() {
                 className="w-full h-11 text-base font-semibold"
                 style={{ background: "linear-gradient(90deg, #2563EB, #3B82F6)" }}
               >
-                {loading ? "…" : mode === "signin" ? "Sign in" : "Create account"}
+                {loading ? "…" : agentMode || mode === "signin" ? "Sign in" : "Create account"}
               </Button>
             </form>
           )}
 
-          <p className="text-sm text-center text-muted-foreground">
-            {mode === "signin" ? "Have an invitation code? " : "Already have an account? "}
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setInviteAccepted(false);
-                setInviteCode("");
-                setInviteAccountType(null);
-                setMode(mode === "signin" ? "signup" : "signin");
-              }}
-              className="font-semibold text-primary hover:underline"
-              style={{ color: "#3B82F6" }}
-            >
-              {mode === "signin" ? "Create account" : "Sign in"}
-            </button>
-          </p>
+          {!agentMode && (
+            <p className="text-sm text-center text-muted-foreground">
+              {mode === "signin" ? "Have an invitation code? " : "Already have an account? "}
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setInviteAccepted(false);
+                  setInviteCode("");
+                  setInviteAccountType(null);
+                  setMode(mode === "signin" ? "signup" : "signin");
+                }}
+                className="font-semibold text-primary hover:underline"
+                style={{ color: "#3B82F6" }}
+              >
+                {mode === "signin" ? "Create account" : "Sign in"}
+              </button>
+            </p>
+          )}
 
           <a
             href={agentMode ? "/auth" : "/auth?agent=1"}
