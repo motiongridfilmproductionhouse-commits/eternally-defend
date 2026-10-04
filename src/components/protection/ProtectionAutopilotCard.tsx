@@ -15,7 +15,19 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, ArrowRight, ShieldCheck, ShieldAlert, RefreshCw, Radar } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Facebook,
+  Globe2,
+  Instagram,
+  MessageCircle,
+  RefreshCw,
+  Radar,
+  ShieldAlert,
+  ShieldCheck,
+  Youtube,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useProtectionSummary } from "@/hooks/use-protection-summary";
 
@@ -96,6 +108,13 @@ export function ProtectionAutopilotCard() {
   const criticalThreats = protection.data?.criticalThreats ?? 0;
   const highAlertCount = criticalCases > 0 ? criticalCases : criticalThreats;
   const highAlertLabel = criticalCases > 0 ? "critical cases require review" : "high-risk findings detected";
+  const sourceSignals = [
+    { label: "Web", icon: Globe2 },
+    { label: "Instagram", icon: Instagram },
+    { label: "Facebook", icon: Facebook },
+    { label: "YouTube", icon: Youtube },
+    { label: "Reddit", icon: MessageCircle },
+  ];
 
   /*
    * Status must describe the automation, not the presence of a scan right now:
@@ -126,7 +145,7 @@ export function ProtectionAutopilotCard() {
       <div className="flex flex-wrap items-start justify-between gap-6 p-5 pb-4">
         <div className="flex items-start gap-3">
           <div
-            className={`autopilot-radar__shield ${active ? "is-active" : "is-paused"}`}
+            className={`autopilot-radar__shield ${active ? "is-active" : "is-paused"} ${highAlertCount > 0 ? "is-alert" : ""}`}
           >
             {active ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
             {active ? <span aria-hidden="true" /> : null}
@@ -199,11 +218,39 @@ export function ProtectionAutopilotCard() {
           <Radar className="size-4" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
-              <strong>{scanning ? "Live sweep searching protected sources" : "Autonomous search standing by"}</strong>
-              <span>{scanning ? "SEARCHING" : "MONITORING"}</span>
+              <strong>
+                {scanning
+                  ? "Live sweep searching protected sources"
+                  : highAlertCount > 0
+                    ? "High-signal detection active"
+                    : "Autonomous search standing by"}
+              </strong>
+              <span>{scanning ? "SCANNING" : highAlertCount > 0 ? "SIGNAL DETECTING" : "MONITORING"}</span>
             </div>
             <div className="autopilot-radar__search-track"><i /></div>
           </div>
+        </div>
+      ) : null}
+
+      {active ? (
+        <div className="autopilot-radar__sources" aria-label="Continuous source monitoring">
+          {sourceSignals.map(({ label, icon: Icon }, index) => (
+            <div
+              key={label}
+              className={`autopilot-radar__source ${highAlertCount > 0 ? "is-alert" : ""}`}
+              style={{ "--signal-delay": `${index * 180}ms` } as React.CSSProperties}
+            >
+              <span className="autopilot-radar__source-icon">
+                <Icon className="size-3.5" />
+                <i aria-hidden="true" />
+              </span>
+              <span>
+                <strong>{label}</strong>
+                <small>{scanning ? "SCANNING" : highAlertCount > 0 ? "DETECTING" : "MONITORING"}</small>
+              </span>
+              <b aria-hidden="true"><i /></b>
+            </div>
+          ))}
         </div>
       ) : null}
 
