@@ -3357,8 +3357,21 @@ function buildReport(
    */
   const hasReliableCoverage = hits.length >= 20 && sourceCount >= 3 && coverageConfidence >= 60;
 
+  // Recorded serious findings cap the score: a large volume of neutral
+  // mentions must never dilute confirmed High/Critical evidence into "Strong".
+  const seriousCount = critical.length + high.length;
+  const severityCap =
+    critical.length >= 3 || seriousCount >= 10
+      ? 30
+      : critical.length >= 1 || seriousCount >= 5
+        ? 45
+        : seriousCount >= 2
+          ? 60
+          : seriousCount === 1
+            ? 74
+            : 100;
   const reputationScore = hasReliableCoverage
-    ? Math.max(0, Math.min(100, Math.round(100 - observedRisk)))
+    ? Math.max(0, Math.min(severityCap, Math.round(100 - observedRisk)))
     : 50;
 
   const reputationLevel = !hasReliableCoverage
