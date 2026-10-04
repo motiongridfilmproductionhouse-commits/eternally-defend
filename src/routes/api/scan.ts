@@ -1446,7 +1446,7 @@ interface RawHit {
   };
   /**
    * Which discovery provider produced this specific occurrence of the hit
-   * (e.g. "brave", "serpapi", "hikerapi", "youtube", "reddit"). Set at the
+   * (e.g. "brave", "hikerapi", "apify_instagram", "youtube", "reddit"). Set at the
    * earliest point each provider's raw result becomes a RawHit — for
    * DiscoveryRouter-backed providers this already happens inside
    * router.server.ts's search() and survives here via object spread; for
@@ -3578,7 +3578,7 @@ export const Route = createFileRoute("/api/scan")({
                     const { runApifyInstagram } = await import(
                       "@/lib/scan/discovery/apify-instagram.server"
                     );
-                    return runApifyInstagram(query, instagramHandles);
+                    return runApifyInstagram(query, instagramHandles, request.signal);
                   })()
                 : Promise.resolve({
                     raw: [] as RawHit[],

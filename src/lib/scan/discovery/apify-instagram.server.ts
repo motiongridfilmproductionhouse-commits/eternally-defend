@@ -250,6 +250,6 @@ export async function runApifyInstagram(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Instagram discovery failed";
     console.error(`[scan:instagram] ${message}`);
-    return { raw: [], attempted: true, error: message };
+    return { raw: [], attempted: true, error: "Instagram discovery is temporarily unavailable" };
   }
 }

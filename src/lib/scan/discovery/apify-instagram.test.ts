@@ -61,7 +61,24 @@ test("provider failure degrades to an Instagram error without throwing", async (
   const result = await runApifyInstagram("Target", ["target"]);
   assert.equal(result.attempted, true);
   assert.equal(result.raw.length, 0);
-  assert.match(result.error ?? "", /402/);
+  assert.equal(result.error, "Instagram discovery is temporarily unavailable");
+});
+
+test("successful async run is polled and its dataset is normalized", async () => {
+  let call = 0;
+  mock.method(globalThis, "fetch", async () => {
+    call += 1;
+    if (call === 1) return new Response(JSON.stringify({ data: { id: "run-1", status: "READY" } }));
+    if (call === 2) {
+      return new Response(JSON.stringify({ data: { id: "run-1", status: "SUCCEEDED", defaultDatasetId: "dataset-1" } }));
+    }
+    return new Response(JSON.stringify([{ id: "post-1", shortCode: "FOUND", caption: "found post" }]));
+  });
+  const result = await runApifyInstagram("Target", ["target"]);
+  assert.equal(result.attempted, true);
+  assert.equal(result.runStatus, "SUCCEEDED");
+  assert.equal(result.raw[0]?.url, "https://www.instagram.com/p/FOUND/");
+  assert.equal(call, 3);
 });
 
 test("credentials stay in headers and never enter Actor URLs", async () => {
