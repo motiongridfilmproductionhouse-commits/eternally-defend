@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
-import { Loader2 } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { signRemovalThumbnailUrl } from "@/lib/enforcement-packages.functions";
 
 export const Route = createFileRoute("/_app/removals")({
   head: () => ({ meta: [{ title: "Removal Center — Eterna Sentinel" }] }),
@@ -24,6 +26,7 @@ interface RemovalRow {
   automation_job_id: string | null;
   authorization_pdf_path: string | null;
   package_generated_at: string | null;
+  metadata: Record<string, unknown> | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -70,6 +73,44 @@ function blockingReason(r: RemovalRow): string {
   return "Blocked: awaiting submission. Nothing has been sent to the platform.";
 }
 
+function RemovalThumbnail({ row }: { row: RemovalRow }) {
+  const signThumbnail = useServerFn(signRemovalThumbnailUrl);
+  const hasThumbnail = typeof row.metadata?.thumbnail_path === "string";
+  const thumbnail = useQuery({
+    queryKey: ["removal-thumbnail", row.id],
+    enabled: hasThumbnail,
+    staleTime: 8 * 60 * 1000,
+    queryFn: () => signThumbnail({ data: { requestId: row.id } }),
+  });
+
+  if (!hasThumbnail) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  if (!thumbnail.data?.url) {
+    return <div className="h-16 w-11 animate-pulse rounded bg-muted" aria-label="Loading thumbnail" />;
+  }
+
+  return (
+    <a
+      href={row.target_url ?? thumbnail.data.url}
+      target="_blank"
+      rel="noreferrer"
+      className="group relative block h-16 w-11 overflow-hidden rounded border border-border bg-muted shadow-sm"
+      aria-label={`Open ${row.platform} reel`}
+    >
+      <img
+        src={thumbnail.data.url}
+        alt={`${row.platform} reel thumbnail`}
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
+      <span className="absolute inset-0 grid place-items-center bg-foreground/15 opacity-0 transition-opacity group-hover:opacity-100">
+        <Play className="size-4 fill-background text-background" aria-hidden="true" />
+      </span>
+    </a>
+  );
+}
+
 function RemovalsPage() {
   const { session, ready } = useSession();
   const userId = session?.user.id;
@@ -81,7 +122,7 @@ function RemovalsPage() {
       const { data, error } = await supabase
         .from("enforcement_requests")
         .select(
-          "id,target_url,platform,method,status,submitted_at,responded_at,created_at,submission_status,automation_status,automation_job_id,authorization_pdf_path,package_generated_at",
+          "id,target_url,platform,method,status,submitted_at,responded_at,created_at,submission_status,automation_status,automation_job_id,authorization_pdf_path,package_generated_at,metadata",
         )
         .neq("method", "Legal Notice")
         .order("created_at", { ascending: false })
@@ -160,6 +201,7 @@ function RemovalsPage() {
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">
                   <th className="py-2.5 pr-4 font-medium">ID</th>
+                  <th className="py-2.5 pr-4 font-medium">Preview</th>
                   <th className="py-2.5 pr-4 font-medium">URL</th>
                   <th className="py-2.5 pr-4 font-medium">Platform</th>
                   <th className="py-2.5 pr-4 font-medium">Method</th>
@@ -172,6 +214,9 @@ function RemovalsPage() {
                   <tr key={r.id} className="border-b border-border/60 hover:bg-accent/30">
                     <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">
                       {r.id.slice(0, 8)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <RemovalThumbnail row={r} />
                     </td>
                     <td className="py-3 pr-4 font-medium truncate max-w-[280px]">
                       {r.target_url ? (
