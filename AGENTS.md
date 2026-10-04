@@ -11,7 +11,7 @@
 
 <!-- LOVABLE:END -->
 - EIP engine integration: the platform only talks to a private engine service via the `/api/public/hooks/eip-worker` worker (token-guarded DB RPCs, no service role); results are accepted only from a validated manifest with matching hashes — why: never fabricate EIP outcomes or expose engine internals. Contract: docs/eip-engine-contract.md.
-- Search discovery uses Firecrawl plus the owner-approved Brave provider, gated by src/lib/scan/search-policy.ts; all other providers remain disabled — why: broaden auditable coverage without silent fallback.
+- General web search uses Firecrawl plus the owner-approved Brave provider, while Instagram scans may additionally use the linked Apify Instagram actor behind bounded server-only requests; no provider silently replaces another — why: broaden auditable coverage without exposing credentials or misreporting queried sources.
 - Manipulation analysis may inspect non-unrelated media awaiting identity review, but only MATCHED discoveries appear in findings or risk totals — why: find genuine signals without attributing uncertain identities.
 - Public surfaces must not expose client-derived stories, identities, identifiers, or dates; certificate verification returns status only — why: client confidentiality applies platform-wide.
 - Public SEO landing pages use src/components/public/ServiceLanding.tsx (landingHead + Service/WebPage JSON-LD + breadcrumbs); PublicPage emits BreadcrumbList and newsroom related links — why: consistent canonical, schema and internal linking across public pages.
