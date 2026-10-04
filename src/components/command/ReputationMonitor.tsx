@@ -301,10 +301,13 @@ export function ReputationMonitor({
                       style={{ background: s.soft, border: `1px solid ${s.tone}33` }}
                     >
                       <span
-                        className="grid place-items-center size-8 rounded-lg text-[12px] font-bold shrink-0"
-                        style={{ background: "#ffffff", color: s.tone, border: `1px solid ${s.tone}55` }}
+                        className="grid place-items-center size-8 rounded-lg shrink-0"
+                        style={{ background: "#ffffff", border: `1px solid ${s.tone}55` }}
                       >
-                        {n.count}
+                        <span
+                          className={`size-2 rounded-full ${n.severity === "Critical" ? "animate-pulse" : ""}`}
+                          style={{ background: s.tone }}
+                        />
                       </span>
                       <div className="min-w-0">
                         <div className="text-[12px] font-semibold truncate">{n.platform}</div>
