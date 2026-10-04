@@ -99,7 +99,7 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
       supabase
         .from("scan_hits")
         .select(
-          "id, source, severity, first_seen_at, risk_score, threat_score, risk_type, reach, title, canonical_url, permalink, thumbnail_url, times_detected",
+          "id, source, severity, first_seen_at, risk_score, threat_score, risk_type, reach, title, canonical_url, permalink, thumbnail_url, times_detected, classification_tier, risk_evidence_found",
         )
         .eq("user_id", userId)
         .is("hidden_at", null)
@@ -132,16 +132,39 @@ export const getCommandCenterStats = createServerFn({ method: "GET" })
     };
     const platformMap = new Map<string, { platform: string; count: number; severity: string }>();
     const SEV_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, Info: 0 };
-    for (const r of aggRows) {
-      const sev = normSev(r.severity as string);
-      if (severityCounts[sev] !== undefined) severityCounts[sev]++;
-      const platform = bucketPlatform(r.source as string);
+    const bump = (platform: string, sev: string, countIt = true) => {
       const cur = platformMap.get(platform);
-      if (!cur) platformMap.set(platform, { platform, count: 1, severity: sev });
+      if (!cur) platformMap.set(platform, { platform, count: countIt ? 1 : 0, severity: sev });
       else {
-        cur.count++;
+        if (countIt) cur.count++;
         if ((SEV_RANK[sev] ?? 0) > (SEV_RANK[cur.severity] ?? 0)) cur.severity = sev;
       }
+    };
+    for (const r of aggRows as any[]) {
+      let sev = normSev(r.severity as string);
+      // Items held for human review are never "Low": surface them as Medium.
+      if (
+        (SEV_RANK[sev] ?? 0) < SEV_RANK.Medium &&
+        (r.classification_tier === "TIER_2_NEEDS_REVIEW" || r.risk_evidence_found === true)
+      ) {
+        sev = r.risk_evidence_found === true ? "High" : "Medium";
+      }
+      if (severityCounts[sev] !== undefined) severityCounts[sev]++;
+      bump(bucketPlatform(r.source as string), sev);
+    }
+    // Content the team has actioned for removal is confirmed harmful: count each
+    // distinct target once as a Critical threat on its platform.
+    const confirmedTargets = new Map<string, string>();
+    for (const e of (enfRes.data ?? []) as any[]) {
+      const st = String(e.status ?? "").toLowerCase();
+      if (["cancelled", "canceled", "withdrawn", "dismissed", "false_positive"].includes(st)) continue;
+      const url = String(e.target_url ?? "").trim();
+      if (!url || confirmedTargets.has(url)) continue;
+      confirmedTargets.set(url, bucketPlatform((e.platform as string) || url));
+    }
+    for (const platform of confirmedTargets.values()) {
+      severityCounts.Critical++;
+      bump(platform, "Critical");
     }
     const platformBreakdown = [...platformMap.values()].sort(
       (a, b) => (SEV_RANK[b.severity] ?? 0) - (SEV_RANK[a.severity] ?? 0) || b.count - a.count,

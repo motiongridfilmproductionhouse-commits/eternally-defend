@@ -284,23 +284,32 @@ export function ReputationMonitor({
             ) : (
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 {nodes.map((n) => {
-                  const s = SEV[n.severity] ?? SEV.Info;
+                  // Any surface carrying findings is exposed: render it in alert red.
+                  const s = n.count > 0 ? SEV.Critical : SEV[n.severity] ?? SEV.Info;
+                  const sub =
+                    n.severity === "Critical"
+                      ? "Critical · confirmed harmful"
+                      : n.severity === "High"
+                        ? "High risk"
+                        : n.severity === "Medium"
+                          ? "Exposed · needs review"
+                          : "Exposed";
                   return (
                     <div
                       key={n.platform}
-                      className="rounded-xl px-3 py-2.5 flex items-center gap-2.5"
-                      style={{ background: s.soft, border: `1px solid ${s.tone}22` }}
+                      className={`rounded-xl px-3 py-2.5 flex items-center gap-2.5 ${n.severity === "Critical" ? "alert-edge-soft" : ""}`}
+                      style={{ background: s.soft, border: `1px solid ${s.tone}33` }}
                     >
                       <span
                         className="grid place-items-center size-8 rounded-lg text-[12px] font-bold shrink-0"
-                        style={{ background: "#ffffff", color: s.tone, border: `1px solid ${s.tone}44` }}
+                        style={{ background: "#ffffff", color: s.tone, border: `1px solid ${s.tone}55` }}
                       >
                         {n.count}
                       </span>
                       <div className="min-w-0">
                         <div className="text-[12px] font-semibold truncate">{n.platform}</div>
                         <div className="text-[10px] font-medium" style={{ color: s.tone }}>
-                          {s.label}
+                          {sub}
                         </div>
                       </div>
                     </div>
