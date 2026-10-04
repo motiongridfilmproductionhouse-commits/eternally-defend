@@ -326,6 +326,34 @@ export const signPackageUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
+/** Short-lived signed URL for a private thumbnail attached to a removal request. */
+export const signRemovalThumbnailUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ requestId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }): Promise<{ url: string | null }> => {
+    const { supabase, userId } = context;
+    const { data: request, error: requestError } = await supabase
+      .from("enforcement_requests")
+      .select("metadata")
+      .eq("id", data.requestId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (requestError) throw requestError;
+    const metadata = request?.metadata;
+    if (!metadata || Array.isArray(metadata) || typeof metadata !== "object") return { url: null };
+
+    const path = "thumbnail_path" in metadata ? metadata.thumbnail_path : null;
+    if (typeof path !== "string" || !path.startsWith(`${userId}/`)) return { url: null };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("enforcement-screenshots")
+      .createSignedUrl(path, 60 * 10);
+    if (error || !signed) throw error ?? new Error("Failed to sign thumbnail URL");
+    return { url: signed.signedUrl };
+  });
+
 async function uploadPdf(admin: SupabaseClient, path: string, bytes: Uint8Array): Promise<void> {
   const { error } = await admin.storage.from("enforcement-packages").upload(path, bytes, {
     contentType: "application/pdf",
