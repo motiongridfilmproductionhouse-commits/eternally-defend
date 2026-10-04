@@ -354,6 +354,38 @@ export const signRemovalThumbnailUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
+/** Short-lived signed URL for a private evidence image attached to an owned removal request. */
+export const signRemovalEvidenceUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ requestId: z.string().uuid(), attachmentIndex: z.number().int().min(0).max(19) }).parse(data),
+  )
+  .handler(async ({ data, context }): Promise<{ url: string | null }> => {
+    const { data: request, error: requestError } = await context.supabase
+      .from("enforcement_requests")
+      .select("metadata")
+      .eq("id", data.requestId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (requestError) throw requestError;
+    const metadata = request?.metadata;
+    if (!metadata || Array.isArray(metadata) || typeof metadata !== "object") return { url: null };
+    const attachments = "evidence_attachments" in metadata ? metadata.evidence_attachments : null;
+    if (!Array.isArray(attachments)) return { url: null };
+    const attachment = attachments[data.attachmentIndex];
+    if (!attachment || Array.isArray(attachment) || typeof attachment !== "object") return { url: null };
+    const path = "path" in attachment ? attachment.path : null;
+    if (typeof path !== "string" || !path.startsWith(`${context.userId}/`)) return { url: null };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("enforcement-screenshots")
+      .createSignedUrl(path, 60 * 10);
+    if (error || !signed) throw error ?? new Error("Failed to sign evidence URL");
+    return { url: signed.signedUrl };
+  });
+
 async function uploadPdf(admin: SupabaseClient, path: string, bytes: Uint8Array): Promise<void> {
   const { error } = await admin.storage.from("enforcement-packages").upload(path, bytes, {
     contentType: "application/pdf",

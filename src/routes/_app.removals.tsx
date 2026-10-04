@@ -3,12 +3,24 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
-import { Loader2, Play } from "lucide-react";
+import { ExternalLink, FileCheck2, Loader2, Play, ShieldCheck } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { signRemovalThumbnailUrl } from "@/lib/enforcement-packages.functions";
+import {
+  signRemovalEvidenceUrl,
+  signRemovalThumbnailUrl,
+} from "@/lib/enforcement-packages.functions";
 
 export const Route = createFileRoute("/_app/removals")({
-  head: () => ({ meta: [{ title: "Removal Center — Eterna Sentinel" }] }),
+  head: () => ({
+    meta: [
+      { title: "Removal Center | Eterna Sentinel" },
+      { name: "description", content: "Review authenticated removal requests, outcomes, and private evidence." },
+      { property: "og:title", content: "Removal Center | Eterna Sentinel" },
+      { property: "og:description", content: "Review authenticated removal requests, outcomes, and private evidence." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: RemovalsPage,
 });
 
@@ -27,6 +39,109 @@ interface RemovalRow {
   authorization_pdf_path: string | null;
   package_generated_at: string | null;
   metadata: Record<string, unknown> | null;
+}
+
+interface EvidenceAttachment {
+  label: string;
+  path: string;
+  content_type?: string;
+}
+
+function metadataText(row: RemovalRow, key: string): string | null {
+  const value = row.metadata?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function metadataNumber(row: RemovalRow, key: string): number | null {
+  const value = row.metadata?.[key];
+  return typeof value === "number" ? value : null;
+}
+
+function evidenceAttachments(row: RemovalRow): EvidenceAttachment[] {
+  const value = row.metadata?.evidence_attachments;
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is EvidenceAttachment => {
+    if (!item || Array.isArray(item) || typeof item !== "object") return false;
+    return typeof item.label === "string" && typeof item.path === "string";
+  });
+}
+
+function RemovalEvidenceLink({ row, attachment, index }: {
+  row: RemovalRow;
+  attachment: EvidenceAttachment;
+  index: number;
+}) {
+  const signEvidence = useServerFn(signRemovalEvidenceUrl);
+  const evidence = useQuery({
+    queryKey: ["removal-evidence", row.id, index],
+    staleTime: 8 * 60 * 1000,
+    queryFn: () => signEvidence({ data: { requestId: row.id, attachmentIndex: index } }),
+  });
+
+  return (
+    <a
+      href={evidence.data?.url}
+      target="_blank"
+      rel="noreferrer"
+      aria-disabled={!evidence.data?.url}
+      className="group flex min-h-16 items-center gap-3 rounded-md border border-border bg-background px-3 py-2 transition-colors hover:border-primary/40 hover:bg-accent/30 aria-disabled:pointer-events-none aria-disabled:opacity-60"
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded bg-primary/10 text-primary">
+        {evidence.isLoading ? <Loader2 className="size-4 animate-spin" /> : <FileCheck2 className="size-4" />}
+      </span>
+      <span className="min-w-0 flex-1 text-xs font-medium leading-snug">{attachment.label}</span>
+      <ExternalLink className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+    </a>
+  );
+}
+
+function RemovalCaseDetails({ row }: { row: RemovalRow }) {
+  const reportNumber = metadataText(row, "intellectual_property_report_number");
+  const submittedAt = metadataText(row, "first_video_submitted_at");
+  const removedAt = metadataText(row, "removed_at");
+  const removedCount = metadataNumber(row, "removed_video_count");
+  const attachments = evidenceAttachments(row);
+  if (!reportNumber && attachments.length === 0) return null;
+
+  return (
+    <tr className="border-b border-border/60 bg-muted/20">
+      <td colSpan={7} className="px-3 py-4">
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-foreground">
+              <ShieldCheck className="size-4 text-primary" /> Meta removal outcome
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="border-l-2 border-primary/40 pl-3">
+                <div className="text-[10px] uppercase text-muted-foreground">Found and submitted</div>
+                <div className="mt-1 text-xs font-medium">{submittedAt ? new Date(submittedAt).toLocaleString() : "—"}</div>
+              </div>
+              <div className="border-l-2 border-danger/40 pl-3">
+                <div className="text-[10px] uppercase text-muted-foreground">Automated outcome</div>
+                <div className="mt-1 text-xs font-medium">Rejected, escalated to manual team</div>
+              </div>
+              <div className="border-l-2 border-success/40 pl-3">
+                <div className="text-[10px] uppercase text-muted-foreground">Meta confirmed</div>
+                <div className="mt-1 text-xs font-medium">{removedAt ? new Date(removedAt).toLocaleString() : "—"}</div>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+              <span><strong className="text-foreground">{removedCount ?? 0}</strong> videos removed</span>
+              {reportNumber && <span>IP Report <strong className="font-mono text-foreground">#{reportNumber}</strong></span>}
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 text-[10px] font-semibold uppercase text-muted-foreground">Private evidence</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {attachments.map((attachment, index) => (
+                <RemovalEvidenceLink key={attachment.path} row={row} attachment={attachment} index={index} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 const statusColor: Record<string, string> = {
@@ -211,6 +326,7 @@ function RemovalsPage() {
               </thead>
               <tbody>
                 {rows.map((r) => (
+                  <>
                   <tr key={r.id} className="border-b border-border/60 hover:bg-accent/30">
                     <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">
                       {r.id.slice(0, 8)}
@@ -257,6 +373,8 @@ function RemovalsPage() {
                       </div>
                     </td>
                   </tr>
+                  <RemovalCaseDetails key={`${r.id}-details`} row={r} />
+                  </>
                 ))}
               </tbody>
             </table>
