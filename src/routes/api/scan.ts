@@ -609,6 +609,49 @@ const RISK_TERMS: RiskRule[] = [
     reputation: 87,
   },
   {
+    // Financial-institution harm signals (co-operative societies, NBFCs,
+    // chit funds). Plain mentions miss these, so depositor-distress and
+    // regulatory-action wording must register as allegations.
+    kw: [
+      "depositors",
+      "deposit not returned",
+      "deposits not returned",
+      "money not returned",
+      "failed to repay",
+      "not repaid",
+      "investors cheated",
+      "cheated investors",
+      "cheated depositors",
+      "duped",
+      "ponzi",
+      "money laundering",
+      "ed raid",
+      "enforcement directorate",
+      "raided",
+      "arrested",
+      "fir registered",
+      "fir filed",
+      "police case",
+      "case registered",
+      "crime branch",
+      "liquidation",
+      "moratorium",
+      "licence cancelled",
+      "license cancelled",
+      "financial ties",
+      "diverted funds",
+      "siphoned",
+      "protest by depositors",
+      "investors protest",
+    ],
+    category: "Allegation",
+    sev: "High",
+    score: 81,
+    legalTakedown: 50,
+    copyrightEnforce: 6,
+    reputation: 86,
+  },
+  {
     kw: [
       "exposed",
       "expose",
@@ -3314,8 +3357,21 @@ function buildReport(
    */
   const hasReliableCoverage = hits.length >= 20 && sourceCount >= 3 && coverageConfidence >= 60;
 
+  // Recorded serious findings cap the score: a large volume of neutral
+  // mentions must never dilute confirmed High/Critical evidence into "Strong".
+  const seriousCount = critical.length + high.length;
+  const severityCap =
+    critical.length >= 3 || seriousCount >= 10
+      ? 30
+      : critical.length >= 1 || seriousCount >= 5
+        ? 45
+        : seriousCount >= 2
+          ? 60
+          : seriousCount === 1
+            ? 74
+            : 100;
   const reputationScore = hasReliableCoverage
-    ? Math.max(0, Math.min(100, Math.round(100 - observedRisk)))
+    ? Math.max(0, Math.min(severityCap, Math.round(100 - observedRisk)))
     : 50;
 
   const reputationLevel = !hasReliableCoverage
