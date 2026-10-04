@@ -113,7 +113,7 @@ export function ProtectionAutopilotCard() {
     { label: "Instagram", icon: Instagram },
     { label: "Facebook", icon: Facebook },
     { label: "YouTube", icon: Youtube },
-    { label: "Reddit", icon: MessageCircle },
+    { label: "Reddit", icon: MessageCircle, clear: true },
   ];
 
   /*
@@ -234,10 +234,10 @@ export function ProtectionAutopilotCard() {
 
       {active ? (
         <div className="autopilot-radar__sources" aria-label="Continuous source monitoring">
-          {sourceSignals.map(({ label, icon: Icon }, index) => (
+          {sourceSignals.map(({ label, icon: Icon, clear }, index) => (
             <div
               key={label}
-              className={`autopilot-radar__source ${highAlertCount > 0 ? "is-alert" : ""}`}
+              className={`autopilot-radar__source ${clear ? "is-clear" : highAlertCount > 0 ? "is-alert" : ""}`}
               style={{ "--signal-delay": `${index * 180}ms` } as React.CSSProperties}
             >
               <span className="autopilot-radar__source-icon">
@@ -246,7 +246,7 @@ export function ProtectionAutopilotCard() {
               </span>
               <span>
                 <strong>{label}</strong>
-                <small>{scanning ? "SCANNING" : highAlertCount > 0 ? "DETECTING" : "MONITORING"}</small>
+                <small>{clear ? "NO FINDINGS" : scanning ? "SCANNING" : highAlertCount > 0 ? "DETECTING" : "MONITORING"}</small>
               </span>
               <b aria-hidden="true"><i /></b>
             </div>
