@@ -365,6 +365,16 @@ export function ProtectionInbox() {
   };
   const items = data?.items ?? [];
   const removals = data?.removals ?? [];
+  const goToResults = (bucket: InboxBucket | "REMOVALS") => {
+    if (bucket !== "REMOVALS") {
+      setOpen((current) => ({ ...current, [bucket]: true }));
+    }
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(bucket === "REMOVALS" ? "protection-removals" : `protection-${bucket}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
 
   return (
     <Card id="eterna-protection" className="card-surface scroll-mt-6">
@@ -388,27 +398,45 @@ export function ProtectionInbox() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="protection-live-scan" aria-live="polite">
+          <span className="protection-live-scan__icon" aria-hidden="true">
+            <ScanLine className="size-3.5" />
+          </span>
+          <span className="font-semibold">
+            {inboxQuery.isFetching || data?.discovery.running ? "Web scan active" : "Continuous web scan active"}
+          </span>
+          <span className="protection-live-scan__track" aria-hidden="true"><i /></span>
+          <span className="ml-auto hidden text-muted-foreground sm:inline">Results update automatically</span>
+        </div>
         <div className="grid gap-2 sm:grid-cols-4">
           <SummaryTile
             dot="bg-destructive"
             value={summary.possibleRemoval}
             label="Possible removal actions"
+            onClick={() => goToResults("POSSIBLE_REMOVAL")}
           />
-          <SummaryTile dot="bg-amber-500" value={summary.needsReview} label="Need review" />
+          <SummaryTile
+            dot="bg-amber-500"
+            value={summary.needsReview}
+            label="Need review"
+            onClick={() => goToResults("NEEDS_REVIEW")}
+          />
           <SummaryTile
             dot="bg-emerald-500"
             value={summary.monitoring}
             label="Legitimate / monitoring"
+            onClick={() => goToResults("MONITORING")}
           />
           <SummaryTile
             dot="bg-sky-500"
             value={removals.length}
             label="Removals submitted"
+            onClick={() => goToResults("REMOVALS")}
           />
         </div>
 
         {removals.length > 0 ? (
-          <div className="rounded-lg border">
+          <div id="protection-removals" className="scroll-mt-24 rounded-lg border">
             <div className="flex items-center gap-2 px-3 py-2 text-sm font-semibold">
               <span className="size-2 rounded-full bg-sky-500" />
               Removal requests in progress
@@ -435,10 +463,13 @@ export function ProtectionInbox() {
 
         {SECTIONS.map((section) => {
           const sectionItems = items.filter((i) => i.bucket === section.bucket);
-          if (sectionItems.length === 0) return null;
           const isOpen = open[section.bucket];
           return (
-            <div key={section.bucket} className="rounded-lg border">
+            <div
+              id={`protection-${section.bucket}`}
+              key={section.bucket}
+              className="scroll-mt-24 rounded-lg border"
+            >
               <button
                 type="button"
                 onClick={() => setOpen((s) => ({ ...s, [section.bucket]: !s[section.bucket] }))}
@@ -454,6 +485,11 @@ export function ProtectionInbox() {
               {isOpen ? (
                 <div className="space-y-2 border-t p-3">
                   <p className="text-xs text-muted-foreground">{section.hint}</p>
+                  {sectionItems.length === 0 ? (
+                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                      No active findings in this category.
+                    </p>
+                  ) : null}
                   {sectionItems.map((item) => (
                     <div
                       key={item.id}
@@ -529,15 +565,34 @@ export function ProtectionInbox() {
   );
 }
 
-function SummaryTile({ dot, value, label }: { dot: string; value: number; label: string }) {
+function SummaryTile({
+  dot,
+  value,
+  label,
+  onClick,
+}: {
+  dot: string;
+  value: number;
+  label: string;
+  onClick: () => void;
+}) {
   return (
-    <div className="rounded-md border p-3">
-      <div className="flex items-center gap-2">
+    <Button
+      type="button"
+      variant="outline"
+      onClick={onClick}
+      className="protection-summary-tile h-auto justify-start rounded-md p-3 text-left"
+      aria-label={`Open ${label}: ${value}`}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
         <span className={`size-2 rounded-full ${dot}`} />
         <span className="text-lg font-semibold">{value}</span>
-      </div>
-      <div className="mt-1 text-xs text-muted-foreground">{label}</div>
-    </div>
+        </span>
+        <span className="mt-1 block whitespace-normal text-xs font-normal text-muted-foreground">{label}</span>
+      </span>
+      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </Button>
   );
 }
 
