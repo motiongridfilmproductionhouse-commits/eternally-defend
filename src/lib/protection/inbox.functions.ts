@@ -25,6 +25,7 @@ export interface InboxRemovalRow {
   submissionStatus: string | null;
   submittedAt: string | null;
   createdAt: string;
+  metadata: Record<string, unknown> | null;
 }
 
 /** Read-only view of removal requests already submitted for this user. */
@@ -35,7 +36,7 @@ async function readSubmittedRemovals(
   const { data } = await supabase
     .from("enforcement_requests")
     .select(
-      "id, target_url, platform, method, status, submission_status, submitted_at, created_at, user_id",
+      "id, target_url, platform, method, status, submission_status, submitted_at, created_at, user_id, metadata",
     )
     .eq("user_id", userId)
     .in("status", ["Sent", "Approved", "Rejected"])
@@ -51,6 +52,10 @@ async function readSubmittedRemovals(
     submissionStatus: (r["submission_status"] as string) ?? null,
     submittedAt: (r["submitted_at"] as string) ?? null,
     createdAt: (r["created_at"] as string) ?? "",
+    metadata:
+      r["metadata"] && !Array.isArray(r["metadata"]) && typeof r["metadata"] === "object"
+        ? (r["metadata"] as Record<string, unknown>)
+        : null,
   }));
 }
 

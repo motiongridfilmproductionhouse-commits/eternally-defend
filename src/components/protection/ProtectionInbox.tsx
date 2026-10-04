@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, ChevronRight, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, ImageOff, Loader2, Play, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,8 +16,130 @@ import { getProtectionInbox } from "@/lib/protection/inbox.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { startYoutubeRemovalScan } from "@/lib/youtube-removal/removal.functions";
 import type { InboxBucket, InboxItem } from "@/lib/protection/inbox";
+import type { InboxRemovalRow } from "@/lib/protection/inbox.functions";
+import { signRemovalThumbnailUrl } from "@/lib/enforcement-packages.functions";
 
 const STALE_MS = 12 * 60 * 60 * 1000;
+
+function removalMetadataText(row: InboxRemovalRow, key: string): string | null {
+  const value = row.metadata?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function removalMetadataNumber(row: InboxRemovalRow, key: string): number | null {
+  const value = row.metadata?.[key];
+  return typeof value === "number" ? value : null;
+}
+
+function formatIndiaDateTime(value: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function DashboardRemovalThumbnail({ row }: { row: InboxRemovalRow }) {
+  const signThumbnail = useServerFn(signRemovalThumbnailUrl);
+  const hasThumbnail = typeof row.metadata?.thumbnail_path === "string";
+  const thumbnail = useQuery({
+    queryKey: ["removal-thumbnail", row.id],
+    enabled: hasThumbnail,
+    staleTime: 8 * 60 * 1000,
+    retry: 1,
+    queryFn: () => signThumbnail({ data: { requestId: row.id } }),
+  });
+
+  if (!hasThumbnail) {
+    return (
+      <div className="grid h-20 w-16 shrink-0 place-items-center rounded-md border bg-muted text-muted-foreground">
+        <ImageOff className="size-4" aria-label="No thumbnail available" />
+      </div>
+    );
+  }
+
+  if (thumbnail.isLoading) {
+    return <div className="h-20 w-16 shrink-0 animate-pulse rounded-md bg-muted" aria-label="Loading thumbnail" />;
+  }
+
+  if (!thumbnail.data?.url) {
+    return (
+      <div className="grid h-20 w-16 shrink-0 place-items-center rounded-md border bg-muted text-muted-foreground">
+        <ImageOff className="size-4" aria-label="Thumbnail unavailable" />
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={row.targetUrl ?? thumbnail.data.url}
+      target="_blank"
+      rel="noreferrer"
+      className="group relative block h-20 w-16 shrink-0 overflow-hidden rounded-md border bg-muted shadow-sm"
+      aria-label={`Open ${row.platform} removal evidence`}
+    >
+      <img
+        src={thumbnail.data.url}
+        alt={`${row.platform} removal thumbnail`}
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
+      <span className="absolute inset-0 grid place-items-center bg-foreground/20 opacity-0 transition-opacity group-hover:opacity-100">
+        <Play className="size-4 fill-background text-background" aria-hidden="true" />
+      </span>
+    </a>
+  );
+}
+
+function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
+  const submittedAt = removalMetadataText(row, "first_video_submitted_at") ?? row.submittedAt;
+  const removedAt = removalMetadataText(row, "removed_at");
+  const reportNumber = removalMetadataText(row, "intellectual_property_report_number");
+  const removedCount = removalMetadataNumber(row, "removed_video_count");
+  const escalated = removalMetadataText(row, "escalation_status") === "escalated_to_manual_removal_team";
+
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">
+            {row.targetUrl ? (
+              <a href={row.targetUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                {row.targetUrl}
+              </a>
+            ) : (
+              "Removal request"
+            )}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{row.platform} · {row.method}</p>
+        </div>
+        <Badge variant={row.status === "Rejected" ? "destructive" : "outline"}>
+          {row.status === "Sent" ? "SUBMITTED · AWAITING PLATFORM" : row.status.toUpperCase()}
+        </Badge>
+      </div>
+      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+        <div className="border-l-2 border-primary/40 pl-2.5">
+          <span className="block text-[10px] uppercase text-muted-foreground">Submitted</span>
+          <span className="font-medium">{submittedAt ? `${formatIndiaDateTime(submittedAt)} IST` : "Date unavailable"}</span>
+        </div>
+        <div className="border-l-2 border-destructive/40 pl-2.5">
+          <span className="block text-[10px] uppercase text-muted-foreground">Initial outcome</span>
+          <span className="font-medium">{escalated ? "Rejected · escalated manually" : "Platform review"}</span>
+        </div>
+        <div className="border-l-2 border-emerald-500/40 pl-2.5">
+          <span className="block text-[10px] uppercase text-muted-foreground">Final outcome</span>
+          <span className="font-medium">
+            {removedAt ? `${removedCount ?? 0} videos removed · ${formatIndiaDateTime(removedAt)} IST` : row.status}
+          </span>
+        </div>
+      </div>
+      {reportNumber ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Meta Intellectual Property Report <strong className="font-mono text-foreground">#{reportNumber}</strong>
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 const SECTIONS: { bucket: InboxBucket; title: string; dot: string; hint: string }[] = [
   {
@@ -122,7 +244,7 @@ export function ProtectionInbox() {
           {summary.analyzed} item{summary.analyzed === 1 ? "" : "s"} discovered and analysed
           automatically. No manual searching required.
           {removals.length > 0
-            ? ` ${removals.length} removal request${removals.length === 1 ? "" : "s"} tracked, ${summary.removalsInProgress} submitted and awaiting the platform.`
+            ? ` ${removals.length} removal request${removals.length === 1 ? "" : "s"} submitted, ${summary.removalsInProgress} awaiting the platform.`
             : ""}
         </p>
       </CardHeader>
@@ -141,7 +263,7 @@ export function ProtectionInbox() {
           />
           <SummaryTile
             dot="bg-sky-500"
-            value={summary.removalsInProgress}
+            value={removals.length}
             label="Removals submitted"
           />
         </div>
@@ -155,37 +277,9 @@ export function ProtectionInbox() {
             </div>
             <div className="divide-y border-t">
               {removals.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {r.targetUrl ? (
-                        <a
-                          href={r.targetUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          {r.targetUrl}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.platform} · {r.method}
-                      {r.submittedAt
-                        ? ` · submitted ${new Date(r.submittedAt).toLocaleDateString()}`
-                        : ""}
-                    </p>
-                  </div>
-                  <Badge variant={r.status === "Rejected" ? "destructive" : "outline"}>
-                    {r.status === "Sent"
-                      ? "SUBMITTED — AWAITING PLATFORM"
-                      : r.status.toUpperCase()}
-                  </Badge>
+                <div key={r.id} className="flex items-start gap-3 px-3 py-3">
+                  <DashboardRemovalThumbnail row={r} />
+                  <DashboardRemovalDetails row={r} />
                 </div>
               ))}
             </div>
