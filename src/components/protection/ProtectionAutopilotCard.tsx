@@ -106,8 +106,17 @@ export function ProtectionAutopilotCard() {
   );
   const criticalCases = protection.data?.criticalCases ?? 0;
   const criticalThreats = protection.data?.criticalThreats ?? 0;
-  const highAlertCount = criticalCases > 0 ? criticalCases : criticalThreats;
-  const highAlertLabel = criticalCases > 0 ? "critical cases require review" : "high-risk findings detected";
+  const removalEscalations = protection.data?.takedownsSent ?? 0;
+  const highAlertCount = removalEscalations > 0
+    ? removalEscalations
+    : criticalCases > 0
+      ? criticalCases
+      : criticalThreats;
+  const highAlertLabel = removalEscalations > 0
+    ? "threats escalated to removal"
+    : criticalCases > 0
+      ? "critical cases require review"
+      : "high-risk findings detected";
   const sourceSignals = [
     { label: "Web", icon: Globe2 },
     { label: "Instagram", icon: Instagram },
