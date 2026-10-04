@@ -78,6 +78,78 @@
   100% { transform: translateY(320%); opacity: 0; }
 }
 
+@keyframes protection-live-scan {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(520%); }
+}
+
+@keyframes protection-live-pulse {
+  0%, 100% { opacity: .55; transform: scale(.76); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@utility protection-live-scan {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: .5rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--primary) 4%, var(--card));
+  padding: .45rem .65rem;
+  color: var(--foreground);
+  font-size: .6875rem;
+}
+
+@utility protection-live-scan__icon {
+  position: relative;
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 10%, var(--card));
+  color: var(--primary);
+  &::after {
+    position: absolute;
+    inset: -2px;
+    border: 1px solid color-mix(in oklab, var(--primary) 30%, transparent);
+    border-radius: inherit;
+    content: "";
+    animation: protection-live-pulse 1.8s ease-in-out infinite;
+  }
+}
+
+@utility protection-live-scan__track {
+  position: relative;
+  height: 2px;
+  min-width: 2.5rem;
+  max-width: 9rem;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 12%, var(--border));
+  & i {
+    display: block;
+    height: 100%;
+    width: 24%;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    animation: protection-live-scan 2.6s linear infinite;
+  }
+}
+
+@utility protection-summary-tile {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  &:hover {
+    border-color: color-mix(in oklab, var(--primary) 32%, var(--border));
+    box-shadow: 0 8px 18px color-mix(in oklab, var(--foreground) 7%, transparent);
+    transform: translateY(-2px);
+  }
+  &:active { transform: translateY(0); }
+}
+
 @keyframes removal-listener-bar {
   0%, 100% { transform: scaleY(.25); opacity: .45; }
   50% { transform: scaleY(1); opacity: 1; }
