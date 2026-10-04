@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { PageCard, Pill, StatCard } from "@/components/dashboard/PageCard";
@@ -55,6 +56,14 @@ function metadataText(row: RemovalRow, key: string): string | null {
 function metadataNumber(row: RemovalRow, key: string): number | null {
   const value = row.metadata?.[key];
   return typeof value === "number" ? value : null;
+}
+
+function formatIndiaDateTime(value: string): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function evidenceAttachments(row: RemovalRow): EvidenceAttachment[] {
@@ -114,7 +123,7 @@ function RemovalCaseDetails({ row }: { row: RemovalRow }) {
             <div className="grid gap-2 sm:grid-cols-3">
               <div className="border-l-2 border-primary/40 pl-3">
                 <div className="text-[10px] uppercase text-muted-foreground">Found and submitted</div>
-                <div className="mt-1 text-xs font-medium">{submittedAt ? new Date(submittedAt).toLocaleString() : "—"}</div>
+                <div className="mt-1 text-xs font-medium">{submittedAt ? formatIndiaDateTime(submittedAt) : "—"} IST</div>
               </div>
               <div className="border-l-2 border-danger/40 pl-3">
                 <div className="text-[10px] uppercase text-muted-foreground">Automated outcome</div>
@@ -122,7 +131,7 @@ function RemovalCaseDetails({ row }: { row: RemovalRow }) {
               </div>
               <div className="border-l-2 border-success/40 pl-3">
                 <div className="text-[10px] uppercase text-muted-foreground">Meta confirmed</div>
-                <div className="mt-1 text-xs font-medium">{removedAt ? new Date(removedAt).toLocaleString() : "—"}</div>
+                <div className="mt-1 text-xs font-medium">{removedAt ? formatIndiaDateTime(removedAt) : "—"} IST</div>
               </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
@@ -326,8 +335,8 @@ function RemovalsPage() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <>
-                  <tr key={r.id} className="border-b border-border/60 hover:bg-accent/30">
+                  <Fragment key={r.id}>
+                  <tr className="border-b border-border/60 hover:bg-accent/30">
                     <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">
                       {r.id.slice(0, 8)}
                     </td>
@@ -373,8 +382,8 @@ function RemovalsPage() {
                       </div>
                     </td>
                   </tr>
-                  <RemovalCaseDetails key={`${r.id}-details`} row={r} />
-                  </>
+                  <RemovalCaseDetails row={r} />
+                  </Fragment>
                 ))}
               </tbody>
             </table>
