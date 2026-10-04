@@ -286,7 +286,6 @@ export function ReputationMonitor({
                 {nodes.map((n) => {
                   // Any surface carrying findings is exposed: render it in alert red.
                   const s = n.count > 0 ? SEV.Critical : SEV[n.severity] ?? SEV.Info;
-                  const rank = SEV_ORDER[n.severity] ?? 0;
                   const sub =
                     n.severity === "Critical"
                       ? "Critical · confirmed harmful"
@@ -294,9 +293,7 @@ export function ReputationMonitor({
                         ? "High risk"
                         : n.severity === "Medium"
                           ? "Exposed · needs review"
-                          : rank > 0
-                            ? "Exposed"
-                            : "Exposed";
+                          : "Exposed";
                   return (
                     <div
                       key={n.platform}
