@@ -319,6 +319,18 @@ function ScanPage() {
       }, 80);
     },
   });
+
+  // The report is the completion signal. Deriving the dialog's successful
+  // close from mutation state as well as the callback prevents a stale local
+  // `open` flag from covering results after the response has rendered.
+  useEffect(() => {
+    if (!m.isSuccess || !m.data) return;
+    setScanOverlayOpen(false);
+    const timer = window.setTimeout(() => {
+      document.getElementById("scan-results")?.scrollIntoView({ behavior: "smooth" });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [m.data, m.isSuccess]);
   const autoScanStarted = useRef(false);
 
   // Enrolled, protection-active customers already have recurring scans
@@ -884,7 +896,7 @@ function ScanPage() {
       </div>
 
       <ScanProgressDialog
-        open={scanOverlayOpen}
+        open={m.isPending || (scanOverlayOpen && m.isError)}
         subject={q.trim()}
         error={m.isError ? (m.error as Error).message : null}
         onRetry={() => {

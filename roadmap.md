@@ -1,5 +1,7 @@
 # Website authority upgrade
 
+- [x] Close the Web Scan progress window when completed findings are ready and reveal results
+
 - [x] Remove visible form suggestions across the platform
 - [x] Remove public client-derived stories, identities, IDs, and dates
 - [x] Remove em and en dash punctuation from public articles
