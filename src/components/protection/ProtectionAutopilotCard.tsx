@@ -216,8 +216,13 @@ export function ProtectionAutopilotCard() {
             <strong>HIGH ALERT · {highAlertCount} {highAlertLabel}</strong>
             <span>Verified account data requires attention. Open the scan reports for evidence and next actions.</span>
           </div>
-          <Button asChild size="sm" variant="outline" className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10">
-            <Link to="/reports">Investigate <ArrowRight className="ml-1 size-3.5" /></Link>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10"
+            onClick={() => document.getElementById("eterna-protection")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            Investigate <ArrowRight className="ml-1 size-3.5" />
           </Button>
         </div>
       ) : null}

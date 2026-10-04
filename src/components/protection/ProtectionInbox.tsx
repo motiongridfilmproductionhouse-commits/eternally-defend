@@ -367,7 +367,7 @@ export function ProtectionInbox() {
   const removals = data?.removals ?? [];
 
   return (
-    <Card className="card-surface">
+    <Card id="eterna-protection" className="card-surface scroll-mt-6">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between gap-3 text-base">
           <span className="flex items-center gap-2">
