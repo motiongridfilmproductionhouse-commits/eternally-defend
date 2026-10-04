@@ -8,7 +8,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { buildProtectionInbox, type InboxFindingInput } from "./inbox";
+import { buildProtectionInbox, type InboxFindingInput, type InboxItem } from "./inbox";
 import {
   isApprovedSourceVideo,
   listApprovedSourceVideoIds,
@@ -25,7 +25,46 @@ export interface InboxRemovalRow {
   submissionStatus: string | null;
   submittedAt: string | null;
   createdAt: string;
-  metadata: Record<string, unknown> | null;
+  thumbnailPath: string | null;
+  firstVideoSubmittedAt: string | null;
+  removedAt: string | null;
+  reportNumber: string | null;
+  removedVideoCount: number | null;
+  escalatedToManualTeam: boolean;
+}
+
+interface ProtectionInboxData {
+  discovery: {
+    lastScanAt: string | null;
+    status: string | null;
+    running: boolean;
+    targetName: string | null;
+  };
+  items: InboxItem[];
+  removals: InboxRemovalRow[];
+  summary: {
+    analyzed: number;
+    possibleRemoval: number;
+    needsReview: number;
+    monitoring: number;
+    removalsInProgress: number;
+  };
+}
+
+function metadataObject(value: unknown): Record<string, unknown> | null {
+  return value && !Array.isArray(value) && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function metadataString(metadata: Record<string, unknown> | null, key: string): string | null {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function metadataNumber(metadata: Record<string, unknown> | null, key: string): number | null {
+  const value = metadata?.[key];
+  return typeof value === "number" ? value : null;
 }
 
 /** Read-only view of removal requests already submitted for this user. */
@@ -43,25 +82,31 @@ async function readSubmittedRemovals(
     .order("submitted_at", { ascending: false })
     .limit(100);
 
-  return (data ?? []).map((r: Record<string, unknown>) => ({
-    id: String(r["id"]),
-    targetUrl: (r["target_url"] as string) ?? null,
-    platform: (r["platform"] as string) ?? "—",
-    method: (r["method"] as string) ?? "—",
-    status: (r["status"] as string) ?? "—",
-    submissionStatus: (r["submission_status"] as string) ?? null,
-    submittedAt: (r["submitted_at"] as string) ?? null,
-    createdAt: (r["created_at"] as string) ?? "",
-    metadata:
-      r["metadata"] && !Array.isArray(r["metadata"]) && typeof r["metadata"] === "object"
-        ? (r["metadata"] as Record<string, unknown>)
-        : null,
-  }));
+  return (data ?? []).map((r: Record<string, unknown>) => {
+    const metadata = metadataObject(r["metadata"]);
+    return {
+      id: String(r["id"]),
+      targetUrl: (r["target_url"] as string) ?? null,
+      platform: (r["platform"] as string) ?? "—",
+      method: (r["method"] as string) ?? "—",
+      status: (r["status"] as string) ?? "—",
+      submissionStatus: (r["submission_status"] as string) ?? null,
+      submittedAt: (r["submitted_at"] as string) ?? null,
+      createdAt: (r["created_at"] as string) ?? "",
+      thumbnailPath: metadataString(metadata, "thumbnail_path"),
+      firstVideoSubmittedAt: metadataString(metadata, "first_video_submitted_at"),
+      removedAt: metadataString(metadata, "removed_at"),
+      reportNumber: metadataString(metadata, "intellectual_property_report_number"),
+      removedVideoCount: metadataNumber(metadata, "removed_video_count"),
+      escalatedToManualTeam:
+        metadataString(metadata, "escalation_status") === "escalated_to_manual_removal_team",
+    };
+  });
 }
 
 export const getProtectionInbox = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(async ({ context }): Promise<ProtectionInboxData> => {
     const removals = await readSubmittedRemovals(context.supabase, context.userId);
 
     const { data: scans } = await context.supabase

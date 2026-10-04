@@ -21,16 +21,6 @@ import { signRemovalThumbnailUrl } from "@/lib/enforcement-packages.functions";
 
 const STALE_MS = 12 * 60 * 60 * 1000;
 
-function removalMetadataText(row: InboxRemovalRow, key: string): string | null {
-  const value = row.metadata?.[key];
-  return typeof value === "string" ? value : null;
-}
-
-function removalMetadataNumber(row: InboxRemovalRow, key: string): number | null {
-  const value = row.metadata?.[key];
-  return typeof value === "number" ? value : null;
-}
-
 function formatIndiaDateTime(value: string): string {
   return new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
@@ -41,7 +31,7 @@ function formatIndiaDateTime(value: string): string {
 
 function DashboardRemovalThumbnail({ row }: { row: InboxRemovalRow }) {
   const signThumbnail = useServerFn(signRemovalThumbnailUrl);
-  const hasThumbnail = typeof row.metadata?.thumbnail_path === "string";
+  const hasThumbnail = row.thumbnailPath !== null;
   const thumbnail = useQuery({
     queryKey: ["removal-thumbnail", row.id],
     enabled: hasThumbnail,
@@ -91,11 +81,7 @@ function DashboardRemovalThumbnail({ row }: { row: InboxRemovalRow }) {
 }
 
 function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
-  const submittedAt = removalMetadataText(row, "first_video_submitted_at") ?? row.submittedAt;
-  const removedAt = removalMetadataText(row, "removed_at");
-  const reportNumber = removalMetadataText(row, "intellectual_property_report_number");
-  const removedCount = removalMetadataNumber(row, "removed_video_count");
-  const escalated = removalMetadataText(row, "escalation_status") === "escalated_to_manual_removal_team";
+  const submittedAt = row.firstVideoSubmittedAt ?? row.submittedAt;
 
   return (
     <div className="min-w-0 flex-1">
@@ -123,18 +109,18 @@ function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
         </div>
         <div className="border-l-2 border-destructive/40 pl-2.5">
           <span className="block text-[10px] uppercase text-muted-foreground">Initial outcome</span>
-          <span className="font-medium">{escalated ? "Rejected · escalated manually" : "Platform review"}</span>
+          <span className="font-medium">{row.escalatedToManualTeam ? "Rejected · escalated manually" : "Platform review"}</span>
         </div>
         <div className="border-l-2 border-emerald-500/40 pl-2.5">
           <span className="block text-[10px] uppercase text-muted-foreground">Final outcome</span>
           <span className="font-medium">
-            {removedAt ? `${removedCount ?? 0} videos removed · ${formatIndiaDateTime(removedAt)} IST` : row.status}
+            {row.removedAt ? `${row.removedVideoCount ?? 0} videos removed · ${formatIndiaDateTime(row.removedAt)} IST` : row.status}
           </span>
         </div>
       </div>
-      {reportNumber ? (
+      {row.reportNumber ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Meta Intellectual Property Report <strong className="font-mono text-foreground">#{reportNumber}</strong>
+          Meta Intellectual Property Report <strong className="font-mono text-foreground">#{row.reportNumber}</strong>
         </p>
       ) : null}
     </div>
