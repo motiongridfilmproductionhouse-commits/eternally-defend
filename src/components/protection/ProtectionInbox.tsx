@@ -129,7 +129,7 @@ function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
       {row.evidenceAttachments.length > 0 ? (
         <div className="mt-4 border-t pt-3">
           <p className="mb-2 text-[10px] font-semibold uppercase text-muted-foreground">
-            Private evidence · {row.evidenceAttachments.length} attachments
+            Autocapture evidence · {row.evidenceAttachments.length} attachments
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {row.evidenceAttachments.map((attachment, index) => (

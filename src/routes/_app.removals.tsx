@@ -140,7 +140,7 @@ function RemovalCaseDetails({ row }: { row: RemovalRow }) {
             </div>
           </div>
           <div>
-            <div className="mb-2 text-[10px] font-semibold uppercase text-muted-foreground">Private evidence</div>
+            <div className="mb-2 text-[10px] font-semibold uppercase text-muted-foreground">Autocapture evidence</div>
             <div className="grid gap-2 sm:grid-cols-2">
               {attachments.map((attachment, index) => (
                 <RemovalEvidenceLink key={attachment.path} row={row} attachment={attachment} index={index} />
