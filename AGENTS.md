@@ -15,3 +15,4 @@
 - Manipulation analysis may inspect non-unrelated media awaiting identity review, but only MATCHED discoveries appear in findings or risk totals — why: find genuine signals without attributing uncertain identities.
 - Public surfaces must not expose client-derived stories, identities, identifiers, or dates; certificate verification returns status only — why: client confidentiality applies platform-wide.
 - Public SEO landing pages use src/components/public/ServiceLanding.tsx (landingHead + Service/WebPage JSON-LD + breadcrumbs); PublicPage emits BreadcrumbList and newsroom related links — why: consistent canonical, schema and internal linking across public pages.
+- Submitted removal requests (enforcement_requests Sent/Approved/Rejected) auto-create one linked case via a DB trigger keyed on cases.metadata.enforcement_request_id — why: removals must never exist without a case.
