@@ -396,7 +396,40 @@ function ScanPage() {
     window.history.replaceState({}, "", "/scan");
   }, [m]);
 
-  const report = m.data as ReportWithDiagnostics | undefined;
+  // Confirmed harmful content already escalated to removal is stronger
+  // evidence than search-result wording, so it caps the reputation score.
+  const removalsQuery = useQuery({
+    queryKey: ["scan-page-confirmed-removals", userId],
+    enabled: !!userId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("enforcement_requests")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["Sent", "Approved", "Rejected"]);
+      return count ?? 0;
+    },
+  });
+  const confirmedRemovals = removalsQuery.data ?? 0;
+  const rawReport = m.data as ReportWithDiagnostics | undefined;
+  const report = useMemo(() => {
+    if (!rawReport || confirmedRemovals < 1 || rawReport.reputationLevel === "Insufficient Data")
+      return rawReport;
+    const cap = confirmedRemovals >= 6 ? 15 : confirmedRemovals >= 3 ? 30 : 45;
+    if (rawReport.reputationScore <= cap) return rawReport;
+    const level = cap <= 40 ? "High Risk" : "At Risk";
+    return {
+      ...rawReport,
+      reputationScore: cap,
+      reputationLevel: level,
+      executiveSummary: {
+        ...rawReport.executiveSummary,
+        headline: rawReport.executiveSummary.headline
+          .replace(/^\S+ observed reputation risk \(\d+\/100/, `${level} observed reputation risk (${cap}/100`)
+          .replace(/· 0 critical/, `· ${confirmedRemovals} critical (escalated to removal)`),
+      },
+    } as ReportWithDiagnostics;
+  }, [rawReport, confirmedRemovals]);
   const autoTabReportRef = useRef<ReportWithDiagnostics | undefined>(undefined);
 
   // Default to the most actionable tab for each new report: Reputation Risk if it
