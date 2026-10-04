@@ -228,7 +228,10 @@ export function ProtectionAutopilotCard() {
       ) : null}
 
       {active ? (
-        <div className="autopilot-radar__search" role="status">
+        <div
+          className={`autopilot-radar__search ${highAlertCount > 0 ? "is-alert" : ""}`}
+          role="status"
+        >
           <Radar className="size-4" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
