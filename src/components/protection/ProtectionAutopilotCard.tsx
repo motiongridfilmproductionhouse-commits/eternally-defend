@@ -15,8 +15,9 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, ShieldAlert, RefreshCw, Radar } from "lucide-react";
+import { AlertTriangle, ArrowRight, ShieldCheck, ShieldAlert, RefreshCw, Radar } from "lucide-react";
 import { toast } from "sonner";
+import { useProtectionSummary } from "@/hooks/use-protection-summary";
 
 function fmt(value: string | null | undefined) {
   if (!value) return "—";
@@ -30,6 +31,7 @@ export function ProtectionAutopilotCard() {
   const fetchState = useServerFn(getProtectionAutopilot);
   const activate = useServerFn(activateProtection);
   const setPaused = useServerFn(setProtectionPaused);
+  const protection = useProtectionSummary();
 
   const q = useQuery({
     queryKey: ["protection-autopilot"],
@@ -90,6 +92,10 @@ export function ProtectionAutopilotCard() {
   const backoff = activeTargets.some(
     (t) => (t.consecutive_failures ?? 0) > 0 || t.last_run_status === "failed",
   );
+  const criticalCases = protection.data?.criticalCases ?? 0;
+  const criticalThreats = protection.data?.criticalThreats ?? 0;
+  const highAlertCount = criticalCases > 0 ? criticalCases : criticalThreats;
+  const highAlertLabel = criticalCases > 0 ? "critical cases require review" : "high-risk findings detected";
 
   /*
    * Status must describe the automation, not the presence of a scan right now:
@@ -115,15 +121,15 @@ export function ProtectionAutopilotCard() {
                   : { label: "ACTIVE — MONITORING", tone: "ok" as const };
 
   return (
-    <Card className="border-border/60 bg-card/70 p-5 backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <Card className={`autopilot-radar ${highAlertCount > 0 ? "has-alert" : ""}`}>
+      {active ? <div className="autopilot-radar__beam" aria-hidden="true"><span /></div> : null}
+      <div className="flex flex-wrap items-start justify-between gap-6 p-5 pb-4">
         <div className="flex items-start gap-3">
           <div
-            className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-              active ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
-            }`}
+            className={`autopilot-radar__shield ${active ? "is-active" : "is-paused"}`}
           >
             {active ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
+            {active ? <span aria-hidden="true" /> : null}
           </div>
           <div>
             <h2 className="text-sm font-semibold tracking-wide text-foreground">
@@ -133,7 +139,7 @@ export function ProtectionAutopilotCard() {
               Recurring identity &amp; asset sweeps run on their own. Evidence only — no external
               notice is ever sent automatically.
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <Badge
                 variant="outline"
                 className={
@@ -146,7 +152,7 @@ export function ProtectionAutopilotCard() {
               >
                 {state.label}
               </Badge>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs font-medium text-muted-foreground">
                 Monitored targets: {targets.filter((t) => t.active).length}
               </span>
             </div>
@@ -175,16 +181,42 @@ export function ProtectionAutopilotCard() {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+      {highAlertCount > 0 ? (
+        <div className="autopilot-radar__alert" role="alert">
+          <div className="autopilot-radar__alert-icon"><AlertTriangle className="size-4" /></div>
+          <div className="min-w-0 flex-1">
+            <strong>HIGH ALERT · {highAlertCount} {highAlertLabel}</strong>
+            <span>Verified account data requires attention. Open the scan reports for evidence and next actions.</span>
+          </div>
+          <Button asChild size="sm" variant="outline" className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10">
+            <Link to="/reports">Investigate <ArrowRight className="ml-1 size-3.5" /></Link>
+          </Button>
+        </div>
+      ) : null}
+
+      {active ? (
+        <div className="autopilot-radar__search" role="status">
+          <Radar className="size-4" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <strong>{scanning ? "Live sweep searching protected sources" : "Autonomous search standing by"}</strong>
+              <span>{scanning ? "SEARCHING" : "MONITORING"}</span>
+            </div>
+            <div className="autopilot-radar__search-track"><i /></div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 px-5 pb-4 sm:grid-cols-3">
+        <div className={`autopilot-radar__metric ${highAlertCount > 0 ? "is-alert" : ""}`}>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Last sweep</p>
           <p className="mt-1 text-sm text-foreground">{fmt(lastRun)}</p>
         </div>
-        <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+        <div className="autopilot-radar__metric is-next">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Next sweep</p>
           <p className="mt-1 text-sm text-foreground">{active ? fmt(nextRun) : "Paused"}</p>
         </div>
-        <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+        <div className="autopilot-radar__metric">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Activated
           </p>
@@ -193,21 +225,22 @@ export function ProtectionAutopilotCard() {
       </div>
 
       {targets.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 px-5 pb-5">
           {targets.map((t) => (
             <span
               key={t.id}
-              className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[11px] text-muted-foreground"
+              className="autopilot-radar__target"
             >
+              <i className={highAlertCount > 0 ? "is-alert" : ""} aria-hidden="true" />
               {t.label} · every {Math.round(t.cadence_minutes / 60)}h
             </span>
           ))}
         </div>
       )}
 
-      <div className="mt-3">
-        <Link to="/reports" className="text-xs font-semibold text-primary hover:underline">
-          View scan reports →
+      <div className="border-t px-5 py-4">
+        <Link to="/reports" className="group inline-flex items-center text-xs font-semibold text-primary hover:underline">
+          View scan reports <ArrowRight className="ml-1 size-3.5 transition-transform group-hover:translate-x-1" />
         </Link>
       </div>
     </Card>

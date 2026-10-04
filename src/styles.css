@@ -103,6 +103,126 @@
   50% { box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--success) 68%, transparent); }
 }
 
+@keyframes autopilot-radar-beam {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(410%); }
+}
+
+@keyframes autopilot-search-light {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(760%); }
+}
+
+@keyframes autopilot-alert-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 0%, transparent); }
+  50% { box-shadow: 0 0 22px -12px color-mix(in oklab, var(--destructive) 70%, transparent); }
+}
+
+@utility autopilot-radar {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  &.has-alert { border-color: color-mix(in oklab, var(--destructive) 18%, var(--border)); }
+}
+
+@utility autopilot-radar__beam {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--primary) 6%, var(--muted));
+  & span { position: absolute; inset-block: 0; left: 0; width: 28%; background: linear-gradient(90deg, transparent, var(--primary), transparent); filter: drop-shadow(0 0 5px color-mix(in oklab, var(--primary) 58%, transparent)); animation: autopilot-radar-beam 3.2s linear infinite; }
+}
+
+@utility autopilot-radar__shield {
+  position: relative;
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: .55rem;
+  &.is-active { border: 1px solid color-mix(in oklab, var(--success) 18%, transparent); background: color-mix(in oklab, var(--success) 9%, var(--card)); color: var(--success); }
+  &.is-paused { background: color-mix(in oklab, var(--warning) 10%, var(--card)); color: var(--warning); }
+  & > span { position: absolute; top: -.18rem; right: -.18rem; width: .55rem; height: .55rem; border: 2px solid var(--card); border-radius: 999px; background: var(--success); animation: removal-status-pulse 1.8s ease-out infinite; }
+}
+
+@utility autopilot-radar__alert {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: 0 1.25rem 1rem;
+  border: 1px solid color-mix(in oklab, var(--destructive) 28%, transparent);
+  border-left: 4px solid var(--destructive);
+  border-radius: 0 .55rem .55rem 0;
+  background: color-mix(in oklab, var(--destructive) 6%, var(--card));
+  padding: .75rem;
+  animation: autopilot-alert-breathe 2.8s ease-in-out infinite;
+  & strong { display: block; color: var(--destructive); font-size: .7rem; font-weight: 800; }
+  & span { display: block; margin-top: .15rem; color: var(--muted-foreground); font-size: .65rem; }
+}
+
+@utility autopilot-radar__alert-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--destructive) 12%, var(--card));
+  color: var(--destructive);
+}
+
+@utility autopilot-radar__search {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin: 0 1.25rem 1rem;
+  border-block: 1px solid var(--border);
+  padding: .7rem 0;
+  color: var(--primary);
+  & strong { color: var(--foreground); font-size: .68rem; }
+  & span { color: var(--primary); font-family: var(--font-mono); font-size: .58rem; font-weight: 700; }
+}
+
+@utility autopilot-radar__search-track {
+  position: relative;
+  height: 3px;
+  margin-top: .45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 10%, var(--muted));
+  & i { position: absolute; inset-block: 0; left: 0; width: 14%; background: linear-gradient(90deg, transparent, var(--primary), var(--brand-glow), transparent); animation: autopilot-search-light 2.4s linear infinite; }
+}
+
+@utility autopilot-radar__metric {
+  border: 1px solid var(--border);
+  border-radius: .55rem;
+  background: color-mix(in oklab, var(--muted) 55%, var(--card));
+  padding: .8rem;
+  &.is-next { border-color: color-mix(in oklab, var(--success) 18%, var(--border)); background: color-mix(in oklab, var(--success) 3%, var(--card)); }
+  &.is-alert { border-color: color-mix(in oklab, var(--destructive) 20%, var(--border)); background: color-mix(in oklab, var(--destructive) 3%, var(--card)); }
+}
+
+@utility autopilot-radar__target {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  padding: .35rem .75rem;
+  color: var(--muted-foreground);
+  font-size: .68rem;
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
+  transition: border-color 180ms ease, transform 180ms ease;
+  &:hover { transform: translateY(-1px); border-color: color-mix(in oklab, var(--primary) 30%, var(--border)); }
+  & i { width: .38rem; height: .38rem; margin-right: .45rem; border-radius: 999px; background: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 9%, transparent); }
+  & i.is-alert { background: var(--destructive); box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 10%, transparent); }
+}
+
 @utility removal-thumbnail {
   position: relative;
   display: block;
@@ -352,7 +472,11 @@
   .removal-intelligence__success-mark > span,
   .removal-intelligence__success-wave i,
   .removal-thumbnail.is-removed,
-  .removal-evidence-tile__scan { animation: none; }
+  .removal-evidence-tile__scan,
+  .autopilot-radar__beam span,
+  .autopilot-radar__search-track i,
+  .autopilot-radar__shield > span,
+  .autopilot-radar__alert { animation: none; }
 }
 
 /* Premium enterprise — light command center (Eterna) */
