@@ -233,6 +233,10 @@
   &.is-alert small { color: var(--destructive); }
   &.is-alert > b { background: color-mix(in oklab, var(--destructive) 9%, transparent); }
   &.is-alert > b i { background: linear-gradient(90deg, transparent, var(--destructive), transparent); }
+  &.is-clear { border-color: color-mix(in oklab, var(--success) 26%, var(--border)); background: color-mix(in oklab, var(--success) 5%, var(--card)); }
+  &.is-clear small { color: var(--success); }
+  &.is-clear > b { background: color-mix(in oklab, var(--success) 9%, transparent); }
+  &.is-clear > b i { background: linear-gradient(90deg, transparent, var(--success), transparent); }
 }
 
 @utility autopilot-radar__source-icon {
@@ -247,6 +251,7 @@
   color: var(--primary);
   & i { position: absolute; inset: 0; border: 1px solid currentColor; border-radius: inherit; animation: autopilot-source-ping 1.9s ease-out infinite; animation-delay: var(--signal-delay); }
   .is-alert & { background: color-mix(in oklab, var(--destructive) 11%, var(--card)); color: var(--destructive); }
+  .is-clear & { background: color-mix(in oklab, var(--success) 10%, var(--card)); color: var(--success); }
 }
 
 @utility autopilot-radar__search-track {
