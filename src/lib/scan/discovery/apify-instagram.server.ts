@@ -4,7 +4,7 @@ const GATEWAY_BASE = "https://connector-gateway.lovable.dev/apify";
 const ACTOR_ID = "apify~instagram-scraper";
 const RESULT_LIMIT = 10;
 const MAX_HANDLES = 3;
-const MAX_POLLS = 10;
+const MAX_POLLS = 4;
 const POLL_DELAY_MS = 2_000;
 
 interface ActorRun {
@@ -214,22 +214,25 @@ export async function runApifyInstagram(
     if (!run.id) throw new Error("Instagram discovery did not return a run identifier");
     const runId = run.id;
 
+    // Apify long-polls when waitForFinish is set, so each poll waits up to 25s server-side.
     for (let poll = 0; poll < MAX_POLLS && !isTerminal(run.status ?? ""); poll += 1) {
-      await pause(signal);
-      const response = await gatewayFetch(`/actor-runs/${encodeURIComponent(runId)}`, keys, {
-        method: "GET",
-        signal,
-      });
+      if (poll > 0) await pause(signal);
+      const response = await gatewayFetch(
+        `/actor-runs/${encodeURIComponent(runId)}?waitForFinish=25`,
+        keys,
+        { method: "GET", signal },
+      );
       run = runData(await response.json());
     }
 
     const status = run.status ?? "UNKNOWN";
-    if (status !== "SUCCEEDED") {
+    // A still-running run already has a dataset with partial items; use them rather than discarding.
+    if (status !== "SUCCEEDED" && isTerminal(status)) {
       return {
         raw: [],
         attempted: true,
         runStatus: status,
-        error: isTerminal(status) ? `Instagram discovery ended with ${status}` : "Instagram discovery timed out",
+        error: `Instagram discovery ended with ${status}`,
       };
     }
     if (!run.defaultDatasetId) {
