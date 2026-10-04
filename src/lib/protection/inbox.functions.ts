@@ -31,6 +31,11 @@ export interface InboxRemovalRow {
   reportNumber: string | null;
   removedVideoCount: number | null;
   escalatedToManualTeam: boolean;
+  evidenceAttachments: Array<{
+    label: string;
+    path: string;
+    contentType: string | null;
+  }>;
 }
 
 interface ProtectionInboxData {
@@ -67,6 +72,24 @@ function metadataNumber(metadata: Record<string, unknown> | null, key: string): 
   return typeof value === "number" ? value : null;
 }
 
+function metadataAttachments(metadata: Record<string, unknown> | null): InboxRemovalRow["evidenceAttachments"] {
+  const value = metadata?.["evidence_attachments"];
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (!item || Array.isArray(item) || typeof item !== "object") return [];
+    const attachment = item as Record<string, unknown>;
+    if (typeof attachment["label"] !== "string" || typeof attachment["path"] !== "string") {
+      return [];
+    }
+    return [{
+      label: attachment["label"],
+      path: attachment["path"],
+      contentType: typeof attachment["content_type"] === "string" ? attachment["content_type"] : null,
+    }];
+  });
+}
+
 /** Read-only view of removal requests already submitted for this user. */
 async function readSubmittedRemovals(
   supabase: { from: (t: string) => any },
@@ -100,6 +123,7 @@ async function readSubmittedRemovals(
       removedVideoCount: metadataNumber(metadata, "removed_video_count"),
       escalatedToManualTeam:
         metadataString(metadata, "escalation_status") === "escalated_to_manual_removal_team",
+      evidenceAttachments: metadataAttachments(metadata),
     };
   });
 }

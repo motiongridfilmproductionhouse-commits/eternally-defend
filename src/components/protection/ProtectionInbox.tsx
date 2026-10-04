@@ -17,7 +17,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { startYoutubeRemovalScan } from "@/lib/youtube-removal/removal.functions";
 import type { InboxBucket, InboxItem } from "@/lib/protection/inbox";
 import type { InboxRemovalRow } from "@/lib/protection/inbox.functions";
-import { signRemovalThumbnailUrl } from "@/lib/enforcement-packages.functions";
+import {
+  signRemovalEvidenceUrl,
+  signRemovalThumbnailUrl,
+} from "@/lib/enforcement-packages.functions";
 
 const STALE_MS = 12 * 60 * 60 * 1000;
 
@@ -123,7 +126,76 @@ function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
           Meta Intellectual Property Report <strong className="font-mono text-foreground">#{row.reportNumber}</strong>
         </p>
       ) : null}
+      {row.evidenceAttachments.length > 0 ? (
+        <div className="mt-4 border-t pt-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase text-muted-foreground">
+            Private evidence · {row.evidenceAttachments.length} attachments
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {row.evidenceAttachments.map((attachment, index) => (
+              <DashboardEvidenceAttachment
+                key={attachment.path}
+                row={row}
+                attachment={attachment}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function DashboardEvidenceAttachment({
+  row,
+  attachment,
+  index,
+}: {
+  row: InboxRemovalRow;
+  attachment: InboxRemovalRow["evidenceAttachments"][number];
+  index: number;
+}) {
+  const signEvidence = useServerFn(signRemovalEvidenceUrl);
+  const evidence = useQuery({
+    queryKey: ["removal-evidence", row.id, index],
+    staleTime: 8 * 60 * 1000,
+    retry: 1,
+    queryFn: () => signEvidence({ data: { requestId: row.id, attachmentIndex: index } }),
+  });
+
+  if (evidence.isLoading) {
+    return <div className="aspect-[4/3] animate-pulse rounded-md bg-muted" aria-label={`Loading ${attachment.label}`} />;
+  }
+
+  if (!evidence.data?.url) {
+    return (
+      <div className="flex aspect-[4/3] items-center justify-center rounded-md border bg-muted text-muted-foreground">
+        <ImageOff className="size-4" aria-label={`${attachment.label} unavailable`} />
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={evidence.data.url}
+      target="_blank"
+      rel="noreferrer"
+      className="group overflow-hidden rounded-md border bg-background transition-colors hover:border-primary/40"
+      aria-label={`Open ${attachment.label}`}
+    >
+      <div className="aspect-[4/3] overflow-hidden bg-muted">
+        <img
+          src={evidence.data.url}
+          alt={attachment.label}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      </div>
+      <span className="flex min-h-10 items-center justify-between gap-1 px-2 py-1.5 text-[10px] font-medium leading-tight">
+        <span>{attachment.label}</span>
+        <ExternalLink className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </span>
+    </a>
   );
 }
 
