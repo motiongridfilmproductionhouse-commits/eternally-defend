@@ -275,6 +275,13 @@
   color: var(--primary);
   & strong { color: var(--foreground); font-size: .68rem; }
   & span { color: var(--primary); font-family: var(--font-mono); font-size: .58rem; font-weight: 700; }
+  &.is-alert {
+    border-block-color: color-mix(in oklab, var(--destructive) 20%, var(--border));
+    color: var(--destructive);
+    & span { color: var(--destructive); }
+    & .autopilot-radar__search-track { background: color-mix(in oklab, var(--destructive) 12%, var(--muted)); }
+    & .autopilot-radar__search-track i { background: linear-gradient(90deg, transparent, var(--destructive), color-mix(in oklab, var(--destructive) 55%, white), transparent); }
+  }
 }
 
 @utility autopilot-radar__sources {
