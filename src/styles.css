@@ -88,6 +88,55 @@
   50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 0%, transparent); }
 }
 
+@keyframes removal-success-ring {
+  0% { transform: scale(.7); opacity: .8; }
+  70%, 100% { transform: scale(1.65); opacity: 0; }
+}
+
+@keyframes removal-success-wave {
+  0%, 100% { transform: scaleY(.22); opacity: .35; }
+  45% { transform: scaleY(1); opacity: .9; }
+}
+
+@keyframes removal-thumbnail-confirm {
+  0%, 100% { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--success) 30%, transparent); }
+  50% { box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--success) 68%, transparent); }
+}
+
+@utility removal-thumbnail {
+  position: relative;
+  display: block;
+  width: 4rem;
+  height: 5rem;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: .4rem;
+  background: var(--muted);
+  box-shadow: var(--shadow-card);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+  &:hover { transform: translateY(-2px) scale(1.02); }
+  &.is-removed { animation: removal-thumbnail-confirm 3.2s ease-in-out infinite; }
+}
+
+@utility removal-thumbnail__verified {
+  position: absolute;
+  inset-inline: .25rem;
+  bottom: .25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .2rem;
+  border-radius: .25rem;
+  background: color-mix(in oklab, var(--success) 88%, var(--foreground));
+  padding: .22rem .25rem;
+  color: var(--primary-foreground);
+  font-family: var(--font-enforcement-display);
+  font-size: .5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 @utility removal-intelligence {
   font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
@@ -179,6 +228,48 @@
   & span { display: block; margin-top: .15rem; color: var(--muted-foreground); font-size: .62rem; line-height: 1.4; }
 }
 
+@utility removal-intelligence__success {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: .8rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--success) 24%, transparent);
+  border-radius: .5rem;
+  background: color-mix(in oklab, var(--success) 5%, var(--card));
+  padding: .65rem .75rem;
+  transition: border-color 200ms ease, background-color 200ms ease;
+  &:hover { border-color: color-mix(in oklab, var(--success) 48%, transparent); background: color-mix(in oklab, var(--success) 8%, var(--card)); }
+  & strong { display: block; color: var(--foreground); font-family: var(--font-enforcement-display); font-size: .7rem; }
+  & > div > span { display: block; margin-top: .15rem; color: var(--muted-foreground); font-size: .62rem; line-height: 1.35; }
+}
+
+@utility removal-intelligence__success-mark {
+  position: relative;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--success) 12%, var(--card));
+  color: var(--success);
+  & > span { position: absolute; inset: 0; border: 1px solid var(--success); border-radius: inherit; animation: removal-success-ring 2.4s ease-out infinite; }
+}
+
+@utility removal-intelligence__success-wave {
+  display: flex;
+  height: 1.6rem;
+  align-items: center;
+  gap: 2px;
+  opacity: .75;
+  & i { width: 2px; height: 100%; border-radius: 999px; background: var(--success); animation: removal-success-wave 1.45s ease-in-out infinite; }
+  & i:nth-child(2), & i:nth-child(6) { animation-delay: .1s; }
+  & i:nth-child(3), & i:nth-child(5) { animation-delay: .2s; }
+  & i:nth-child(4) { animation-delay: .3s; }
+}
+
 @utility removal-intelligence__signal {
   display: flex;
   height: 1.5rem;
@@ -258,6 +349,9 @@
   .removal-intelligence__platform-state.is-live > span,
   .removal-intelligence__stage.is-active .removal-intelligence__stage-icon,
   .removal-intelligence__signal i,
+  .removal-intelligence__success-mark > span,
+  .removal-intelligence__success-wave i,
+  .removal-thumbnail.is-removed,
   .removal-evidence-tile__scan { animation: none; }
 }
 

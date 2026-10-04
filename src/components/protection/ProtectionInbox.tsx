@@ -84,7 +84,7 @@ function DashboardRemovalThumbnail({ row }: { row: InboxRemovalRow }) {
       href={row.targetUrl ?? thumbnail.data.url}
       target="_blank"
       rel="noreferrer"
-      className="group relative block h-20 w-16 shrink-0 overflow-hidden rounded-md border bg-muted shadow-sm"
+      className={`removal-thumbnail group ${row.removedAt ? "is-removed" : ""}`}
       aria-label={`Open ${row.platform} removal evidence`}
     >
       <img
@@ -95,6 +95,11 @@ function DashboardRemovalThumbnail({ row }: { row: InboxRemovalRow }) {
       <span className="absolute inset-0 grid place-items-center bg-foreground/20 opacity-0 transition-opacity group-hover:opacity-100">
         <Play className="size-4 fill-background text-background" aria-hidden="true" />
       </span>
+      {row.removedAt ? (
+        <span className="removal-thumbnail__verified" aria-hidden="true">
+          <Check className="size-3" /> Removed
+        </span>
+      ) : null}
     </a>
   );
 }
@@ -173,6 +178,23 @@ function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
           <div>
             <strong><Clock3 className="size-3.5" /> Meta response monitor active</strong>
             <span>Eterna is tracking this submission. The case will update when a verified platform reply is recorded.</span>
+          </div>
+        </div>
+      ) : null}
+
+      {isComplete && row.removedAt ? (
+        <div className="removal-intelligence__success" role="status">
+          <div className="removal-intelligence__success-mark" aria-hidden="true">
+            <span /><ShieldCheck className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <strong>Video removal verified</strong>
+            <span>
+              Platform response recorded {formatIndiaDateTime(row.removedAt)} IST · Evidence remains preserved
+            </span>
+          </div>
+          <div className="removal-intelligence__success-wave" aria-hidden="true">
+            <i /><i /><i /><i /><i /><i /><i />
           </div>
         </div>
       ) : null}
