@@ -89,7 +89,7 @@ function RemovalEvidenceLink({ row, attachment, index }: {
 
   return (
     <a
-      href={evidence.data?.url}
+      href={evidence.data?.url ?? undefined}
       target="_blank"
       rel="noreferrer"
       aria-disabled={!evidence.data?.url}
