@@ -280,7 +280,7 @@
     color: var(--destructive);
     & span { color: var(--destructive); }
     & .autopilot-radar__search-track { background: color-mix(in oklab, var(--destructive) 12%, var(--muted)); }
-    & .autopilot-radar__search-track i { background: linear-gradient(90deg, transparent, var(--destructive), color-mix(in oklab, var(--destructive) 45%, var(--brand-glow)), transparent); }
+    & .autopilot-radar__search-track i { background: linear-gradient(90deg, transparent, var(--destructive), color-mix(in oklab, var(--destructive) 55%, white), transparent); }
   }
 }
 
