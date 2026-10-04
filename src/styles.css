@@ -118,6 +118,21 @@
   50% { box-shadow: 0 0 22px -12px color-mix(in oklab, var(--destructive) 70%, transparent); }
 }
 
+@keyframes autopilot-source-ping {
+  0% { transform: scale(.65); opacity: .9; }
+  75%, 100% { transform: scale(2.25); opacity: 0; }
+}
+
+@keyframes autopilot-source-scan {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(520%); }
+}
+
+@keyframes autopilot-alert-border {
+  0%, 100% { border-color: color-mix(in oklab, var(--destructive) 24%, var(--border)); }
+  50% { border-color: color-mix(in oklab, var(--destructive) 62%, var(--border)); }
+}
+
 @utility autopilot-radar {
   position: relative;
   overflow: hidden;
@@ -125,7 +140,7 @@
   border-radius: .75rem;
   background: var(--card);
   box-shadow: var(--shadow-card);
-  &.has-alert { border-color: color-mix(in oklab, var(--destructive) 18%, var(--border)); }
+  &.has-alert { border-color: color-mix(in oklab, var(--destructive) 34%, var(--border)); animation: autopilot-alert-border 2.4s ease-in-out infinite; }
 }
 
 @utility autopilot-radar__beam {
@@ -146,8 +161,10 @@
   justify-content: center;
   border-radius: .55rem;
   &.is-active { border: 1px solid color-mix(in oklab, var(--success) 18%, transparent); background: color-mix(in oklab, var(--success) 9%, var(--card)); color: var(--success); }
+  &.is-active.is-alert { border-color: color-mix(in oklab, var(--destructive) 35%, transparent); background: color-mix(in oklab, var(--destructive) 10%, var(--card)); color: var(--destructive); }
   &.is-paused { background: color-mix(in oklab, var(--warning) 10%, var(--card)); color: var(--warning); }
   & > span { position: absolute; top: -.18rem; right: -.18rem; width: .55rem; height: .55rem; border: 2px solid var(--card); border-radius: 999px; background: var(--success); animation: removal-status-pulse 1.8s ease-out infinite; }
+  &.is-alert > span { background: var(--destructive); }
 }
 
 @utility autopilot-radar__alert {
@@ -186,6 +203,50 @@
   color: var(--primary);
   & strong { color: var(--foreground); font-size: .68rem; }
   & span { color: var(--primary); font-family: var(--font-mono); font-size: .58rem; font-weight: 700; }
+}
+
+@utility autopilot-radar__sources {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .5rem;
+  margin: 0 1.25rem 1rem;
+  @media (max-width: 760px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@utility autopilot-radar__source {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: .5rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+  background: color-mix(in oklab, var(--muted) 42%, var(--card));
+  padding: .62rem;
+  & > span:nth-child(2) { min-width: 0; }
+  & strong { display: block; overflow: hidden; color: var(--foreground); font-size: .64rem; text-overflow: ellipsis; white-space: nowrap; }
+  & small { display: block; margin-top: .1rem; color: var(--primary); font-family: var(--font-mono); font-size: .5rem; font-weight: 800; }
+  & > b { position: absolute; inset-inline: 0; bottom: 0; height: 2px; overflow: hidden; background: color-mix(in oklab, var(--primary) 8%, transparent); }
+  & > b i { display: block; width: 24%; height: 100%; background: linear-gradient(90deg, transparent, var(--primary), transparent); animation: autopilot-source-scan 2.2s linear infinite; animation-delay: var(--signal-delay); }
+  &.is-alert { border-color: color-mix(in oklab, var(--destructive) 28%, var(--border)); background: color-mix(in oklab, var(--destructive) 5%, var(--card)); }
+  &.is-alert small { color: var(--destructive); }
+  &.is-alert > b { background: color-mix(in oklab, var(--destructive) 9%, transparent); }
+  &.is-alert > b i { background: linear-gradient(90deg, transparent, var(--destructive), transparent); }
+}
+
+@utility autopilot-radar__source-icon {
+  position: relative;
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 9%, var(--card));
+  color: var(--primary);
+  & i { position: absolute; inset: 0; border: 1px solid currentColor; border-radius: inherit; animation: autopilot-source-ping 1.9s ease-out infinite; animation-delay: var(--signal-delay); }
+  .is-alert & { background: color-mix(in oklab, var(--destructive) 11%, var(--card)); color: var(--destructive); }
 }
 
 @utility autopilot-radar__search-track {
@@ -475,8 +536,11 @@
   .removal-evidence-tile__scan,
   .autopilot-radar__beam span,
   .autopilot-radar__search-track i,
+  .autopilot-radar__source-icon i,
+  .autopilot-radar__source > b i,
   .autopilot-radar__shield > span,
-  .autopilot-radar__alert { animation: none; }
+  .autopilot-radar__alert,
+  .autopilot-radar.has-alert { animation: none; }
 }
 
 /* Premium enterprise — light command center (Eterna) */
