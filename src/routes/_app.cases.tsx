@@ -29,6 +29,9 @@ interface CaseRow {
   priority: Severity;
   assignee: string | null;
   opened_at: string;
+  closed_at: string | null;
+  notes: string | null;
+  metadata: { target_url?: string | null } | null;
 }
 
 const STATUSES: CaseStatus[] = ["Open", "In Progress", "Escalated", "Closed"];
@@ -59,7 +62,7 @@ function CasesPage() {
     queryFn: async (): Promise<CaseRow[]> => {
       const { data, error } = await supabase
         .from("cases")
-        .select("id,subject,type,status,priority,assignee,opened_at")
+        .select("id,subject,type,status,priority,assignee,opened_at,closed_at,notes,metadata")
         .order("opened_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as CaseRow[];
@@ -229,9 +232,25 @@ function CasesPage() {
                           {c.type}
                           {c.assignee ? ` · ${c.assignee}` : ""}
                         </div>
+                        {c.notes && (
+                          <div className="text-xs mt-1.5 leading-relaxed">{c.notes}</div>
+                        )}
                         <div className="text-[11px] text-muted-foreground mt-1">
                           Opened {new Date(c.opened_at).toLocaleDateString()}
+                          {c.closed_at
+                            ? ` · Resolved ${new Date(c.closed_at).toLocaleDateString()}`
+                            : ""}
                         </div>
+                        {c.metadata?.target_url && (
+                          <a
+                            href={c.metadata.target_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary font-semibold"
+                          >
+                            View reported link <ExternalLink className="size-3" />
+                          </a>
+                        )}
                         <select
                           value={c.status}
                           onChange={(e) =>
