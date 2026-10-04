@@ -212,10 +212,11 @@ export async function runApifyInstagram(
     });
     let run = runData(await startResponse.json());
     if (!run.id) throw new Error("Instagram discovery did not return a run identifier");
+    const runId = run.id;
 
     for (let poll = 0; poll < MAX_POLLS && !isTerminal(run.status ?? ""); poll += 1) {
       await pause(signal);
-      const response = await gatewayFetch(`/actor-runs/${encodeURIComponent(run.id)}`, keys, {
+      const response = await gatewayFetch(`/actor-runs/${encodeURIComponent(runId)}`, keys, {
         method: "GET",
         signal,
       });

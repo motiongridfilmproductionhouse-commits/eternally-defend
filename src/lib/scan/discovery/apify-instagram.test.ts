@@ -20,6 +20,7 @@ afterEach(() => {
 
 test("verified handles build bounded profile inputs and remove invalid values", () => {
   const input = buildApifyInstagramInput("Ignored name", ["@Eterna.Official", "bad handle!", "eterna.official"]);
+  assert.ok("directUrls" in input);
   assert.deepEqual(input.directUrls, ["https://www.instagram.com/eterna.official/"]);
   assert.equal("search" in input, false);
   assert.equal(input.resultsLimit, 10);
@@ -28,6 +29,7 @@ test("verified handles build bounded profile inputs and remove invalid values", 
 
 test("name-only discovery uses one profile search rather than claiming a verified handle", () => {
   const input = buildApifyInstagramInput("Common Person", []);
+  assert.ok("search" in input);
   assert.equal(input.search, "Common Person");
   assert.equal(input.searchType, "user");
   assert.equal(input.searchLimit, 1);
