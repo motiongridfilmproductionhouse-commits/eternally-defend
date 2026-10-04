@@ -3544,7 +3544,7 @@ export const Route = createFileRoute("/api/scan")({
           // ══════════════════════════════════════════════════════════════════════
           // STAGE 1 — Run YouTube, baseline Firecrawl, and Reddit concurrently
           // ══════════════════════════════════════════════════════════════════════
-          const [ytSettled, fcSettled, redditSettled, hikerSettled] =
+          const [ytSettled, fcSettled, redditSettled, hikerSettled, apifyInstagramSettled] =
             await Promise.allSettled([
               wantYouTube
                 ? runYouTube(query, aliases, variations, hashtags, handles, ytTarget, monthWindow)
@@ -3572,6 +3572,19 @@ export const Route = createFileRoute("/api/scan")({
                     raw: [] as RawHit[],
                     error: undefined as string | undefined,
                     requestsUsed: 0,
+                  }),
+              wantInstagram
+                ? (async () => {
+                    const { runApifyInstagram } = await import(
+                      "@/lib/scan/discovery/apify-instagram.server"
+                    );
+                    return runApifyInstagram(query, instagramHandles);
+                  })()
+                : Promise.resolve({
+                    raw: [] as RawHit[],
+                    attempted: false,
+                    error: undefined as string | undefined,
+                    runStatus: undefined as string | undefined,
                   }),
             ]);
 
@@ -3679,6 +3692,29 @@ export const Route = createFileRoute("/api/scan")({
           } else {
             hikerError = hikerSettled.reason?.message || String(hikerSettled.reason);
             console.error(`[scan] HikerAPI: error - ${hikerError}`);
+          }
+
+          let apifyInstagramRaw: RawHit[] = [];
+          let apifyInstagramAttempted = false;
+          let apifyInstagramError: string | undefined = undefined;
+          let apifyInstagramStatus: string | undefined = undefined;
+
+          if (apifyInstagramSettled.status === "fulfilled") {
+            const val = apifyInstagramSettled.value;
+            apifyInstagramRaw = val.raw;
+            apifyInstagramAttempted = val.attempted;
+            apifyInstagramError = val.error;
+            apifyInstagramStatus = val.runStatus;
+            if (val.error && val.attempted) {
+              console.error(`[scan] Instagram discovery: error - ${val.error}`);
+            } else if (val.attempted) {
+              console.log(`[scan] Instagram discovery: success (${val.raw.length} results)`);
+            }
+          } else {
+            apifyInstagramAttempted = true;
+            apifyInstagramError =
+              apifyInstagramSettled.reason?.message || String(apifyInstagramSettled.reason);
+            console.error(`[scan] Instagram discovery: error - ${apifyInstagramError}`);
           }
 
           console.log("[scan-debug] YouTube stage result", {
@@ -4172,6 +4208,12 @@ export const Route = createFileRoute("/api/scan")({
             else mergedRuns.push({ source: "Instagram", raw: hikerRaw });
           }
 
+          if (apifyInstagramRaw.length) {
+            const instagramRun = mergedRuns.find((r) => r.source === "Instagram");
+            if (instagramRun) instagramRun.raw.unshift(...apifyInstagramRaw);
+            else mergedRuns.push({ source: "Instagram", raw: apifyInstagramRaw });
+          }
+
           const overallErr = !mergedRuns.some((r) => r.raw.length > 0)
             ? fcError || "No results returned"
             : undefined;
@@ -4191,7 +4233,7 @@ export const Route = createFileRoute("/api/scan")({
             for (const hit of run.raw) {
               if (!hit.url) continue;
               if (hit.media?.videoId) continue; // YouTube API leads already have metadata
-              if (hit.media?.instagramMediaPk) continue; // HikerAPI leads already have caption/metadata
+              if (hit.media?.instagramMediaPk) continue; // Direct Instagram leads already have caption/metadata
               extractTargets.push(hit.url);
             }
           }
@@ -4814,6 +4856,20 @@ const fcConfig = getFirecrawlConfigInfo();
                   : wantYouTube
                     ? "no_results"
                     : "disabled",
+            },
+            instagram: {
+              requested: wantInstagram,
+              queried: apifyInstagramAttempted || (wantInstagram && (hikerSuccess || Boolean(hikerError))),
+              status: !wantInstagram
+                ? "disabled"
+                : apifyInstagramRaw.length + hikerRaw.length > 0
+                  ? "ok"
+                  : apifyInstagramError || hikerError
+                    ? "unavailable"
+                    : "no_results",
+              results: sourceCounts["Instagram"] ?? 0,
+              directProviderStatus: apifyInstagramStatus ?? null,
+              directProviderError: apifyInstagramError ?? null,
             },
             firecrawlDiscovery: fcDiscovery ? { ...fcDiscovery.diagnostics } : { active: false },
             monthFilter,
