@@ -1,7 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, ChevronRight, ExternalLink, ImageOff, Loader2, Play, ShieldCheck } from "lucide-react";
+import {
+  Bot,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock3,
+  ExternalLink,
+  FileCheck2,
+  Fingerprint,
+  ImageOff,
+  Loader2,
+  Play,
+  Radio,
+  ScanLine,
+  Send,
+  ShieldCheck,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,12 +101,24 @@ function DashboardRemovalThumbnail({ row }: { row: InboxRemovalRow }) {
 
 function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
   const submittedAt = row.firstVideoSubmittedAt ?? row.submittedAt;
+  const isPending = row.status === "Sent";
+  const isComplete = Boolean(row.removedAt) || row.status === "Approved";
+  const stages = [
+    { label: "Evidence captured", icon: ScanLine, done: true },
+    { label: "Integrity sealed", icon: Fingerprint, done: true },
+    { label: "Submitted to Meta", icon: Send, done: Boolean(submittedAt) },
+    { label: isComplete ? "Meta confirmed" : "Meta reply", icon: isComplete ? Check : Radio, done: isComplete },
+  ];
 
   return (
-    <div className="min-w-0 flex-1">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <div className="removal-intelligence min-w-0 flex-1">
+      <div className="removal-intelligence__header">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">
+          <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase text-muted-foreground">
+            <Bot className="size-3.5 text-primary" aria-hidden="true" />
+            Eterna autonomous case · {row.id.slice(0, 8)}
+          </div>
+          <p className="truncate font-mono text-sm font-semibold">
             {row.targetUrl ? (
               <a href={row.targetUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                 {row.targetUrl}
@@ -101,36 +129,65 @@ function DashboardRemovalDetails({ row }: { row: InboxRemovalRow }) {
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">{row.platform} · {row.method}</p>
         </div>
-        <Badge variant={row.status === "Rejected" ? "destructive" : "outline"}>
-          {row.status === "Sent" ? "SUBMITTED · AWAITING PLATFORM" : row.status.toUpperCase()}
-        </Badge>
+        <div className={`removal-intelligence__platform-state ${isPending ? "is-live" : ""}`}>
+          <span aria-hidden="true" />
+          {isPending ? "META REPLY PENDING" : isComplete ? "META CONFIRMED" : row.status.toUpperCase()}
+        </div>
       </div>
+
+      <div className="removal-intelligence__grid">
+        {stages.map((stage, index) => {
+          const Icon = stage.icon;
+          const active = !stage.done && isPending;
+          return (
+            <div key={stage.label} className={`removal-intelligence__stage ${stage.done ? "is-done" : ""} ${active ? "is-active" : ""}`}>
+              <div className="removal-intelligence__stage-icon"><Icon className="size-3.5" /></div>
+              <div>
+                <span>0{index + 1}</span>
+                <strong>{stage.label}</strong>
+                <small>{stage.done ? "Complete" : active ? "Listening for response" : "Not yet recorded"}</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-        <div className="border-l-2 border-primary/40 pl-2.5">
-          <span className="block text-[10px] uppercase text-muted-foreground">Submitted</span>
-          <span className="font-medium">{submittedAt ? `${formatIndiaDateTime(submittedAt)} IST` : "Date unavailable"}</span>
+        <div className="removal-intelligence__metric">
+          <span>Submitted</span>
+          <strong>{submittedAt ? `${formatIndiaDateTime(submittedAt)} IST` : "Date unavailable"}</strong>
         </div>
-        <div className="border-l-2 border-destructive/40 pl-2.5">
-          <span className="block text-[10px] uppercase text-muted-foreground">Initial outcome</span>
-          <span className="font-medium">{row.escalatedToManualTeam ? "Rejected · escalated manually" : "Platform review"}</span>
+        <div className="removal-intelligence__metric">
+          <span>Initial outcome</span>
+          <strong>{row.escalatedToManualTeam ? "Rejected · manually escalated" : "Platform review"}</strong>
         </div>
-        <div className="border-l-2 border-emerald-500/40 pl-2.5">
-          <span className="block text-[10px] uppercase text-muted-foreground">Final outcome</span>
-          <span className="font-medium">
-            {row.removedAt ? `${row.removedVideoCount ?? 0} videos removed · ${formatIndiaDateTime(row.removedAt)} IST` : row.status}
-          </span>
+        <div className="removal-intelligence__metric">
+          <span>Final outcome</span>
+          <strong>{row.removedAt ? `${row.removedVideoCount ?? 0} video${row.removedVideoCount === 1 ? "" : "s"} removed` : "Response not received"}</strong>
         </div>
       </div>
+
+      {isPending ? (
+        <div className="removal-intelligence__listener" role="status">
+          <div className="removal-intelligence__signal" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+          <div>
+            <strong><Clock3 className="size-3.5" /> Meta response monitor active</strong>
+            <span>Eterna is tracking this submission. The case will update when a verified platform reply is recorded.</span>
+          </div>
+        </div>
+      ) : null}
+
       {row.reportNumber ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Meta Intellectual Property Report <strong className="font-mono text-foreground">#{row.reportNumber}</strong>
+        <p className="removal-intelligence__report">
+          <FileCheck2 className="size-3.5 text-primary" /> Meta Intellectual Property Report <strong className="font-mono text-foreground">#{row.reportNumber}</strong>
         </p>
       ) : null}
       {row.evidenceAttachments.length > 0 ? (
-        <div className="mt-4 border-t pt-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase text-muted-foreground">
-            Autocapture evidence · {row.evidenceAttachments.length} attachments
-          </p>
+        <div className="removal-intelligence__evidence">
+          <div className="removal-intelligence__evidence-heading">
+            <p><ScanLine className="size-3.5 text-primary" /> Autocapture evidence · {row.evidenceAttachments.length} attachment{row.evidenceAttachments.length === 1 ? "" : "s"}</p>
+            <span><Fingerprint className="size-3" /> Access controlled · integrity preserved</span>
+          </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {row.evidenceAttachments.map((attachment, index) => (
               <DashboardEvidenceAttachment
@@ -181,7 +238,7 @@ function DashboardEvidenceAttachment({
       href={evidence.data.url}
       target="_blank"
       rel="noreferrer"
-      className="group overflow-hidden rounded-md border bg-background transition-colors hover:border-primary/40"
+      className="removal-evidence-tile group"
       aria-label={`Open ${attachment.label}`}
     >
       <div className="aspect-[4/3] overflow-hidden bg-muted">
@@ -190,6 +247,8 @@ function DashboardEvidenceAttachment({
           alt={attachment.label}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
+        <span className="removal-evidence-tile__scan" aria-hidden="true" />
+        <span className="removal-evidence-tile__corners" aria-hidden="true" />
       </div>
       <span className="flex min-h-10 items-center justify-between gap-1 px-2 py-1.5 text-[10px] font-medium leading-tight">
         <span>{attachment.label}</span>
@@ -335,7 +394,7 @@ export function ProtectionInbox() {
             </div>
             <div className="divide-y border-t">
               {removals.map((r) => (
-                <div key={r.id} className="flex items-start gap-3 px-3 py-3">
+                <div key={r.id} className="flex items-start gap-3 px-3 py-4">
                   <DashboardRemovalThumbnail row={r} />
                   <DashboardRemovalDetails row={r} />
                 </div>
