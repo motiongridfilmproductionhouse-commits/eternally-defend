@@ -3,7 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Link2, X } from "lucide-react";
 
-const PASTEL_STYLE = {
+export const PASTEL_STYLE = {
   backgroundImage: [
     "radial-gradient(60% 50% at 18% 22%, rgba(191,219,254,0.85) 0%, rgba(191,219,254,0) 70%)",
     "radial-gradient(55% 45% at 82% 18%, rgba(221,214,254,0.9) 0%, rgba(221,214,254,0) 70%)",
