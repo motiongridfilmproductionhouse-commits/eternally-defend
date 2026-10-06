@@ -31,6 +31,7 @@ import { CountUpMetric } from "@/components/public/CountUpMetric";
 import { PlatformLogos } from "@/components/public/PlatformLogos";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import { HomeRemovalEntry } from "@/components/public/removal/HomeRemovalEntry";
+import { RemovalPortalModal } from "@/components/public/removal/RemovalPortalModal";
 import {
   EnquiryButton,
   EnquiryModalProvider,
@@ -328,6 +329,7 @@ function LandingPageContent() {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
+  const [removalOpen, setRemovalOpen] = useState(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("enquiry") !== "protection") return;
@@ -397,6 +399,7 @@ function LandingPageContent() {
     <div className="landing-shell min-h-screen bg-landing text-landing-ink">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationSchema }} />
       <PublicHeader />
+      <RemovalPortalModal open={removalOpen} onOpenChange={setRemovalOpen} />
       <main>
         <section
           className="mx-auto max-w-[1380px] px-4 md:px-8"
@@ -459,12 +462,13 @@ function LandingPageContent() {
                   <a href="#platform">Explore the Platform</a>
                 </Button>
                 <Button
-                  asChild
+                  type="button"
                   size="lg"
                   variant="outline"
                   className="border-landing-on-media/30 bg-landing-on-media/10 text-landing-on-media backdrop-blur hover:bg-landing-on-media/20 hover:text-landing-on-media"
+                  onClick={() => setRemovalOpen(true)}
                 >
-                  <Link to="/remove-content">Remove a Link</Link>
+                  Remove a Link
                 </Button>
               </div>
             </div>
