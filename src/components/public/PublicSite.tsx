@@ -560,9 +560,9 @@ export function PublicHeader() {
       </Link>
       <DesktopNav />
       <div className="hidden items-center gap-1 md:flex">
-        <Link to="/track-case" className="hidden px-2 text-xs font-medium text-landing-muted transition-colors hover:text-landing-ink lg:inline">
-          Track Case
-        </Link>
+        <Button asChild variant="ghost" className="hidden text-landing-ink hover:bg-landing-soft lg:inline-flex">
+          <Link to="/track-case">Track Case</Link>
+        </Button>
         <Button type="button" variant="ghost" className="text-landing-ink hover:bg-landing-soft" onClick={() => setRemovalOpen(true)}>
           Remove Content
         </Button>
