@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AlertCircle, Check, FileUp, Search } from "lucide-react";
 import { PublicFooter, PublicHeader } from "@/components/public/PublicSite";
+import { EnquiryModalProvider } from "@/components/public/enquiry/enquiry-modal-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,10 +56,22 @@ function Page() {
   const [files, setFiles] = useState<File[]>([]);
   const [note, setNote] = useState("");
 
-  async function load() {
+  async function load(id = caseId, mail = email) {
+    const cid = id.trim().toUpperCase();
+    const em = mail.trim().toLowerCase();
+    if (!cid || !em) return;
     setBusy(true);
-    try { setRow(await track({ data: { caseId, email } })); } catch { setRow(null); } finally { setBusy(false); }
+    try { setRow(await track({ data: { caseId: cid, email: em } })); } catch { setRow(null); } finally { setBusy(false); }
   }
+
+  // Coming straight from a just-submitted case: prefill the email kept in this tab and look it up.
+  useEffect(() => {
+    if (!search.case) return;
+    let saved: string | null = null;
+    try { saved = sessionStorage.getItem(`eterna-track:${search.case}`); } catch { /* ignore */ }
+    if (saved) { setEmail(saved); void load(search.case, saved); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.case]);
   async function upload() {
     setBusy(true);
     try {
@@ -86,7 +99,8 @@ function Page() {
   const pct = milestones.length > 1 ? ((reachedCount - 1) / (milestones.length - 1)) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <EnquiryModalProvider>
+    <div className="landing-shell min-h-screen bg-muted/30">
       <PublicHeader />
       <main className="px-4 pb-20 pt-28 sm:pt-32">
       <div className="mx-auto max-w-3xl rounded-3xl border bg-card p-6 shadow-sm sm:p-10">
@@ -135,9 +149,9 @@ function Page() {
             {/* Progress bar */}
             <div className="mt-8 px-2">
               <div className="relative">
-                <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-muted" />
+                <div className="absolute left-0 right-0 top-2 h-1.5 rounded-full bg-muted" />
                 <div
-                  className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-primary transition-all duration-700"
+                  className="absolute left-0 top-2 h-1.5 rounded-full bg-primary transition-all duration-700"
                   style={{ width: `${Math.max(pct, 2)}%` }}
                 />
                 <div className="relative flex justify-between">
@@ -201,5 +215,6 @@ function Page() {
       </main>
       <PublicFooter />
     </div>
+    </EnquiryModalProvider>
   );
 }

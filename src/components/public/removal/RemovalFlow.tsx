@@ -352,7 +352,7 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
               <Row k="Case ID" v={r.caseId} /><Row k="Submitted URL" v={a.url} /><Row k="Platform" v={a.platform} />
               <Row k="Case type" v={issue} /><Row k="Payment" v="Awaiting invoice" />
             </div>
-            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" asChild><Link to="/track-case" search={{ case: r.caseId }}>Track this case</Link></Button>
+            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" asChild><Link to="/track-case" search={{ case: r.caseId }} onClick={() => { try { sessionStorage.setItem(`eterna-track:${r.caseId}`, c.email); } catch { /* ignore */ } }}>Track this case</Link></Button>
           </>)}
 
           {step === "error" && (<>
