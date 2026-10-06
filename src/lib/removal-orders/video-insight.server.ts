@@ -102,8 +102,24 @@ export async function analyzeWithOpenAI(input: {
     input.text ? `Page text (excerpt): ${input.text.slice(0, 3000)}` : "",
   ].filter(Boolean).join("\n");
   const content: Record<string, unknown>[] = [{ type: "input_text", text: textPart }];
-  if (input.thumbnail) content.push({ type: "input_image", image_url: input.thumbnail, detail: "high" });
-  for (const f of input.frames ?? []) content.push({ type: "input_image", image_url: f, detail: "high" });
+  // Social CDNs often refuse fetches from the model provider, so inline images as data URLs.
+  const inline = async (src: string) => {
+    try {
+      const r = await fetch(src);
+      if (!r.ok) return null;
+      const type = r.headers.get("content-type")?.split(";")[0] || "image/jpeg";
+      if (!type.startsWith("image/")) return null;
+      const buf = new Uint8Array(await r.arrayBuffer());
+      if (buf.byteLength > 8_000_000) return null;
+      let bin = "";
+      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      return `data:${type};base64,${btoa(bin)}`;
+    } catch { return null; }
+  };
+  for (const src of [input.thumbnail, ...(input.frames ?? [])].filter(Boolean) as string[]) {
+    const d = await inline(src);
+    if (d) content.push({ type: "input_image", image_url: d, detail: "high" });
+  }
   if (input.frames?.length) content.unshift({ type: "input_text", text: `The images after the first are storyboard sheets: a grid of frames taken every 1 second across the whole video${input.durationSec ? ` (${input.durationSec}s long)` : ""}, read left to right, top to bottom.` });
 
   try {
@@ -121,7 +137,7 @@ export async function analyzeWithOpenAI(input: {
         text: { format: { type: "json_schema", name: "removal_insight", strict: true, schema: SCHEMA } },
       }),
     });
-    if (!res.ok || !res.body) return null;
+    if (!res.ok || !res.body) { console.error("removal insight AI", res.status, (await res.text()).slice(0, 300)); return null; }
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = "", out = "";
