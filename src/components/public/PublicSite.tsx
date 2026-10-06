@@ -575,14 +575,8 @@ export function PublicHeader() {
       <Link to="/" aria-label="Eterna Sentinel home" className="justify-self-start">
         <EternaLogo className="h-4 md:h-[22px]" />
       </Link>
-      <DesktopNav />
+      <DesktopNav onRemoveContent={() => setRemovalOpen(true)} />
       <div className="col-start-3 hidden items-center gap-1 justify-self-end md:flex">
-        <Button asChild variant="ghost" className="hidden text-landing-ink hover:bg-landing-soft lg:inline-flex">
-          <Link to="/track-case">Track Case</Link>
-        </Button>
-        <Button type="button" variant="ghost" className="text-landing-ink hover:bg-landing-soft" onClick={() => setRemovalOpen(true)}>
-          Remove Content
-        </Button>
         <Button asChild variant="ghost" className="text-landing-ink hover:bg-landing-soft">
           <Link to="/auth">Client Sign In</Link>
         </Button>
