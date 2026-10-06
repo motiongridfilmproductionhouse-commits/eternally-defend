@@ -9574,6 +9574,93 @@ export type Database = {
           },
         ]
       }
+      removal_orders: {
+        Row: {
+          affects: string
+          assessment_summary: string | null
+          case_id: string
+          case_status: string
+          content_type: string | null
+          country: string
+          created_at: string
+          currency: string
+          email: string
+          evidence: Json
+          explanation: string
+          fee_amount: number
+          full_name: string
+          id: string
+          issue: string
+          page_title: string | null
+          payment_method: string | null
+          payment_status: string
+          phone: string
+          platform: string | null
+          potential_category: string | null
+          publisher: string | null
+          recommended_route: string | null
+          status_note: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          affects: string
+          assessment_summary?: string | null
+          case_id: string
+          case_status?: string
+          content_type?: string | null
+          country: string
+          created_at?: string
+          currency?: string
+          email: string
+          evidence?: Json
+          explanation: string
+          fee_amount?: number
+          full_name: string
+          id?: string
+          issue: string
+          page_title?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          phone: string
+          platform?: string | null
+          potential_category?: string | null
+          publisher?: string | null
+          recommended_route?: string | null
+          status_note?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          affects?: string
+          assessment_summary?: string | null
+          case_id?: string
+          case_status?: string
+          content_type?: string | null
+          country?: string
+          created_at?: string
+          currency?: string
+          email?: string
+          evidence?: Json
+          explanation?: string
+          fee_amount?: number
+          full_name?: string
+          id?: string
+          issue?: string
+          page_title?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          phone?: string
+          platform?: string | null
+          potential_category?: string | null
+          publisher?: string | null
+          recommended_route?: string | null
+          status_note?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       scan_ai_analysis_cache: {
         Row: {
           created_at: string
