@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import { EnquiryModalProvider } from "@/components/public/enquiry/enquiry-modal-context";
 import { RemovalFlow } from "@/components/public/removal/RemovalFlow";
+import { PASTEL_STYLE } from "@/components/public/removal/RemovalPortalModal";
 
 const CANONICAL = "https://protectbyeterna.com/remove-content";
 const TITLE = "Online Content Removal — Submit a Link | Eterna Sentinel";
