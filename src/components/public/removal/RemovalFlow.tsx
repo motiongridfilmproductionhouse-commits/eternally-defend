@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Check, CreditCard, FileUp, Loader2, ScanSearch, ShieldCheck, Smartphone } from "lucide-react";
