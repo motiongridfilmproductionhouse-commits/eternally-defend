@@ -404,12 +404,12 @@ function DesktopNav() {
       skipDelayDuration={200}
       value={activeCategory}
       onValueChange={setActiveCategory}
-      className="hidden lg:flex"
+      className="hidden justify-self-center rounded-full border border-landing-line bg-landing/90 px-1.5 py-1 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur-md lg:flex"
     >
-      <NavigationMenuPrimitive.List className="flex items-center gap-1 text-[13px] text-landing-muted">
+      <NavigationMenuPrimitive.List className="flex items-center gap-0.5 text-[13px] text-landing-muted">
         {navigationCategories.map((category) => (
           <NavigationMenuPrimitive.Item key={category.label} value={category.label}>
-            <NavigationMenuPrimitive.Trigger className="group relative flex items-center gap-1 rounded-md px-3 py-2 text-[13px] font-medium text-landing-muted outline-none transition-colors duration-[180ms] ease-out hover:-translate-y-px hover:text-landing-ink focus-visible:text-landing-ink focus-visible:ring-2 focus-visible:ring-landing-accent/40 data-[state=open]:text-landing-ink">
+            <NavigationMenuPrimitive.Trigger className="group relative flex items-center gap-1 rounded-full px-4 py-2 text-[13px] font-medium text-landing-muted outline-none transition-colors duration-[180ms] ease-out hover:bg-landing-soft hover:text-landing-ink focus-visible:text-landing-ink focus-visible:ring-2 focus-visible:ring-landing-accent/40 data-[state=open]:bg-landing-soft data-[state=open]:text-landing-ink">
               {category.label}
               <ChevronDown
                 className="size-3 text-landing-muted/70 transition-transform duration-200 group-data-[state=open]:rotate-180"
@@ -554,8 +554,8 @@ export function PublicHeader() {
   }, [open]);
 
   return (
-    <header className="relative mx-auto flex h-20 max-w-[1380px] items-center justify-between px-5 md:px-10">
-      <Link to="/" aria-label="Eterna Sentinel home">
+    <header className="relative mx-auto grid h-20 max-w-[1380px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 md:px-10">
+      <Link to="/" aria-label="Eterna Sentinel home" className="justify-self-start">
         <EternaLogo className="h-4 md:h-[22px]" />
       </Link>
       <DesktopNav />
