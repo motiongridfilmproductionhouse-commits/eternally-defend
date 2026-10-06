@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AlertCircle, CheckCircle2, FileUp } from "lucide-react";
+import { AlertCircle, Check, FileUp, Search } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,11 @@ function evLabel(e: Data["events"][number]) {
   return EV[e.event_type] ?? e.event_type;
 }
 
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const fmtTime = (d: string) =>
+  new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
 function Page() {
   const search = Route.useSearch();
   const track = useServerFn(trackRemovalCase);
@@ -66,30 +71,71 @@ function Page() {
   const unpaid = row && row.payment_status !== "paid";
   const final = row && ["rejected", "unable"].includes(row.case_status);
 
+  // Milestones for the tracking bar
+  const submitted = !!row?.events.some((e) => e.event_type === "status_change" && (e.new_value ?? "").includes("submitted"));
+  const done = row?.case_status === "removed" || !!final;
+  const milestones = row
+    ? [
+        { label: "Case Created", at: row.created_at, reached: true },
+        { label: "Payment Confirmed", at: row.events.find((e) => e.event_type === "payment_status" && e.new_value === "paid")?.created_at, reached: row.payment_status === "paid" },
+        { label: "Removal Submitted", at: row.events.find((e) => e.event_type === "status_change" && (e.new_value ?? "").includes("submitted"))?.created_at, reached: submitted || done },
+        { label: final ? caseLabel(row.case_status) : "Removed", at: row.removal_verified_at ?? undefined, reached: done },
+      ]
+    : [];
+  const reachedCount = milestones.filter((m) => m.reached).length;
+  const pct = milestones.length > 1 ? ((reachedCount - 1) / (milestones.length - 1)) * 100 : 0;
+
   return (
     <PublicPage eyebrow="Case tracking" title="Track your removal case" intro="Enter the case ID and the email you used when submitting.">
       <form onSubmit={(e) => { e.preventDefault(); load(); }} className="mx-auto flex max-w-xl flex-col gap-2 sm:flex-row">
         <Input placeholder="ETR-RM-284193" value={caseId} onChange={(e) => setCaseId(e.target.value)} />
         <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Button type="submit" disabled={busy}>Track</Button>
+        <Button type="submit" disabled={busy}><Search className="size-4" />Track</Button>
       </form>
       {row === null && <p className="mt-6 text-center text-sm text-muted-foreground">No case found for that ID and email.</p>}
       {row && (
-        <div className="mx-auto mt-8 max-w-xl space-y-4">
-          <div className="space-y-2 rounded-2xl border bg-card p-6">
-            <div className="flex justify-between"><span className="font-semibold">{row.case_id}</span>
-              <span className="text-sm text-muted-foreground">{new Date(row.created_at).toLocaleDateString()}</span></div>
-            <p className="break-all text-sm">{row.url}</p>
-            <p className="text-sm text-muted-foreground">{row.platform} · {row.issue}</p>
-            <p className="text-2xl font-semibold">{unpaid ? "Awaiting Payment" : row.case_status === "removed" ? "Content Removal Confirmed" : caseLabel(row.case_status)}</p>
-            {unpaid && <p className="text-sm">Your case is registered, but removal processing has not started yet.</p>}
-            {row.case_status === "removed" && <p className="text-sm">{REMOVED_CUSTOMER_TEXT}{row.removal_verified_at && ` Verified ${new Date(row.removal_verified_at).toLocaleDateString()}.`}</p>}
-            {final && row.outcome_explanation && <p className="rounded-lg bg-muted p-3 text-sm">{row.outcome_explanation}</p>}
-            <p className="text-sm text-muted-foreground">Payment: {paymentLabel(row.payment_status)} · {row.currency} {row.fee_amount.toLocaleString()}</p>
+        <div className="mx-auto mt-10 max-w-3xl space-y-6">
+          {/* Tracking card */}
+          <div className="rounded-3xl border bg-card p-6 shadow-sm sm:p-10">
+            <p className="text-center text-xs text-muted-foreground">{row.case_id} · Submitted {fmtDate(row.created_at)}</p>
+            <h2 className="mt-1 text-center text-2xl font-semibold tracking-tight">Tracking</h2>
+            <p className="mt-2 break-all text-center text-sm text-muted-foreground">{row.url}</p>
+            <p className="text-center text-sm text-muted-foreground">{row.platform} · {row.issue}</p>
+
+            {/* Progress bar */}
+            <div className="mt-8 px-2">
+              <div className="relative">
+                <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-muted" />
+                <div
+                  className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-primary transition-all duration-700"
+                  style={{ width: `${Math.max(pct, 2)}%` }}
+                />
+                <div className="relative flex justify-between">
+                  {milestones.map((m, i) => (
+                    <div key={i} className="flex w-20 flex-col items-center gap-1.5 text-center">
+                      <span className={`flex size-5 items-center justify-center rounded-full border-2 transition-colors ${m.reached ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30 bg-card"}`}>
+                        {m.reached && <Check className="size-3" />}
+                      </span>
+                      <span className={`text-[11px] font-medium leading-tight ${m.reached ? "text-foreground" : "text-muted-foreground"}`}>{m.label}</span>
+                      <span className="text-[10px] text-muted-foreground">{m.at ? `${fmtDate(m.at)} ${fmtTime(m.at)}` : "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Current status */}
+            <div className="mt-8 rounded-2xl bg-muted/50 p-4 text-center">
+              <p className="text-lg font-semibold">{unpaid ? "Awaiting Payment" : row.case_status === "removed" ? "Content Removal Confirmed" : caseLabel(row.case_status)}</p>
+              {unpaid && <p className="mt-1 text-sm text-muted-foreground">Your case is registered, but removal processing has not started yet.</p>}
+              {row.case_status === "removed" && <p className="mt-1 text-sm text-muted-foreground">{REMOVED_CUSTOMER_TEXT}{row.removal_verified_at && ` Verified ${fmtDate(row.removal_verified_at)}.`}</p>}
+              {final && row.outcome_explanation && <p className="mt-2 rounded-lg bg-card p-3 text-sm">{row.outcome_explanation}</p>}
+              <p className="mt-2 text-xs text-muted-foreground">Payment: {paymentLabel(row.payment_status)} · {row.currency} {row.fee_amount.toLocaleString()}</p>
+            </div>
           </div>
 
           {row.info_request && (
-            <div className="space-y-3 rounded-2xl border border-primary/40 bg-primary/5 p-6">
+            <div className="space-y-3 rounded-3xl border border-primary/40 bg-primary/5 p-6">
               <p className="flex items-center gap-2 font-semibold"><AlertCircle className="size-4 text-primary" />Action Required: {row.info_request.title}</p>
               <p className="text-sm">{row.info_request.message}</p>
               <p className="text-sm"><span className="font-medium">Required:</span> {row.info_request.required}</p>
@@ -103,15 +149,19 @@ function Page() {
             </div>
           )}
 
-          {row.customer_message && <div className="rounded-2xl border bg-card p-6 text-sm"><p className="mb-1 font-medium">Update from Eterna</p>{row.customer_message}</div>}
+          {row.customer_message && <div className="rounded-3xl border bg-card p-6 text-sm"><p className="mb-1 font-medium">Update from Eterna</p>{row.customer_message}</div>}
 
-          <div className="rounded-2xl border bg-card p-6">
-            <p className="mb-3 font-medium">Case history</p>
-            <ol className="space-y-2">
-              {row.events.map((e, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
-                  <span>{evLabel(e)}<span className="block text-xs text-muted-foreground">{new Date(e.created_at).toLocaleString()}</span></span>
+          {/* Updates list */}
+          <div className="rounded-3xl border bg-card p-6 sm:p-10">
+            <h3 className="text-lg font-semibold">Updates</h3>
+            <div className="mt-4 hidden grid-cols-[10rem_1fr] gap-4 border-b pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:grid">
+              <span>Date</span><span>Event</span>
+            </div>
+            <ol className="divide-y">
+              {[...row.events].reverse().map((e, i) => (
+                <li key={i} className="grid grid-cols-1 gap-1 py-3 text-sm sm:grid-cols-[10rem_1fr] sm:gap-4">
+                  <span className="text-muted-foreground">{fmtDate(e.created_at)} · {fmtTime(e.created_at)}</span>
+                  <span className="font-medium">{evLabel(e)}</span>
                 </li>
               ))}
             </ol>
