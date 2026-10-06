@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AlertCircle, Check, FileUp, Search } from "lucide-react";
-import { PublicPage } from "@/components/public/PublicSite";
+import { PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,15 +86,45 @@ function Page() {
   const pct = milestones.length > 1 ? ((reachedCount - 1) / (milestones.length - 1)) * 100 : 0;
 
   return (
-    <PublicPage eyebrow="Case tracking" title="Track your removal case" intro="Enter the case ID and the email you used when submitting.">
-      <form onSubmit={(e) => { e.preventDefault(); load(); }} className="mx-auto flex max-w-xl flex-col gap-2 sm:flex-row">
-        <Input placeholder="ETR-RM-284193" value={caseId} onChange={(e) => setCaseId(e.target.value)} />
-        <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Button type="submit" disabled={busy}><Search className="size-4" />Track</Button>
-      </form>
-      {row === null && <p className="mt-6 text-center text-sm text-muted-foreground">No case found for that ID and email.</p>}
+    <div className="min-h-screen bg-muted/30">
+      <PublicHeader />
+      <main className="px-4 pb-20 pt-28 sm:pt-32">
+      <div className="mx-auto max-w-3xl rounded-3xl border bg-card p-6 shadow-sm sm:p-10">
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-primary">Case tracking</p>
+        <h1 className="mt-2 text-center text-3xl font-semibold tracking-tight sm:text-4xl">Tracking</h1>
+        <p className="mt-2 text-center text-sm text-muted-foreground">Enter your case ID and the email you used when submitting.</p>
+        <form onSubmit={(e) => { e.preventDefault(); load(); }} className="mt-8 grid gap-4 sm:grid-cols-2">
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium">Case ID</span>
+            <Input className="h-11 rounded-xl" placeholder="ETR-RM-284193" value={caseId} onChange={(e) => setCaseId(e.target.value)} required />
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium">Email address</span>
+            <Input className="h-11 rounded-xl" placeholder="you@example.com" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          <button type="submit" disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50 sm:col-span-2">
+            <Search className="size-4" />{busy ? "Checking…" : "Track case"}
+          </button>
+        </form>
+        {!row && (
+          <div className="mt-10 px-2 opacity-60">
+            <div className="relative">
+              <div className="absolute left-0 right-0 top-2.5 h-1.5 rounded-full bg-muted" />
+              <div className="relative flex justify-between">
+                {["Case Created", "Payment Confirmed", "Removal Submitted", "Removed"].map((l) => (
+                  <div key={l} className="flex w-20 flex-col items-center gap-1.5 text-center">
+                    <span className="size-5 rounded-full border-2 border-muted-foreground/30 bg-card" />
+                    <span className="text-[11px] font-medium leading-tight text-muted-foreground">{l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {row === null && <p className="mt-6 text-center text-sm text-destructive">No case found for that ID and email.</p>}
+      </div>
       {row && (
-        <div className="mx-auto mt-10 max-w-3xl space-y-6">
+        <div className="mx-auto mt-6 max-w-3xl space-y-6">
           {/* Tracking card */}
           <div className="rounded-3xl border bg-card p-6 shadow-sm sm:p-10">
             <p className="text-center text-xs text-muted-foreground">{row.case_id} · Submitted {fmtDate(row.created_at)}</p>
@@ -168,6 +198,8 @@ function Page() {
           </div>
         </div>
       )}
-    </PublicPage>
+      </main>
+      <PublicFooter />
+    </div>
   );
 }
