@@ -61,8 +61,19 @@ export const analyzeRemovalLink = createServerFn({ method: "POST" })
     } catch {
       reachable = false;
     }
-    const { scrapeWithFirecrawl, analyzeWithOpenAI } = await import("@/lib/removal-orders/video-insight.server");
+    const { scrapeWithFirecrawl, analyzeWithOpenAI, fetchFacebookViaApify } = await import("@/lib/removal-orders/video-insight.server");
     let pageText: string | undefined;
+    let frames: string[] = [];
+    let durationSec: number | undefined;
+    if (base.platform === "Facebook") {
+      const fb = await fetchFacebookViaApify(u.toString());
+      if (fb) {
+        thumbnail = fb.thumbnail ?? thumbnail; frames = fb.frames; durationSec = fb.durationSec;
+        if (fb.caption) description = fb.caption;
+        if (title === "Facebook") title = undefined;
+        reachable = true;
+      }
+    }
     if (!thumbnail || !description) {
       const fc = await scrapeWithFirecrawl(u.toString());
       if (fc) {
@@ -80,7 +91,7 @@ export const analyzeRemovalLink = createServerFn({ method: "POST" })
     }
     const insight = await analyzeWithOpenAI({
       url: u.toString(), platform: base.platform, contentType: base.contentType,
-      thumbnail, title, description, text: pageText,
+      thumbnail, title, description, text: pageText, frames, durationSec,
     });
     const text = `${title ?? ""} ${description ?? ""}`;
     const hinted = CATEGORY_HINTS.find(([r]) => r.test(text))?.[1];
@@ -93,6 +104,7 @@ export const analyzeRemovalLink = createServerFn({ method: "POST" })
       aiSummary: insight?.summary?.slice(0, 1200) ?? null,
       aiIndicators: (insight?.harmIndicators ?? []).slice(0, 5).map((s) => s.slice(0, 160)),
       aiConfidence: insight?.confidence ?? null,
+      framesAnalyzed: frames.length > 0, durationSec: durationSec ?? null,
     };
   });
 
