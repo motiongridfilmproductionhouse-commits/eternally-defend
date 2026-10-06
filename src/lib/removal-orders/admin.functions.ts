@@ -49,7 +49,7 @@ export const getRemovalCase = createServerFn({ method: "POST" })
     }));
     if (row.staff_attention) await admin.from("removal_orders").update({ staff_attention: false }).eq("id", row.id);
     const { evidence: _e, ...rest } = row;
-    return { ...rest, evidence, events: (events ?? []) as any[] };
+    return { ...rest, evidence, events: (events ?? []) as any[] } as Record<string, any> & { evidence: Array<{ name: string; source: string; uploaded_at: string; url: string | null }>; events: any[] };
   });
 
 export const updateRemovalPayment = createServerFn({ method: "POST" })
