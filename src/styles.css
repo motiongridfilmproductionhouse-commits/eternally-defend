@@ -4940,3 +4940,8 @@ textarea::placeholder {
   .rrs-modal[data-state="open"], .rrs-stagger, .rrs-glow, .rrs-pulse, .rrs-progress { animation: none; }
   .rrs-check { animation: none; stroke-dashoffset: 0; }
 }
+
+@keyframes removal-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
