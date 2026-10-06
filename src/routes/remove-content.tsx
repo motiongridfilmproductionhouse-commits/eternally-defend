@@ -38,23 +38,23 @@ function Page() {
       <div className="landing-shell min-h-screen bg-landing text-landing-ink">
         <PublicHeader />
         <main>
-          <section className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden bg-[#050505] text-white">
+          <section className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden bg-white text-zinc-950">
             {/* Atmospheric glows */}
             <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-              <div className="absolute left-1/2 top-1/2 h-[400px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/10 blur-[120px]" />
-              <div className="absolute right-[-5%] top-[-10%] h-[500px] w-[500px] rounded-full bg-white/5 blur-[100px]" />
+              <div className="absolute left-1/2 top-1/2 h-[400px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
+              <div className="absolute right-[-5%] top-[-10%] h-[500px] w-[500px] rounded-full bg-zinc-200/60 blur-[100px]" />
             </div>
 
             <div className="relative z-10 flex w-full max-w-4xl flex-col items-center px-6 py-24 text-center">
-              <span className="mb-6 text-[11px] font-bold uppercase tracking-[0.2em] text-blue-400">
+              <span className="mb-6 text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
                 Pay-Per-Link Removal
               </span>
 
-              <h1 className="mb-8 text-5xl font-semibold leading-[1.1] tracking-tight text-white md:text-7xl">
+              <h1 className="mb-8 text-5xl font-semibold leading-[1.1] tracking-tight text-zinc-950 md:text-7xl">
                 Remove Harmful Content <br className="hidden md:block" /> From the Internet
               </h1>
 
-              <p className="mb-12 max-w-2xl text-lg leading-relaxed text-zinc-400">
+              <p className="mb-12 max-w-2xl text-lg leading-relaxed text-zinc-500">
                 Paste the exact URL of the content you want reviewed. Eterna AI will analyze the
                 page, identify the platform, and determine the appropriate removal pathway.
               </p>
@@ -64,7 +64,7 @@ function Page() {
               <div className="mt-10">
                 <Link
                   to="/track-case"
-                  className="text-sm text-zinc-400 underline decoration-zinc-800 underline-offset-4 transition-colors hover:text-white"
+                  className="text-sm text-zinc-500 underline decoration-zinc-300 underline-offset-4 transition-colors hover:text-zinc-950"
                 >
                   Already submitted? Track your case
                 </Link>
