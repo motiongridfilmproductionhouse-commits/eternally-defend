@@ -17,6 +17,7 @@ import {
   EnquiryModalProvider,
   useEnquiryModal,
 } from "@/components/public/enquiry/enquiry-modal-context";
+import { RemovalPortalModal } from "@/components/public/removal/RemovalPortalModal";
 import { ArticleHeroPlaceholder } from "@/components/public/ArticleHeroPlaceholder";
 
 export function EternaLogo({
@@ -461,7 +462,7 @@ function DesktopNav() {
   );
 }
 
-function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
+function MobileNav({ open, onNavigate, onRemoveContent }: { open: boolean; onNavigate: () => void; onRemoveContent: () => void }) {
   const { openEnquiryModal } = useEnquiryModal();
   return (
     <nav
@@ -504,8 +505,8 @@ function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void
         ))}
       </Accordion>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button asChild variant="outline" className="border-landing-line bg-transparent text-landing-ink">
-          <Link to="/remove-content" onClick={onNavigate}>Remove Content</Link>
+        <Button type="button" variant="outline" className="border-landing-line bg-transparent text-landing-ink" onClick={() => { onNavigate(); onRemoveContent(); }}>
+          Remove Content
         </Button>
         <Button asChild variant="outline" className="border-landing-line bg-transparent text-landing-ink">
           <Link to="/track-case" onClick={onNavigate}>Track Case</Link>
@@ -540,6 +541,7 @@ function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void
 
 export function PublicHeader() {
   const [open, setOpen] = useState(false);
+  const [removalOpen, setRemovalOpen] = useState(false);
   const { openEnquiryModal } = useEnquiryModal();
 
   useEffect(() => {
@@ -561,8 +563,8 @@ export function PublicHeader() {
         <Link to="/track-case" className="hidden px-2 text-xs font-medium text-landing-muted transition-colors hover:text-landing-ink lg:inline">
           Track Case
         </Link>
-        <Button asChild variant="ghost" className="text-landing-ink hover:bg-landing-soft">
-          <Link to="/remove-content">Remove Content</Link>
+        <Button type="button" variant="ghost" className="text-landing-ink hover:bg-landing-soft" onClick={() => setRemovalOpen(true)}>
+          Remove Content
         </Button>
         <Button asChild variant="ghost" className="text-landing-ink hover:bg-landing-soft">
           <Link to="/auth">Client Sign In</Link>
@@ -593,7 +595,8 @@ export function PublicHeader() {
       >
         {open ? <X /> : <Menu />}
       </Button>
-      <MobileNav open={open} onNavigate={() => setOpen(false)} />
+      <MobileNav open={open} onNavigate={() => setOpen(false)} onRemoveContent={() => setRemovalOpen(true)} />
+      <RemovalPortalModal open={removalOpen} onOpenChange={setRemovalOpen} />
     </header>
   );
 }
