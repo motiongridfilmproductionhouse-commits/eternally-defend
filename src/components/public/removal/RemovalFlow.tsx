@@ -81,7 +81,7 @@ function Choice({ items, value, onPick }: { items: string[]; value: string; onPi
   );
 }
 
-export function RemovalFlow({ initialUrl }: { initialUrl?: string } = {}) {
+export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: string; variant?: "light" | "dark" } = {}) {
   const analyze = useServerFn(analyzeRemovalLink);
   const submit = useServerFn(submitRemovalOrder);
   const invoice = useServerFn(requestRemovalInvoice);
@@ -147,17 +147,53 @@ export function RemovalFlow({ initialUrl }: { initialUrl?: string } = {}) {
   const contactOk = c.fullName.length > 1 && /\S+@\S+\.\S+/.test(c.email) && c.phone.length > 4 && c.country.length > 1 && confirmed;
   const fee = r ? `${r.fee.currency} ${r.fee.amount.toLocaleString()}` : "USD 1,000";
 
+  const notes = (
+    <div className={`mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] ${variant === "dark" ? "text-zinc-500" : "text-muted-foreground"}`}>
+      {["Pay per link", "No subscription required", "Track every request"].map((t) => (
+        <span key={t} className="flex items-center gap-1.5">
+          <span className={`size-1 rounded-full ${variant === "dark" ? "bg-zinc-700" : "bg-muted-foreground/40"}`} />
+          {t}
+        </span>
+      ))}
+    </div>
+  );
+
   return (
     <>
-      <form onSubmit={start} className="mx-auto max-w-2xl rounded-2xl border bg-card p-6 shadow-sm">
-        <label htmlFor="removal-url" className="text-sm font-medium">Paste URL for Removal</label>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-          <Input id="removal-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/content" className="h-12" />
-          <Button type="submit" size="lg" className="h-12">Analyze Link <ArrowRight className="size-4" /></Button>
-        </div>
-        {err && !open && <p className="mt-2 text-sm text-destructive">{err}</p>}
-        <p className="mt-3 text-center text-xs text-muted-foreground">Pay per link • No subscription required • Track every request</p>
-      </form>
+      {variant === "dark" ? (
+        <form onSubmit={start} className="group w-full max-w-3xl">
+          <div className="relative flex items-center rounded-full border border-white/10 bg-zinc-900/50 p-1 backdrop-blur-xl transition-all duration-500 focus-within:border-white/20 focus-within:ring-4 focus-within:ring-white/5">
+            <div className="absolute inset-y-0 left-8 w-px bg-gradient-to-b from-transparent via-blue-400/50 to-transparent opacity-0 transition-opacity group-focus-within:opacity-100" aria-hidden="true" />
+            <label htmlFor="removal-url" className="sr-only">Paste URL for Removal</label>
+            <input
+              id="removal-url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Paste URL for Removal"
+              className="flex-1 min-w-0 bg-transparent px-5 py-3 text-base text-zinc-100 outline-none placeholder:text-zinc-600 sm:px-8 sm:py-5 sm:text-xl"
+            />
+            <button
+              type="submit"
+              className="flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-black transition-all hover:bg-zinc-200 active:scale-95 sm:px-8 sm:py-4 sm:text-base"
+            >
+              Analyze Link
+              <ArrowRight className="size-4 sm:size-5" />
+            </button>
+          </div>
+          {err && !open && <p className="mt-3 text-sm text-red-400">{err}</p>}
+          {notes}
+        </form>
+      ) : (
+        <form onSubmit={start} className="mx-auto max-w-2xl rounded-2xl border bg-card p-6 shadow-sm">
+          <label htmlFor="removal-url" className="text-sm font-medium">Paste URL for Removal</label>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <Input id="removal-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/content" className="h-12" />
+            <Button type="submit" size="lg" className="h-12">Analyze Link <ArrowRight className="size-4" /></Button>
+          </div>
+          {err && !open && <p className="mt-2 text-sm text-destructive">{err}</p>}
+          {notes}
+        </form>
+      )}
 
       <Dialog open={open} onOpenChange={(o) => { if (!busy) setOpen(o); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" onInteractOutside={(e) => busy && e.preventDefault()}>
