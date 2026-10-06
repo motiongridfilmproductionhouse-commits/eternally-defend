@@ -18,7 +18,10 @@ export interface PageExtras {
 export async function scrapeWithFirecrawl(url: string): Promise<PageExtras | null> {
   if (!isFirecrawlConfigured()) return null;
   try {
-    const res = await firecrawlFetch("/scrape", { url, formats: ["markdown"], onlyMainContent: true });
+    const res = await Promise.race([
+      firecrawlFetch("/scrape", { url, formats: ["markdown"], onlyMainContent: true }),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("firecrawl timeout")), 25_000)),
+    ]);
     if (!res.ok) return null;
     const j = (await res.json()) as { data?: { markdown?: string; metadata?: Record<string, unknown> } };
     const m = j.data?.metadata ?? {};
@@ -46,8 +49,8 @@ export async function fetchFacebookViaApify(url: string): Promise<SocialVideo | 
   if (!lk || !ak) return null;
   try {
     const res = await fetch(
-      "https://connector-gateway.lovable.dev/apify/acts/apify~facebook-posts-scraper/run-sync-get-dataset-items?timeout=120",
-      { method: "POST", headers: { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": ak, "Content-Type": "application/json" },
+      "https://connector-gateway.lovable.dev/apify/acts/apify~facebook-posts-scraper/run-sync-get-dataset-items?timeout=60",
+      { method: "POST", signal: AbortSignal.timeout(70_000), headers: { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": ak, "Content-Type": "application/json" },
         body: JSON.stringify({ startUrls: [{ url }], resultsLimit: 1 }) },
     );
     if (!res.ok) return null;
@@ -105,7 +108,7 @@ export async function analyzeWithOpenAI(input: {
   // Social CDNs often refuse fetches from the model provider, so inline images as data URLs.
   const inline = async (src: string) => {
     try {
-      const r = await fetch(src);
+      const r = await fetch(src, { signal: AbortSignal.timeout(10_000) });
       if (!r.ok) return null;
       const type = r.headers.get("content-type")?.split(";")[0] || "image/jpeg";
       if (!type.startsWith("image/")) return null;
@@ -125,6 +128,7 @@ export async function analyzeWithOpenAI(input: {
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
+      signal: AbortSignal.timeout(60_000),
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "X-Lovable-AIG-SDK": "fetch" },
       body: JSON.stringify({
         model: "openai/gpt-6-astra",

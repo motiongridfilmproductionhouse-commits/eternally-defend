@@ -164,9 +164,15 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
     try { new URL(u); } catch { setErr("Enter a valid link."); return; }
     setErr(""); setOpen(true); setStep("analyzing");
     try {
-      const [res] = await Promise.all([analyze({ data: { url: u } }), new Promise((s) => setTimeout(s, 4800))]);
+      // Hard cap so the scanning screen can never hang; one automatic retry on a dropped request.
+      const call = () => Promise.race([
+        analyze({ data: { url: u } }),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 150_000)),
+      ]);
+      const attempt = async () => { try { return await call(); } catch (e) { if (e instanceof Error && e.message === "timeout") throw e; return await call(); } };
+      const [res] = await Promise.all([attempt(), new Promise((s) => setTimeout(s, 4800))]);
       setA(res); setStep("analyzed");
-    } catch { setErr("We could not analyze that link."); setStep("error"); }
+    } catch { setErr("The link check took too long or the connection dropped. Please try again."); setStep("error"); }
   }
 
   async function assess() {
