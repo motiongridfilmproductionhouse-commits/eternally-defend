@@ -149,9 +149,9 @@ function Page() {
             {/* Progress bar */}
             <div className="mt-8 px-2">
               <div className="relative">
-                <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-muted" />
+                <div className="absolute left-0 right-0 top-2 h-1.5 rounded-full bg-muted" />
                 <div
-                  className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-primary transition-all duration-700"
+                  className="absolute left-0 top-2 h-1.5 rounded-full bg-primary transition-all duration-700"
                   style={{ width: `${Math.max(pct, 2)}%` }}
                 />
                 <div className="relative flex justify-between">
