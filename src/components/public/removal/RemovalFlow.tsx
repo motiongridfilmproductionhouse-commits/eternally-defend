@@ -214,7 +214,7 @@ export function RemovalFlow() {
           </>)}
 
           {step === "checkout" && r && a && (<>
-            <DialogTitle>Removal Order Summary</DialogTitle>
+            <DialogTitle>Removal Order Summary</DialogTitle><p className="text-sm font-medium">Choose Preferred Payment Method</p>
             <div className="rounded-lg border px-4">
               <Row k="Submitted URL" v={a.url} /><Row k="Platform" v={a.platform} />
               <Row k="Removal category" v={issue} /><Row k="Case type" v={affects} /><Row k="Total" v={fee} />
@@ -227,17 +227,17 @@ export function RemovalFlow() {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Our team sends a secure payment invoice to {c.email}. Your removal case becomes active only after payment is confirmed.</p>
-            <Button onClick={pay}>Pay & Start Removal</Button>
+            <p className="text-xs text-muted-foreground">No payment is taken on this website. Our team will send an invoice to {c.email}. Removal processing begins after payment is confirmed.</p>
+            <Button onClick={pay}>Request Invoice & Create Case</Button>
           </>)}
 
           {step === "done" && r && a && (<>
             <div className="mx-auto grid size-14 place-items-center rounded-full bg-primary/10 animate-in zoom-in"><Check className="size-7 text-primary" /></div>
-            <DialogTitle className="text-center">Your removal order is reserved</DialogTitle>
-            <DialogDescription className="text-center">Your invoice is on its way. The case enters Eterna's removal workflow as soon as payment is confirmed.</DialogDescription>
+            <DialogTitle className="text-center">Case Created — Awaiting Payment</DialogTitle>
+            <DialogDescription className="text-center">Your case has been created. Our team will send payment instructions to your registered contact details. Removal processing begins after payment is confirmed.</DialogDescription>
             <div className="rounded-lg border px-4">
               <Row k="Case ID" v={r.caseId} /><Row k="Submitted URL" v={a.url} /><Row k="Platform" v={a.platform} />
-              <Row k="Case type" v={issue} /><Row k="Payment" v="Invoice sent · awaiting payment" />
+              <Row k="Case type" v={issue} /><Row k="Payment" v="Awaiting invoice" />
             </div>
             <Button asChild><Link to="/track-case" search={{ case: r.caseId }}>Track this case</Link></Button>
           </>)}

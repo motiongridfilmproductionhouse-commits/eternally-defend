@@ -127,6 +127,8 @@ import { Route as ApiPublicImageProxyRouteImport } from './routes/api/public/ima
 import { Route as ApiPublicOnboardingCompletionBackfillRouteImport } from './routes/api/public/onboarding-completion-backfill'
 import { Route as ApiPublicVeriffWebhookRouteImport } from './routes/api/public/veriff-webhook'
 import { Route as StaffReportScanIdRouteImport } from './routes/staff.report.$scanId'
+import { Route as AppAdminRemovalCasesIndexRouteImport } from './routes/_app.admin.removal-cases.index'
+import { Route as AppAdminRemovalCasesCaseIdRouteImport } from './routes/_app.admin.removal-cases.$caseId'
 import { Route as AppSensitiveProtectionResultsIndexRouteImport } from './routes/_app.sensitive-protection.results.index'
 import { Route as AppSensitiveProtectionResultsIdRouteImport } from './routes/_app.sensitive-protection.results.$id'
 import { Route as ApiPublicHooksAgentAssessmentsRouteImport } from './routes/api/public/hooks/agent-assessments'
@@ -780,6 +782,18 @@ const StaffReportScanIdRoute = StaffReportScanIdRouteImport.update({
   path: '/report/$scanId',
   getParentRoute: () => StaffRoute,
 } as any)
+const AppAdminRemovalCasesIndexRoute =
+  AppAdminRemovalCasesIndexRouteImport.update({
+    id: '/admin/removal-cases/',
+    path: '/admin/removal-cases/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminRemovalCasesCaseIdRoute =
+  AppAdminRemovalCasesCaseIdRouteImport.update({
+    id: '/admin/removal-cases/$caseId',
+    path: '/admin/removal-cases/$caseId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppSensitiveProtectionResultsIndexRoute =
   AppSensitiveProtectionResultsIndexRouteImport.update({
     id: '/sensitive-protection/results/',
@@ -1035,6 +1049,7 @@ export interface FileRoutesByFullPath {
   '/staff/report/$scanId': typeof StaffReportScanIdRoute
   '/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/partner/': typeof PartnerPartnerIndexRoute
+  '/admin/removal-cases/$caseId': typeof AppAdminRemovalCasesCaseIdRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
   '/api/public/hooks/agent-assessments': typeof ApiPublicHooksAgentAssessmentsRoute
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
@@ -1057,6 +1072,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/api/public/hooks/scan-orchestrator': typeof ApiPublicHooksScanOrchestratorRoute
+  '/admin/removal-cases/': typeof AppAdminRemovalCasesIndexRoute
   '/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -1174,6 +1190,7 @@ export interface FileRoutesByTo {
   '/staff/report/$scanId': typeof StaffReportScanIdRoute
   '/sensitive-protection': typeof AppSensitiveProtectionIndexRoute
   '/partner': typeof PartnerPartnerIndexRoute
+  '/admin/removal-cases/$caseId': typeof AppAdminRemovalCasesCaseIdRoute
   '/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
   '/api/public/hooks/agent-assessments': typeof ApiPublicHooksAgentAssessmentsRoute
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
@@ -1196,6 +1213,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/api/public/hooks/scan-orchestrator': typeof ApiPublicHooksScanOrchestratorRoute
+  '/admin/removal-cases': typeof AppAdminRemovalCasesIndexRoute
   '/sensitive-protection/results': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRoutesById {
@@ -1318,6 +1336,7 @@ export interface FileRoutesById {
   '/staff/report/$scanId': typeof StaffReportScanIdRoute
   '/_app/sensitive-protection/': typeof AppSensitiveProtectionIndexRoute
   '/_partner/partner/': typeof PartnerPartnerIndexRoute
+  '/_app/admin/removal-cases/$caseId': typeof AppAdminRemovalCasesCaseIdRoute
   '/_app/sensitive-protection/results/$id': typeof AppSensitiveProtectionResultsIdRoute
   '/api/public/hooks/agent-assessments': typeof ApiPublicHooksAgentAssessmentsRoute
   '/api/public/hooks/approved-sources-poll': typeof ApiPublicHooksApprovedSourcesPollRoute
@@ -1340,6 +1359,7 @@ export interface FileRoutesById {
   '/api/public/hooks/release-protection-monitor': typeof ApiPublicHooksReleaseProtectionMonitorRoute
   '/api/public/hooks/resend-webhook': typeof ApiPublicHooksResendWebhookRoute
   '/api/public/hooks/scan-orchestrator': typeof ApiPublicHooksScanOrchestratorRoute
+  '/_app/admin/removal-cases/': typeof AppAdminRemovalCasesIndexRoute
   '/_app/sensitive-protection/results/': typeof AppSensitiveProtectionResultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -1461,6 +1481,7 @@ export interface FileRouteTypes {
     | '/staff/report/$scanId'
     | '/sensitive-protection/'
     | '/partner/'
+    | '/admin/removal-cases/$caseId'
     | '/sensitive-protection/results/$id'
     | '/api/public/hooks/agent-assessments'
     | '/api/public/hooks/approved-sources-poll'
@@ -1483,6 +1504,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
     | '/api/public/hooks/scan-orchestrator'
+    | '/admin/removal-cases/'
     | '/sensitive-protection/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1600,6 +1622,7 @@ export interface FileRouteTypes {
     | '/staff/report/$scanId'
     | '/sensitive-protection'
     | '/partner'
+    | '/admin/removal-cases/$caseId'
     | '/sensitive-protection/results/$id'
     | '/api/public/hooks/agent-assessments'
     | '/api/public/hooks/approved-sources-poll'
@@ -1622,6 +1645,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
     | '/api/public/hooks/scan-orchestrator'
+    | '/admin/removal-cases'
     | '/sensitive-protection/results'
   id:
     | '__root__'
@@ -1743,6 +1767,7 @@ export interface FileRouteTypes {
     | '/staff/report/$scanId'
     | '/_app/sensitive-protection/'
     | '/_partner/partner/'
+    | '/_app/admin/removal-cases/$caseId'
     | '/_app/sensitive-protection/results/$id'
     | '/api/public/hooks/agent-assessments'
     | '/api/public/hooks/approved-sources-poll'
@@ -1765,6 +1790,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/release-protection-monitor'
     | '/api/public/hooks/resend-webhook'
     | '/api/public/hooks/scan-orchestrator'
+    | '/_app/admin/removal-cases/'
     | '/_app/sensitive-protection/results/'
   fileRoutesById: FileRoutesById
 }
@@ -2691,6 +2717,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffReportScanIdRouteImport
       parentRoute: typeof StaffRoute
     }
+    '/_app/admin/removal-cases/': {
+      id: '/_app/admin/removal-cases/'
+      path: '/admin/removal-cases'
+      fullPath: '/admin/removal-cases/'
+      preLoaderRoute: typeof AppAdminRemovalCasesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/removal-cases/$caseId': {
+      id: '/_app/admin/removal-cases/$caseId'
+      path: '/admin/removal-cases/$caseId'
+      fullPath: '/admin/removal-cases/$caseId'
+      preLoaderRoute: typeof AppAdminRemovalCasesCaseIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sensitive-protection/results/': {
       id: '/_app/sensitive-protection/results/'
       path: '/sensitive-protection/results'
@@ -2905,7 +2945,9 @@ interface AppRouteChildren {
   AppSensitiveProtectionEmergencyRoute: typeof AppSensitiveProtectionEmergencyRoute
   AppSensitiveProtectionRemovalCasesRoute: typeof AppSensitiveProtectionRemovalCasesRoute
   AppSensitiveProtectionIndexRoute: typeof AppSensitiveProtectionIndexRoute
+  AppAdminRemovalCasesCaseIdRoute: typeof AppAdminRemovalCasesCaseIdRoute
   AppSensitiveProtectionResultsIdRoute: typeof AppSensitiveProtectionResultsIdRoute
+  AppAdminRemovalCasesIndexRoute: typeof AppAdminRemovalCasesIndexRoute
   AppSensitiveProtectionResultsIndexRoute: typeof AppSensitiveProtectionResultsIndexRoute
 }
 
@@ -2948,7 +2990,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppSensitiveProtectionRemovalCasesRoute:
     AppSensitiveProtectionRemovalCasesRoute,
   AppSensitiveProtectionIndexRoute: AppSensitiveProtectionIndexRoute,
+  AppAdminRemovalCasesCaseIdRoute: AppAdminRemovalCasesCaseIdRoute,
   AppSensitiveProtectionResultsIdRoute: AppSensitiveProtectionResultsIdRoute,
+  AppAdminRemovalCasesIndexRoute: AppAdminRemovalCasesIndexRoute,
   AppSensitiveProtectionResultsIndexRoute:
     AppSensitiveProtectionResultsIndexRoute,
 }
