@@ -39,36 +39,47 @@ function Page() {
       <div className="landing-shell min-h-screen bg-landing text-landing-ink">
         <PublicHeader />
         <main>
-          <section className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden bg-white text-zinc-950">
-            {/* Atmospheric glows */}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-              <div className="absolute left-1/2 top-1/2 h-[400px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
-              <div className="absolute right-[-5%] top-[-10%] h-[500px] w-[500px] rounded-full bg-zinc-200/60 blur-[100px]" />
-            </div>
+          <section
+            className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden text-zinc-950"
+            style={PASTEL_STYLE}
+          >
+            <div className="relative z-10 w-full max-w-xl px-4 py-16 sm:px-6">
+              <div
+                className="rounded-[2rem] border border-white/70 bg-white/70 p-6 shadow-[0_40px_90px_-25px_rgba(70,90,180,0.35)] backdrop-blur-2xl sm:p-10"
+                style={PASTEL_STYLE}
+              >
+                <div className="mx-auto flex w-fit items-center rounded-full border border-white/80 bg-white/60 p-1 text-xs font-medium shadow-sm">
+                  <span className="rounded-full bg-white px-4 py-1.5 text-zinc-950 shadow-sm">
+                    Remove a link
+                  </span>
+                  <Link
+                    to="/track-case"
+                    className="rounded-full px-4 py-1.5 text-zinc-500 transition-colors hover:text-zinc-950"
+                  >
+                    Track a case
+                  </Link>
+                </div>
 
-            <div className="relative z-10 flex w-full max-w-4xl flex-col items-center px-6 py-24 text-center">
-              <span className="mb-6 text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
-                Pay-Per-Link Removal
-              </span>
+                <h1 className="mt-7 text-balance text-3xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-4xl">
+                  Remove Harmful Content From the Internet
+                </h1>
+                <p className="mt-3 text-pretty text-sm leading-6 text-zinc-500 sm:text-base">
+                  Paste the exact link below. Eterna AI will analyze the page, identify the
+                  platform, and determine the appropriate removal pathway.
+                </p>
 
-              <h1 className="mb-8 text-5xl font-semibold leading-[1.1] tracking-tight text-zinc-950 md:text-7xl">
-                Remove Harmful Content <br className="hidden md:block" /> From the Internet
-              </h1>
+                <div className="mt-7">
+                  <RemovalFlow initialUrl={url} variant="dark" />
+                </div>
 
-              <p className="mb-12 max-w-2xl text-lg leading-relaxed text-zinc-500">
-                Paste the exact URL of the content you want reviewed. Eterna AI will analyze the
-                page, identify the platform, and determine the appropriate removal pathway.
-              </p>
-
-              <RemovalFlow initialUrl={url} variant="dark" />
-
-              <div className="mt-10">
-                <Link
-                  to="/track-case"
-                  className="text-sm text-zinc-500 underline decoration-zinc-300 underline-offset-4 transition-colors hover:text-zinc-950"
-                >
-                  Already submitted? Track your case
-                </Link>
+                <p className="mt-5 text-center text-sm">
+                  <Link
+                    to="/track-case"
+                    className="text-zinc-500 underline decoration-zinc-300 underline-offset-4 transition-colors hover:text-zinc-950"
+                  >
+                    Already submitted? Track your case
+                  </Link>
+                </p>
               </div>
             </div>
           </section>
