@@ -17,6 +17,7 @@ import {
   EnquiryModalProvider,
   useEnquiryModal,
 } from "@/components/public/enquiry/enquiry-modal-context";
+import { RemovalPortalModal } from "@/components/public/removal/RemovalPortalModal";
 import { ArticleHeroPlaceholder } from "@/components/public/ArticleHeroPlaceholder";
 
 export function EternaLogo({
