@@ -151,7 +151,7 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
     <div className={`mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] ${variant === "dark" ? "text-zinc-500" : "text-muted-foreground"}`}>
       {["Pay per link", "No subscription required", "Track every request"].map((t) => (
         <span key={t} className="flex items-center gap-1.5">
-          <span className={`size-1 rounded-full ${variant === "dark" ? "bg-zinc-700" : "bg-muted-foreground/40"}`} />
+          <span className={`size-1 rounded-full ${variant === "dark" ? "bg-zinc-300" : "bg-muted-foreground/40"}`} />
           {t}
         </span>
       ))}
@@ -162,25 +162,25 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
     <>
       {variant === "dark" ? (
         <form onSubmit={start} className="group w-full max-w-3xl">
-          <div className="relative flex items-center rounded-full border border-white/10 bg-zinc-900/50 p-1 backdrop-blur-xl transition-all duration-500 focus-within:border-white/20 focus-within:ring-4 focus-within:ring-white/5">
-            <div className="absolute inset-y-0 left-8 w-px bg-gradient-to-b from-transparent via-blue-400/50 to-transparent opacity-0 transition-opacity group-focus-within:opacity-100" aria-hidden="true" />
+          <div className="relative flex items-center rounded-full border border-zinc-200 bg-white/70 p-1 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.15)] backdrop-blur-xl transition-all duration-500 focus-within:border-zinc-300 focus-within:ring-4 focus-within:ring-zinc-950/5">
+            <div className="absolute inset-y-0 left-8 w-px bg-gradient-to-b from-transparent via-blue-500/50 to-transparent opacity-0 transition-opacity group-focus-within:opacity-100" aria-hidden="true" />
             <label htmlFor="removal-url" className="sr-only">Paste URL for Removal</label>
             <input
               id="removal-url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="Paste URL for Removal"
-              className="flex-1 min-w-0 bg-transparent px-5 py-3 text-base text-zinc-100 outline-none placeholder:text-zinc-600 sm:px-8 sm:py-5 sm:text-xl"
+              className="flex-1 min-w-0 bg-transparent px-5 py-3 text-base text-zinc-900 outline-none placeholder:text-zinc-400 sm:px-8 sm:py-5 sm:text-xl"
             />
             <button
               type="submit"
-              className="flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-black transition-all hover:bg-zinc-200 active:scale-95 sm:px-8 sm:py-4 sm:text-base"
+              className="flex shrink-0 items-center gap-2 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-zinc-800 active:scale-95 sm:px-8 sm:py-4 sm:text-base"
             >
               Analyze Link
               <ArrowRight className="size-4 sm:size-5" />
             </button>
           </div>
-          {err && !open && <p className="mt-3 text-sm text-red-400">{err}</p>}
+          {err && !open && <p className="mt-3 text-sm text-red-600">{err}</p>}
           {notes}
         </form>
       ) : (
