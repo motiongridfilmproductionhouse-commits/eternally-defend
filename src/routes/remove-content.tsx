@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { EnquiryModalProvider, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
+import { PublicFooter, PublicHeader } from "@/components/public/PublicSite";
+import { EnquiryModalProvider } from "@/components/public/enquiry/enquiry-modal-context";
 import { RemovalFlow } from "@/components/public/removal/RemovalFlow";
 
 const CANONICAL = "https://protectbyeterna.com/remove-content";
