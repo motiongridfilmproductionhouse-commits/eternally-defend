@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { CountUpMetric } from "@/components/public/CountUpMetric";
 import { PlatformLogos } from "@/components/public/PlatformLogos";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
+import { HomeRemovalEntry } from "@/components/public/removal/HomeRemovalEntry";
 import {
   EnquiryButton,
   EnquiryModalProvider,
@@ -457,6 +458,14 @@ function LandingPageContent() {
                 >
                   <a href="#platform">Explore the Platform</a>
                 </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="border-landing-on-media/30 bg-landing-on-media/10 text-landing-on-media backdrop-blur hover:bg-landing-on-media/20 hover:text-landing-on-media"
+                >
+                  <Link to="/remove-content">Remove a Link</Link>
+                </Button>
               </div>
             </div>
             <div className="landing-hero-status absolute bottom-6 left-6 z-10 hidden gap-12 text-[10px] uppercase text-landing-on-media-muted md:flex">
@@ -481,6 +490,8 @@ function LandingPageContent() {
             </Button>
           </div>
         </section>
+
+        <HomeRemovalEntry />
 
         <section className="border-b border-landing-line py-14" aria-label="Operational scale">
           <div className="mx-auto max-w-6xl px-6">

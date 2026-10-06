@@ -81,7 +81,7 @@ function Choice({ items, value, onPick }: { items: string[]; value: string; onPi
   );
 }
 
-export function RemovalFlow() {
+export function RemovalFlow({ initialUrl }: { initialUrl?: string } = {}) {
   const analyze = useServerFn(analyzeRemovalLink);
   const submit = useServerFn(submitRemovalOrder);
   const invoice = useServerFn(requestRemovalInvoice);
@@ -100,9 +100,22 @@ export function RemovalFlow() {
   const [method, setMethod] = useState<"card" | "apple_pay" | "google_pay">("card");
   const busy = step === "analyzing" || step === "assessing";
 
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!initialUrl || autoStarted.current) return;
+    autoStarted.current = true;
+    setUrl(initialUrl);
+    void run(initialUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUrl]);
+
   async function start(e: React.FormEvent) {
     e.preventDefault();
-    let u = url.trim();
+    await run(url);
+  }
+
+  async function run(raw: string) {
+    let u = raw.trim();
     if (u && !/^https?:\/\//i.test(u)) u = `https://${u}`;
     try { new URL(u); } catch { setErr("Enter a valid link."); return; }
     setErr(""); setOpen(true); setStep("analyzing");
