@@ -213,7 +213,7 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
                 {a.aiIndicators.length > 0 && (
                   <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground">{a.aiIndicators.map((s) => <li key={s}>{s}</li>)}</ul>
                 )}
-                <p className="mt-2 text-[11px] text-muted-foreground">Based on the public thumbnail and caption. Final review by an Eterna analyst.</p>
+                <p className="mt-2 text-[11px] text-muted-foreground">{a.framesAnalyzed ? `Full video reviewed frame by frame${a.durationSec ? ` (${a.durationSec}s)` : ""}.` : "Based on the public thumbnail and caption."} Final review by an Eterna analyst.</p>
               </div>
             )}
             <div className="rounded-lg border px-4">
