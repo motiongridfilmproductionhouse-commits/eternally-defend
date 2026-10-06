@@ -559,7 +559,7 @@ export function PublicHeader() {
         <EternaLogo className="h-4 md:h-[22px]" />
       </Link>
       <DesktopNav />
-      <div className="hidden items-center gap-1 md:flex">
+      <div className="col-start-3 hidden items-center gap-1 justify-self-end md:flex">
         <Button asChild variant="ghost" className="hidden text-landing-ink hover:bg-landing-soft lg:inline-flex">
           <Link to="/track-case">Track Case</Link>
         </Button>
@@ -587,7 +587,7 @@ export function PublicHeader() {
         type="button"
         variant="ghost"
         size="icon"
-        className="text-landing-ink hover:bg-landing-soft lg:hidden"
+        className="col-start-3 justify-self-end text-landing-ink hover:bg-landing-soft lg:hidden"
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         aria-controls="mobile-navigation"
