@@ -504,6 +504,12 @@ function MobileNav({ open, onNavigate }: { open: boolean; onNavigate: () => void
         ))}
       </Accordion>
       <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button asChild variant="outline" className="border-landing-line bg-transparent text-landing-ink">
+          <Link to="/remove-content" onClick={onNavigate}>Remove Content</Link>
+        </Button>
+        <Button asChild variant="outline" className="border-landing-line bg-transparent text-landing-ink">
+          <Link to="/track-case" onClick={onNavigate}>Track Case</Link>
+        </Button>
         <Button
           asChild
           variant="outline"
@@ -551,7 +557,13 @@ export function PublicHeader() {
         <EternaLogo className="h-4 md:h-[22px]" />
       </Link>
       <DesktopNav />
-      <div className="hidden items-center gap-2 md:flex">
+      <div className="hidden items-center gap-1 md:flex">
+        <Link to="/track-case" className="hidden px-2 text-xs font-medium text-landing-muted transition-colors hover:text-landing-ink lg:inline">
+          Track Case
+        </Link>
+        <Button asChild variant="ghost" className="text-landing-ink hover:bg-landing-soft">
+          <Link to="/remove-content">Remove Content</Link>
+        </Button>
         <Button asChild variant="ghost" className="text-landing-ink hover:bg-landing-soft">
           <Link to="/auth">Client Sign In</Link>
         </Button>
@@ -609,6 +621,8 @@ export function PublicFooter() {
         { label: "Public Figure Protection", to: "/public-figure-protection" as const },
         { label: "Enterprise Protection", to: "/enterprise-protection" as const },
         { label: "Request Protection", to: "/request-protection" as const },
+        { label: "Remove Content", to: "/remove-content" as const },
+        { label: "Track Removal Case", to: "/track-case" as const },
       ],
     },
     {
