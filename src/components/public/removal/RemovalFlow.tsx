@@ -197,10 +197,25 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
 
       <Dialog open={open} onOpenChange={(o) => { if (!busy) setOpen(o); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" onInteractOutside={(e) => busy && e.preventDefault()}>
-          {step === "analyzing" && (<><DialogTitle>Eterna AI is analyzing this link</DialogTitle><DialogDescription>Reading the public page. This takes a few seconds.</DialogDescription><Stages busy /></>)}
+          {step === "analyzing" && (<><DialogTitle>Eterna AI is analyzing this link</DialogTitle><DialogDescription>Fetching the thumbnail and caption, then running AI analysis. This can take up to a minute.</DialogDescription><Stages busy /></>)}
 
           {step === "analyzed" && a && (<>
             <DialogTitle>Link analysis complete</DialogTitle>
+            {a.thumbnail && (
+              <div className="overflow-hidden rounded-lg border bg-muted">
+                <img src={a.thumbnail} alt="Content thumbnail" referrerPolicy="no-referrer" className="max-h-64 w-full object-contain" />
+              </div>
+            )}
+            {a.aiSummary && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">AI content analysis{a.aiConfidence ? ` · ${a.aiConfidence} confidence` : ""}</p>
+                <p>{a.aiSummary}</p>
+                {a.aiIndicators.length > 0 && (
+                  <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground">{a.aiIndicators.map((s) => <li key={s}>{s}</li>)}</ul>
+                )}
+                <p className="mt-2 text-[11px] text-muted-foreground">Based on the public thumbnail and caption. Final review by an Eterna analyst.</p>
+              </div>
+            )}
             <div className="rounded-lg border px-4">
               <Row k="Platform" v={a.platform} /><Row k="Content type" v={a.contentType} />
               <Row k="Account / publisher" v={a.publisher} /><Row k="Page title" v={a.title} />

@@ -42,7 +42,7 @@ export const analyzeRemovalLink = createServerFn({ method: "POST" })
     const u = new URL(data.url);
     if (!/^https?:$/.test(u.protocol)) throw new Error("Only web links are supported.");
     const base = detectPlatform(u);
-    let title: string | undefined, publisher: string | undefined, description: string | undefined;
+    let title: string | undefined, publisher: string | undefined, description: string | undefined, thumbnail: string | undefined;
     let reachable = false;
     try {
       const ctrl = new AbortController();
@@ -57,21 +57,42 @@ export const analyzeRemovalLink = createServerFn({ method: "POST" })
       title = meta(html, "og:title") ?? html.match(/<title[^>]*>([^<]{1,300})<\/title>/i)?.[1]?.trim();
       publisher = meta(html, "og:site_name") ?? meta(html, "author") ?? meta(html, "twitter:site");
       description = meta(html, "og:description") ?? meta(html, "description");
+      thumbnail = meta(html, "og:image") ?? meta(html, "twitter:image");
     } catch {
       reachable = false;
     }
+    const { scrapeWithFirecrawl, analyzeWithOpenAI } = await import("@/lib/removal-orders/video-insight.server");
+    let pageText: string | undefined;
+    if (!thumbnail || !description) {
+      const fc = await scrapeWithFirecrawl(u.toString());
+      if (fc) {
+        thumbnail ??= fc.thumbnail; title ??= fc.title; description ??= fc.description;
+        publisher ??= fc.publisher; pageText = fc.text; reachable = reachable || Boolean(fc.title || fc.thumbnail);
+      }
+    }
+    if (thumbnail) thumbnail = thumbnail.replace(/&amp;/g, "&");
+    if (thumbnail && !/^https:\/\//.test(thumbnail)) thumbnail = undefined;
     if (!publisher) {
       const seg = u.pathname.split("/").filter(Boolean)[0];
       if (seg && ["Instagram", "TikTok", "X (Twitter)"].includes(base.platform) && !["p", "reel", "share"].includes(seg))
         publisher = seg.startsWith("@") ? seg : `@${seg}`;
       else publisher = base.host;
     }
+    const insight = await analyzeWithOpenAI({
+      url: u.toString(), platform: base.platform, contentType: base.contentType,
+      thumbnail, title, description, text: pageText,
+    });
     const text = `${title ?? ""} ${description ?? ""}`;
-    const potentialCategory = CATEGORY_HINTS.find(([r]) => r.test(text))?.[1] ?? "To be confirmed from your details";
+    const hinted = CATEGORY_HINTS.find(([r]) => r.test(text))?.[1];
+    const aiCat = insight && !["None evident", "Unclear"].includes(insight.detectedIssue) ? insight.detectedIssue : undefined;
+    const potentialCategory = aiCat ?? hinted ?? "To be confirmed from your details";
     return {
       url: u.toString(), platform: base.platform, contentType: base.contentType,
       publisher: publisher?.slice(0, 200) ?? null, title: title?.slice(0, 300) ?? null,
-      potentialCategory, reachable,
+      potentialCategory, reachable, thumbnail: thumbnail ?? null,
+      aiSummary: insight?.summary?.slice(0, 1200) ?? null,
+      aiIndicators: (insight?.harmIndicators ?? []).slice(0, 5).map((s) => s.slice(0, 160)),
+      aiConfidence: insight?.confidence ?? null,
     };
   });
 
