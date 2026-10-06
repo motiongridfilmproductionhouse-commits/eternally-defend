@@ -38,12 +38,14 @@ import { Route as PartnerApplyRouteImport } from './routes/partner-apply'
 import { Route as PartnerStatusRouteImport } from './routes/partner-status'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PublicFigureProtectionRouteImport } from './routes/public-figure-protection'
+import { Route as RemoveContentRouteImport } from './routes/remove-content'
 import { Route as RequestProtectionRouteImport } from './routes/request-protection'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as StudentDigitalSafetyRouteImport } from './routes/student-digital-safety'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TrackCaseRouteImport } from './routes/track-case'
 import { Route as WaitinglistRouteImport } from './routes/waitinglist'
 import { Route as AppAssetsRouteImport } from './routes/_app.assets'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
@@ -294,6 +296,11 @@ const PublicFigureProtectionRoute = PublicFigureProtectionRouteImport.update({
   path: '/public-figure-protection',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RemoveContentRoute = RemoveContentRouteImport.update({
+  id: '/remove-content',
+  path: '/remove-content',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RequestProtectionRoute = RequestProtectionRouteImport.update({
   id: '/request-protection',
   path: '/request-protection',
@@ -322,6 +329,11 @@ const StudentDigitalSafetyRoute = StudentDigitalSafetyRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackCaseRoute = TrackCaseRouteImport.update({
+  id: '/track-case',
+  path: '/track-case',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WaitinglistRoute = WaitinglistRouteImport.update({
@@ -934,12 +946,14 @@ export interface FileRoutesByFullPath {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/public-figure-protection': typeof PublicFigureProtectionRoute
+  '/remove-content': typeof RemoveContentRoute
   '/request-protection': typeof RequestProtectionRoute
   '/research': typeof ResearchRoute
   '/security': typeof SecurityRoute
   '/staff': typeof StaffRouteWithChildren
   '/student-digital-safety': typeof StudentDigitalSafetyRoute
   '/terms': typeof TermsRoute
+  '/track-case': typeof TrackCaseRoute
   '/waitinglist': typeof WaitinglistRoute
   '/assets': typeof AppAssetsRoute
   '/campaigns': typeof AppCampaignsRoute
@@ -1073,11 +1087,13 @@ export interface FileRoutesByTo {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/public-figure-protection': typeof PublicFigureProtectionRoute
+  '/remove-content': typeof RemoveContentRoute
   '/request-protection': typeof RequestProtectionRoute
   '/research': typeof ResearchRoute
   '/security': typeof SecurityRoute
   '/student-digital-safety': typeof StudentDigitalSafetyRoute
   '/terms': typeof TermsRoute
+  '/track-case': typeof TrackCaseRoute
   '/waitinglist': typeof WaitinglistRoute
   '/assets': typeof AppAssetsRoute
   '/campaigns': typeof AppCampaignsRoute
@@ -1213,12 +1229,14 @@ export interface FileRoutesById {
   '/partner-status': typeof PartnerStatusRoute
   '/privacy': typeof PrivacyRoute
   '/public-figure-protection': typeof PublicFigureProtectionRoute
+  '/remove-content': typeof RemoveContentRoute
   '/request-protection': typeof RequestProtectionRoute
   '/research': typeof ResearchRoute
   '/security': typeof SecurityRoute
   '/staff': typeof StaffRouteWithChildren
   '/student-digital-safety': typeof StudentDigitalSafetyRoute
   '/terms': typeof TermsRoute
+  '/track-case': typeof TrackCaseRoute
   '/waitinglist': typeof WaitinglistRoute
   '/_app/assets': typeof AppAssetsRoute
   '/_app/campaigns': typeof AppCampaignsRoute
@@ -1354,12 +1372,14 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/public-figure-protection'
+    | '/remove-content'
     | '/request-protection'
     | '/research'
     | '/security'
     | '/staff'
     | '/student-digital-safety'
     | '/terms'
+    | '/track-case'
     | '/waitinglist'
     | '/assets'
     | '/campaigns'
@@ -1493,11 +1513,13 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/public-figure-protection'
+    | '/remove-content'
     | '/request-protection'
     | '/research'
     | '/security'
     | '/student-digital-safety'
     | '/terms'
+    | '/track-case'
     | '/waitinglist'
     | '/assets'
     | '/campaigns'
@@ -1632,12 +1654,14 @@ export interface FileRouteTypes {
     | '/partner-status'
     | '/privacy'
     | '/public-figure-protection'
+    | '/remove-content'
     | '/request-protection'
     | '/research'
     | '/security'
     | '/staff'
     | '/student-digital-safety'
     | '/terms'
+    | '/track-case'
     | '/waitinglist'
     | '/_app/assets'
     | '/_app/campaigns'
@@ -1774,12 +1798,14 @@ export interface RootRouteChildren {
   PartnerStatusRoute: typeof PartnerStatusRoute
   PrivacyRoute: typeof PrivacyRoute
   PublicFigureProtectionRoute: typeof PublicFigureProtectionRoute
+  RemoveContentRoute: typeof RemoveContentRoute
   RequestProtectionRoute: typeof RequestProtectionRoute
   ResearchRoute: typeof ResearchRoute
   SecurityRoute: typeof SecurityRoute
   StaffRoute: typeof StaffRouteWithChildren
   StudentDigitalSafetyRoute: typeof StudentDigitalSafetyRoute
   TermsRoute: typeof TermsRoute
+  TrackCaseRoute: typeof TrackCaseRoute
   WaitinglistRoute: typeof WaitinglistRoute
   ApiScanRoute: typeof ApiScanRoute
   FaceHandoffTokenRoute: typeof FaceHandoffTokenRoute
@@ -2042,6 +2068,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicFigureProtectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/remove-content': {
+      id: '/remove-content'
+      path: '/remove-content'
+      fullPath: '/remove-content'
+      preLoaderRoute: typeof RemoveContentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/request-protection': {
       id: '/request-protection'
       path: '/request-protection'
@@ -2082,6 +2115,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track-case': {
+      id: '/track-case'
+      path: '/track-case'
+      fullPath: '/track-case'
+      preLoaderRoute: typeof TrackCaseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/waitinglist': {
@@ -2990,12 +3030,14 @@ const rootRouteChildren: RootRouteChildren = {
   PartnerStatusRoute: PartnerStatusRoute,
   PrivacyRoute: PrivacyRoute,
   PublicFigureProtectionRoute: PublicFigureProtectionRoute,
+  RemoveContentRoute: RemoveContentRoute,
   RequestProtectionRoute: RequestProtectionRoute,
   ResearchRoute: ResearchRoute,
   SecurityRoute: SecurityRoute,
   StaffRoute: StaffRouteWithChildren,
   StudentDigitalSafetyRoute: StudentDigitalSafetyRoute,
   TermsRoute: TermsRoute,
+  TrackCaseRoute: TrackCaseRoute,
   WaitinglistRoute: WaitinglistRoute,
   ApiScanRoute: ApiScanRoute,
   FaceHandoffTokenRoute: FaceHandoffTokenRoute,

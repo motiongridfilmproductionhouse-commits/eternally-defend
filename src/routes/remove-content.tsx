@@ -25,7 +25,6 @@ function Page() {
       eyebrow="Pay-per-link removal"
       title="Remove Harmful Content From the Internet"
       intro="Paste the exact URL of the content you want reviewed. Eterna AI will analyze the page, identify the platform and content type, review the information you provide, and determine the appropriate removal pathway."
-      breadcrumb={[{ label: "Home", to: "/" }, { label: "Remove content" }] as never}
     >
       <RemovalFlow />
       <p className="mt-6 text-center text-sm text-muted-foreground">
