@@ -9574,6 +9574,50 @@ export type Database = {
           },
         ]
       }
+      removal_order_events: {
+        Row: {
+          actor: string | null
+          created_at: string
+          customer_visible: boolean
+          detail: string | null
+          event_type: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          order_id: string
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          customer_visible?: boolean
+          detail?: string | null
+          event_type: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id: string
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          customer_visible?: boolean
+          detail?: string | null
+          event_type?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "removal_order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "removal_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       removal_orders: {
         Row: {
           affects: string
@@ -9584,21 +9628,32 @@ export type Database = {
           country: string
           created_at: string
           currency: string
+          customer_message: string | null
           email: string
           evidence: Json
           explanation: string
           fee_amount: number
           full_name: string
           id: string
+          info_request: Json | null
+          internal_notes: string | null
+          invoice_ref: string | null
           issue: string
+          outcome_explanation: string | null
           page_title: string | null
+          paid_at: string | null
           payment_method: string | null
+          payment_ref: string | null
           payment_status: string
           phone: string
           platform: string | null
           potential_category: string | null
           publisher: string | null
           recommended_route: string | null
+          removal_verification: Json | null
+          staff_attention: boolean
+          status_changed_at: string | null
+          status_changed_by: string | null
           status_note: string | null
           updated_at: string
           url: string
@@ -9612,21 +9667,32 @@ export type Database = {
           country: string
           created_at?: string
           currency?: string
+          customer_message?: string | null
           email: string
           evidence?: Json
           explanation: string
           fee_amount?: number
           full_name: string
           id?: string
+          info_request?: Json | null
+          internal_notes?: string | null
+          invoice_ref?: string | null
           issue: string
+          outcome_explanation?: string | null
           page_title?: string | null
+          paid_at?: string | null
           payment_method?: string | null
+          payment_ref?: string | null
           payment_status?: string
           phone: string
           platform?: string | null
           potential_category?: string | null
           publisher?: string | null
           recommended_route?: string | null
+          removal_verification?: Json | null
+          staff_attention?: boolean
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           status_note?: string | null
           updated_at?: string
           url: string
@@ -9640,21 +9706,32 @@ export type Database = {
           country?: string
           created_at?: string
           currency?: string
+          customer_message?: string | null
           email?: string
           evidence?: Json
           explanation?: string
           fee_amount?: number
           full_name?: string
           id?: string
+          info_request?: Json | null
+          internal_notes?: string | null
+          invoice_ref?: string | null
           issue?: string
+          outcome_explanation?: string | null
           page_title?: string | null
+          paid_at?: string | null
           payment_method?: string | null
+          payment_ref?: string | null
           payment_status?: string
           phone?: string
           platform?: string | null
           potential_category?: string | null
           publisher?: string | null
           recommended_route?: string | null
+          removal_verification?: Json | null
+          staff_attention?: boolean
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           status_note?: string | null
           updated_at?: string
           url?: string
