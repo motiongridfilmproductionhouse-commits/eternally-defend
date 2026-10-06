@@ -95,6 +95,7 @@ const adminSystemNav: NavItem[] = [
   { icon: HeartPulse, label: "MM Health", to: "/admin/multimedia-health", badge: "ADMIN" },
   { icon: PlugZap, label: "Provider Activation", to: "/admin/provider-activation", badge: "ADMIN" },
   { icon: Waypoints, label: "Removal Routes", to: "/admin/removal-routes", badge: "ADMIN" },
+  { icon: Trash2, label: "Removal Cases", to: "/admin/removal-cases", badge: "ADMIN" },
   { icon: Fingerprint, label: "EIP Operations", to: "/admin/eip", badge: "ADMIN" },
   { icon: KeyRound, label: "Invitation Codes", to: "/admin/invites", badge: "ADMIN" },
   { icon: KeyRound, label: "Agent Assessments", to: "/agent-admin", badge: "ADMIN" },
