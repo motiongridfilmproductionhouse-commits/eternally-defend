@@ -72,12 +72,56 @@ function Choice({ items, value, onPick }: { items: string[]; value: string; onPi
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {items.map((o) => (
-        <button key={o} type="button" onClick={() => onPick(o)}
-          className={`rounded-lg border px-3 py-2.5 text-left text-sm transition hover:border-primary ${value === o ? "border-primary bg-primary/5 font-medium" : ""}`}>
+        <button key={o} type="button" onClick={() => onPick(o)} aria-pressed={value === o}
+          className={`flex items-center gap-3 rounded-xl border bg-background px-4 py-3 text-left text-sm transition hover:border-foreground/30 ${value === o ? "border-primary ring-2 ring-primary/15 font-medium" : "border-border"}`}>
+          <span className={`grid size-4 shrink-0 place-items-center rounded-full border ${value === o ? "border-primary" : "border-muted-foreground/40"}`}>
+            {value === o && <span className="size-2 rounded-full bg-primary" />}
+          </span>
           {o}
         </button>
       ))}
     </div>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      {children}
+      {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+    </label>
+  );
+}
+
+const RAIL: { label: string; steps: Step[] }[] = [
+  { label: "Link analysis", steps: ["analyzing", "analyzed"] },
+  { label: "Who is affected", steps: ["affects"] },
+  { label: "Issue & evidence", steps: ["issue"] },
+  { label: "Contact details", steps: ["contact"] },
+  { label: "Assessment", steps: ["assessing", "result"] },
+  { label: "Payment & case", steps: ["checkout", "done"] },
+];
+
+function StepRail({ step }: { step: Step }) {
+  const cur = Math.max(0, RAIL.findIndex((r) => r.steps.includes(step)));
+  return (
+    <aside className="relative hidden overflow-hidden border-r bg-[radial-gradient(120%_80%_at_0%_0%,color-mix(in_oklab,var(--primary)_14%,transparent),transparent_60%),radial-gradient(90%_70%_at_100%_100%,color-mix(in_oklab,var(--accent)_60%,transparent),transparent_70%)] p-8 md:flex md:flex-col">
+      <div className="grid size-10 place-items-center rounded-xl border bg-background/80"><ShieldCheck className="size-5 text-primary" /></div>
+      <h2 className="mt-8 text-2xl font-semibold tracking-tight text-foreground">Content removal</h2>
+      <p className="mt-2 text-sm text-muted-foreground">A few short steps. Eterna AI reviews the link, then our analysts confirm the removal route.</p>
+      <ol className="mt-10 space-y-0">
+        {RAIL.map((r, i) => (
+          <li key={r.label} className="relative flex items-center gap-3 pb-6 last:pb-0">
+            {i < RAIL.length - 1 && <span className={`absolute left-[11px] top-6 h-[calc(100%-1.25rem)] w-px ${i < cur ? "bg-primary" : "bg-border"}`} />}
+            <span className={`relative grid size-6 shrink-0 place-items-center rounded-full border text-[11px] font-medium ${i < cur ? "border-primary bg-primary text-primary-foreground" : i === cur ? "border-primary bg-background text-primary" : "bg-background text-muted-foreground"}`}>
+              {i < cur ? <Check className="size-3.5" /> : i === cur && (step === "analyzing" || step === "assessing") ? <Loader2 className="size-3.5 animate-spin" /> : i + 1}
+            </span>
+            <span className={`text-sm ${i === cur ? "font-medium text-primary" : i < cur ? "text-foreground" : "text-muted-foreground"}`}>{r.label}</span>
+          </li>
+        ))}
+      </ol>
+    </aside>
   );
 }
 
@@ -196,7 +240,10 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
       )}
 
       <Dialog open={open} onOpenChange={(o) => { if (!busy) setOpen(o); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" onInteractOutside={(e) => busy && e.preventDefault()}>
+        <DialogContent className="max-h-[92vh] gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-4xl" onInteractOutside={(e) => busy && e.preventDefault()}>
+          <div className="grid md:grid-cols-[17rem_minmax(0,1fr)]">
+          <StepRail step={step} />
+          <div className="max-h-[92vh] space-y-5 overflow-y-auto p-6 sm:p-10 [&_[data-slot=dialog-title]]:text-2xl [&_[data-slot=dialog-title]]:font-semibold [&_[data-slot=dialog-title]]:tracking-tight">
           {step === "analyzing" && (<><DialogTitle>Eterna AI is analyzing this link</DialogTitle><DialogDescription>Fetching the thumbnail and caption, then running AI analysis. This can take up to a minute.</DialogDescription><Stages busy /></>)}
 
           {step === "analyzed" && a && (<>
@@ -227,17 +274,17 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
           </>)}
 
           {step === "affects" && (<>
-            <DialogTitle>Who does this content affect?</DialogTitle><p className="text-xs text-muted-foreground">Step 1 of 3</p>
+            <DialogTitle>Who does this content affect?</DialogTitle><p className="text-sm text-muted-foreground">Step 1 of 3 · Choose one</p>
             <Choice items={AFFECTS} value={affects} onPick={setAffects} />
             <Button disabled={!affects} onClick={() => setStep("issue")}>Next</Button>
           </>)}
 
           {step === "issue" && (<>
-            <DialogTitle>What is wrong with this content?</DialogTitle><p className="text-xs text-muted-foreground">Step 2 of 3</p>
+            <DialogTitle>What is wrong with this content?</DialogTitle><p className="text-sm text-muted-foreground">Step 2 of 3 · Choose the closest match</p>
             <Choice items={ISSUES} value={issue} onPick={setIssue} />
-            <label className="text-sm font-medium">Explain the issue</label>
-            <Textarea value={explanation} onChange={(e) => setExplanation(e.target.value.slice(0, 3000))} placeholder="Briefly explain why you are requesting removal." rows={4} />
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-3 text-sm">
+            <span className="block text-sm font-medium">Explain the issue</span>
+            <Textarea value={explanation} onChange={(e) => setExplanation(e.target.value.slice(0, 3000))} placeholder="Briefly explain why you are requesting removal." rows={4} className="rounded-xl" />
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed bg-muted/30 p-4 text-sm transition hover:border-primary">
               <FileUp className="size-4 text-primary" />
               <span>{files.length ? files.map((f) => f.name).join(", ") : "Upload Supporting Evidence (JPG, PNG, PDF, DOC/DOCX · up to 3 files, 5 MB each)"}</span>
               <input type="file" multiple accept={ACCEPT} className="hidden"
@@ -248,12 +295,14 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
           </>)}
 
           {step === "contact" && (<>
-            <DialogTitle>Your contact details</DialogTitle><p className="text-xs text-muted-foreground">Step 3 of 3</p>
-            <Input placeholder="Full Name" value={c.fullName} onChange={(e) => setC({ ...c, fullName: e.target.value })} />
-            <Input placeholder="Email" type="email" value={c.email} onChange={(e) => setC({ ...c, email: e.target.value })} />
-            <Input placeholder="WhatsApp / Phone" value={c.phone} onChange={(e) => setC({ ...c, phone: e.target.value })} />
-            <Input placeholder="Country" value={c.country} onChange={(e) => setC({ ...c, country: e.target.value })} />
-            <label className="flex items-start gap-2 text-sm">
+            <DialogTitle>Your contact details</DialogTitle><p className="text-sm text-muted-foreground">Step 3 of 3 · How we reach you</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Full name"><Input name="name" autoComplete="name" placeholder="e.g. Priya Menon" value={c.fullName} onChange={(e) => setC({ ...c, fullName: e.target.value })} className="h-11 rounded-xl" /></Field>
+              <Field label="Email address" hint="Case updates and invoice go here."><Input name="email" type="email" autoComplete="email" placeholder="you@example.com" value={c.email} onChange={(e) => setC({ ...c, email: e.target.value })} className="h-11 rounded-xl" /></Field>
+              <Field label="WhatsApp / phone"><Input name="tel" type="tel" autoComplete="tel" placeholder="+971 50 000 0000" value={c.phone} onChange={(e) => setC({ ...c, phone: e.target.value })} className="h-11 rounded-xl" /></Field>
+              <Field label="Country"><Input name="country" autoComplete="country-name" placeholder="e.g. United Arab Emirates" value={c.country} onChange={(e) => setC({ ...c, country: e.target.value })} className="h-11 rounded-xl" /></Field>
+            </div>
+            <label className="flex items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
               <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" />
               I confirm that the information I provided is accurate and that I have a legitimate relationship to or authority over the affected person, brand or work.
             </label>
@@ -310,6 +359,8 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
             <DialogTitle>Something went wrong</DialogTitle><DialogDescription>{err}</DialogDescription>
             <Button onClick={() => setOpen(false)}>Close and retry</Button>
           </>)}
+          </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
