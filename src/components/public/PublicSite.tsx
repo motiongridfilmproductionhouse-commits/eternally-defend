@@ -404,7 +404,7 @@ function DesktopNav() {
       skipDelayDuration={200}
       value={activeCategory}
       onValueChange={setActiveCategory}
-      className="hidden justify-self-center rounded-full border border-landing-line bg-landing/90 px-1.5 py-1 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] backdrop-blur-md lg:flex"
+      className="hidden justify-self-center rounded-full border border-landing-line bg-landing px-1.5 py-1 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] lg:flex"
     >
       <NavigationMenuPrimitive.List className="flex items-center gap-0.5 text-[13px] text-landing-muted">
         {navigationCategories.map((category) => (
