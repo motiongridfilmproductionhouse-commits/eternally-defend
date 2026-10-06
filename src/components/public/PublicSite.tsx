@@ -395,7 +395,7 @@ const megaContentByCategory: Record<string, () => ReactNode> = {
 // destination links stay real, crawlable anchors in the server-rendered
 // HTML at all times, and `data-motion` (which Radix does set correctly on
 // every Content, active or not) still drives the crossfade animation.
-function DesktopNav() {
+function DesktopNav({ onRemoveContent }: { onRemoveContent?: () => void }) {
   const [activeCategory, setActiveCategory] = useState("");
   return (
     <NavigationMenuPrimitive.Root
@@ -436,6 +436,23 @@ function DesktopNav() {
             </NavigationMenuPrimitive.Content>
           </NavigationMenuPrimitive.Item>
         ))}
+        <NavigationMenuPrimitive.Item value="track-case">
+          <Link
+            to="/track-case"
+            className="flex items-center rounded-full px-4 py-2 text-[13px] font-medium text-landing-muted outline-none transition-colors duration-[180ms] ease-out hover:bg-landing-soft hover:text-landing-ink focus-visible:text-landing-ink focus-visible:ring-2 focus-visible:ring-landing-accent/40"
+          >
+            Track Case
+          </Link>
+        </NavigationMenuPrimitive.Item>
+        <NavigationMenuPrimitive.Item value="remove-content">
+          <button
+            type="button"
+            onClick={onRemoveContent}
+            className="flex items-center rounded-full px-4 py-2 text-[13px] font-medium text-landing-muted outline-none transition-colors duration-[180ms] ease-out hover:bg-landing-soft hover:text-landing-ink focus-visible:text-landing-ink focus-visible:ring-2 focus-visible:ring-landing-accent/40"
+          >
+            Remove Content
+          </button>
+        </NavigationMenuPrimitive.Item>
         <NavigationMenuPrimitive.Indicator className="top-full flex h-2 items-end justify-center overflow-hidden transition-[width,transform] duration-200 ease-out data-[state=hidden]:animate-out data-[state=hidden]:fade-out data-[state=visible]:animate-in data-[state=visible]:fade-in">
           <div className="h-[2px] w-6 rounded-full bg-landing-accent" />
         </NavigationMenuPrimitive.Indicator>
@@ -558,14 +575,8 @@ export function PublicHeader() {
       <Link to="/" aria-label="Eterna Sentinel home" className="justify-self-start">
         <EternaLogo className="h-4 md:h-[22px]" />
       </Link>
-      <DesktopNav />
+      <DesktopNav onRemoveContent={() => setRemovalOpen(true)} />
       <div className="col-start-3 hidden items-center gap-1 justify-self-end md:flex">
-        <Button asChild variant="ghost" className="hidden text-landing-ink hover:bg-landing-soft lg:inline-flex">
-          <Link to="/track-case">Track Case</Link>
-        </Button>
-        <Button type="button" variant="ghost" className="text-landing-ink hover:bg-landing-soft" onClick={() => setRemovalOpen(true)}>
-          Remove Content
-        </Button>
         <Button asChild variant="ghost" className="text-landing-ink hover:bg-landing-soft">
           <Link to="/auth">Client Sign In</Link>
         </Button>
