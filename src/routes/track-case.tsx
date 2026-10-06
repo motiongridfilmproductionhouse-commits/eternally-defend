@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AlertCircle, Check, FileUp, Search } from "lucide-react";
 import { PublicFooter, PublicHeader } from "@/components/public/PublicSite";
+import { EnquiryModalProvider } from "@/components/public/enquiry/enquiry-modal-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,7 +99,8 @@ function Page() {
   const pct = milestones.length > 1 ? ((reachedCount - 1) / (milestones.length - 1)) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <EnquiryModalProvider>
+    <div className="landing-shell min-h-screen bg-muted/30">
       <PublicHeader />
       <main className="px-4 pb-20 pt-28 sm:pt-32">
       <div className="mx-auto max-w-3xl rounded-3xl border bg-card p-6 shadow-sm sm:p-10">
@@ -213,5 +215,6 @@ function Page() {
       </main>
       <PublicFooter />
     </div>
+    </EnquiryModalProvider>
   );
 }
