@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -55,10 +55,22 @@ function Page() {
   const [files, setFiles] = useState<File[]>([]);
   const [note, setNote] = useState("");
 
-  async function load() {
+  async function load(id = caseId, mail = email) {
+    const cid = id.trim().toUpperCase();
+    const em = mail.trim().toLowerCase();
+    if (!cid || !em) return;
     setBusy(true);
-    try { setRow(await track({ data: { caseId, email } })); } catch { setRow(null); } finally { setBusy(false); }
+    try { setRow(await track({ data: { caseId: cid, email: em } })); } catch { setRow(null); } finally { setBusy(false); }
   }
+
+  // Coming straight from a just-submitted case: prefill the email kept in this tab and look it up.
+  useEffect(() => {
+    if (!search.case) return;
+    let saved: string | null = null;
+    try { saved = sessionStorage.getItem(`eterna-track:${search.case}`); } catch { /* ignore */ }
+    if (saved) { setEmail(saved); void load(search.case, saved); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.case]);
   async function upload() {
     setBusy(true);
     try {
