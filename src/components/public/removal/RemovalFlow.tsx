@@ -81,7 +81,7 @@ function Choice({ items, value, onPick }: { items: string[]; value: string; onPi
   );
 }
 
-export function RemovalFlow({ initialUrl }: { initialUrl?: string } = {}) {
+export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: string; variant?: "light" | "dark" } = {}) {
   const analyze = useServerFn(analyzeRemovalLink);
   const submit = useServerFn(submitRemovalOrder);
   const invoice = useServerFn(requestRemovalInvoice);
