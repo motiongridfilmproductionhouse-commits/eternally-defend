@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 import { CountUpMetric } from "@/components/public/CountUpMetric";
 import { PlatformLogos } from "@/components/public/PlatformLogos";
 import { EternaLogo, PublicFooter, PublicHeader } from "@/components/public/PublicSite";
-import { HomeRemovalEntry } from "@/components/public/removal/HomeRemovalEntry";
 import { RemovalPortalModal } from "@/components/public/removal/RemovalPortalModal";
 import {
   EnquiryButton,
@@ -495,7 +494,6 @@ function LandingPageContent() {
           </div>
         </section>
 
-        <HomeRemovalEntry />
 
         <section className="border-b border-landing-line py-14" aria-label="Operational scale">
           <div className="mx-auto max-w-6xl px-6">
