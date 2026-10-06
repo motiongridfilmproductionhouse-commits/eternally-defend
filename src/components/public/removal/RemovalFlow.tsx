@@ -270,13 +270,13 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
             </div>
             {!a.reachable && <p className="text-xs text-muted-foreground">The page limited public access, so some details could not be read.</p>}
             <p className="text-sm">We need a few details from you to complete the assessment.</p>
-            <Button onClick={() => setStep("affects")}>Continue</Button>
+            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" onClick={() => setStep("affects")}>Continue</Button>
           </>)}
 
           {step === "affects" && (<>
             <DialogTitle>Who does this content affect?</DialogTitle><p className="text-sm text-muted-foreground">Step 1 of 3 · Choose one</p>
             <Choice items={AFFECTS} value={affects} onPick={setAffects} />
-            <Button disabled={!affects} onClick={() => setStep("issue")}>Next</Button>
+            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" disabled={!affects} onClick={() => setStep("issue")}>Next</Button>
           </>)}
 
           {step === "issue" && (<>
@@ -290,8 +290,8 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
               <input type="file" multiple accept={ACCEPT} className="hidden"
                 onChange={(e) => setFiles(Array.from(e.target.files ?? []).filter((f) => f.size <= 5 * 1024 * 1024).slice(0, 3))} />
             </label>
-            <div className="flex gap-2"><Button variant="outline" onClick={() => setStep("affects")}>Back</Button>
-              <Button className="flex-1" disabled={!issue || explanation.trim().length < 10} onClick={() => setStep("contact")}>Next</Button></div>
+            <div className="flex items-center justify-between gap-3 border-t pt-5"><Button variant="ghost" className="text-muted-foreground" onClick={() => setStep("affects")}>Back</Button>
+              <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90" disabled={!issue || explanation.trim().length < 10} onClick={() => setStep("contact")}>Next</Button></div>
           </>)}
 
           {step === "contact" && (<>
@@ -306,8 +306,8 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
               <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" />
               I confirm that the information I provided is accurate and that I have a legitimate relationship to or authority over the affected person, brand or work.
             </label>
-            <div className="flex gap-2"><Button variant="outline" onClick={() => setStep("issue")}>Back</Button>
-              <Button className="flex-1" disabled={!contactOk} onClick={assess}>Submit for Assessment</Button></div>
+            <div className="flex items-center justify-between gap-3 border-t pt-5"><Button variant="ghost" className="text-muted-foreground" onClick={() => setStep("issue")}>Back</Button>
+              <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90" disabled={!contactOk} onClick={assess}>Submit for Assessment</Button></div>
           </>)}
 
           {step === "assessing" && (<><DialogTitle>Assessing your case</DialogTitle><DialogDescription>Matching your details to the right removal pathway.</DialogDescription><Stages busy /></>)}
@@ -323,7 +323,7 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
             <p className="text-sm text-muted-foreground">{r.summary}</p>
             <div className="flex items-center justify-between rounded-lg bg-muted p-3"><span className="text-sm">Pay-Per-Link Service Fee</span><span className="text-lg font-semibold">{fee}</span></div>
             <p className="text-xs text-muted-foreground">Eligible for processing does not mean removal is guaranteed. The platform makes the final decision.</p>
-            <Button onClick={() => setStep("checkout")}>Proceed to Payment</Button>
+            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" onClick={() => setStep("checkout")}>Proceed to Payment</Button>
           </>)}
 
           {step === "checkout" && r && a && (<>
@@ -341,7 +341,7 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
               ))}
             </div>
             <p className="text-xs text-muted-foreground">No payment is taken on this website. Our team will send an invoice to {c.email}. Removal processing begins after payment is confirmed.</p>
-            <Button onClick={pay}>Request Invoice & Create Case</Button>
+            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" onClick={pay}>Request Invoice & Create Case</Button>
           </>)}
 
           {step === "done" && r && a && (<>
@@ -352,12 +352,12 @@ export function RemovalFlow({ initialUrl, variant = "light" }: { initialUrl?: st
               <Row k="Case ID" v={r.caseId} /><Row k="Submitted URL" v={a.url} /><Row k="Platform" v={a.platform} />
               <Row k="Case type" v={issue} /><Row k="Payment" v="Awaiting invoice" />
             </div>
-            <Button asChild><Link to="/track-case" search={{ case: r.caseId }}>Track this case</Link></Button>
+            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" asChild><Link to="/track-case" search={{ case: r.caseId }}>Track this case</Link></Button>
           </>)}
 
           {step === "error" && (<>
             <DialogTitle>Something went wrong</DialogTitle><DialogDescription>{err}</DialogDescription>
-            <Button onClick={() => setOpen(false)}>Close and retry</Button>
+            <Button className="h-11 rounded-xl bg-foreground px-6 text-background hover:bg-foreground/90 w-full" onClick={() => setOpen(false)}>Close and retry</Button>
           </>)}
           </div>
           </div>
