@@ -56,7 +56,7 @@ export function PlatformLogos() {
   const descriptionId = "platform-coverage-description";
 
   return (
-    <div ref={showcaseRef} className="mt-5">
+    <div ref={showcaseRef} className="mt-4">
       <p id={descriptionId} className="sr-only">
         Operational scale platform coverage includes YouTube, Instagram, Facebook, X, Reddit,
         TikTok, and Web.
@@ -87,7 +87,7 @@ export function PlatformLogos() {
         </div>
       ) : (
         <div
-          className="relative h-[88px] overflow-hidden"
+          className="relative h-[56px] overflow-hidden"
           aria-label="Operational scale platform coverage"
           aria-describedby={descriptionId}
           aria-live="off"
@@ -118,8 +118,8 @@ export function PlatformLogos() {
             );
           })}
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-[#f9f7f4] to-transparent" />
         </div>
+
       )}
     </div>
   );
