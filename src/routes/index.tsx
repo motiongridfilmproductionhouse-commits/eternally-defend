@@ -453,21 +453,13 @@ function LandingPageContent() {
                   Request Protection <ArrowRight />
                 </Button>
                 <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="border-landing-on-media/30 bg-landing-on-media/10 text-landing-on-media backdrop-blur hover:bg-landing-on-media/20 hover:text-landing-on-media"
-                >
-                  <a href="#platform">Explore the Platform</a>
-                </Button>
-                <Button
                   type="button"
                   size="lg"
                   variant="outline"
                   className="border-landing-on-media/30 bg-landing-on-media/10 text-landing-on-media backdrop-blur hover:bg-landing-on-media/20 hover:text-landing-on-media"
                   onClick={() => setRemovalOpen(true)}
                 >
-                  Remove a Link
+                  Defame Video Link
                 </Button>
               </div>
             </div>
