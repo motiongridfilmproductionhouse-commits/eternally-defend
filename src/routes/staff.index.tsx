@@ -31,7 +31,7 @@ import { isFinished } from "@/components/staff/staff-model";
 const LOGO = "/eterna-icon-512.png";
 const BOOT_KEY = "eterna-staff-booted";
 const CITADEL_INTRO_VERSION = 2;
-/** Demo account: the Citadel intro is turned off for this email. */
+/** Demo account: the boot animation and Citadel intro are turned off for this email. */
 const DEMO_INTRO_SKIP_EMAIL = "hellosreehari@gmail.com";
 
 function staffFirstName(metadata: Record<string, unknown>, email?: string): string {
@@ -66,6 +66,13 @@ function StaffHome() {
   const qc = useQueryClient();
   const [booted, setBooted] = useState(alreadyBooted);
   const [intro, setIntro] = useState<null | { name: string | null; returning: boolean }>(null);
+  // Demo account: skip the boot animation entirely.
+  useEffect(() => {
+    if (booted) return;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email?.toLowerCase() === DEMO_INTRO_SKIP_EMAIL) setBooted(true);
+    });
+  }, [booted]);
   const citadelFn = useServerFn(getCitadelStatus);
   const citadel = useQuery({
     queryKey: ["citadel-status"],
