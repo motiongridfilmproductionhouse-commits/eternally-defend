@@ -242,6 +242,11 @@ function StaffHome() {
       const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
       const name = staffFirstName(meta, data.user?.email);
       const seen = Number(meta.citadel_intro_version ?? 0) >= CITADEL_INTRO_VERSION;
+      // Demo account: skip the Citadel intro entirely.
+      if (data.user?.email?.toLowerCase() === DEMO_INTRO_SKIP_EMAIL) {
+        setBooted(true);
+        return;
+      }
       setIntro({ name, returning: seen });
     });
   };
