@@ -129,3 +129,72 @@ test("polling ends for every terminal outcome", () => {
     assert.equal(isTerminal(status), true);
   assert.equal(isTerminal("SCANNING"), false);
 });
+
+import { provisionAgent } from "./provision";
+test("only administrators can provision agents", async () => {
+  let created = false;
+  await assert.rejects(
+    provisionAgent(
+      { email: "agent@example.com", password: "test-password" },
+      {
+        isAdmin: async () => false,
+        createUser: async () => {
+          created = true;
+          return "new-user";
+        },
+        enable: async () => {},
+      },
+    ),
+    /Administrator access/,
+  );
+  assert.equal(created, false);
+});
+test("admin provisioning enables only the new identity and returns no password", async () => {
+  let enabled = "";
+  const result = await provisionAgent(
+    { email: "agent@example.com", password: "test-password" },
+    {
+      isAdmin: async () => true,
+      createUser: async () => "new-user",
+      enable: async (id) => {
+        enabled = id;
+      },
+    },
+  );
+  assert.equal(enabled, "new-user");
+  assert.deepEqual(result, { id: "new-user", enabled: true });
+});
+test("duplicate account failures never grant membership or reset an existing password", async () => {
+  let enabled = false;
+  await assert.rejects(
+    provisionAgent(
+      { email: "agent@example.com", password: "test-password" },
+      {
+        isAdmin: async () => true,
+        createUser: async () => {
+          throw new Error("Account exists");
+        },
+        enable: async () => {
+          enabled = true;
+        },
+      },
+    ),
+    /Account exists/,
+  );
+  assert.equal(enabled, false);
+});
+test("membership failure reports the created account for recovery without claiming success", async () => {
+  assert.deepEqual(
+    await provisionAgent(
+      { email: "agent@example.com", password: "test-password" },
+      {
+        isAdmin: async () => true,
+        createUser: async () => "new-user",
+        enable: async () => {
+          throw new Error("Database unavailable");
+        },
+      },
+    ),
+    { id: "new-user", enabled: false },
+  );
+});
