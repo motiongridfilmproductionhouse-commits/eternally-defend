@@ -9,6 +9,15 @@ import { agentAccess, claimAssessment, previewAssessment } from "@/lib/agent/ass
 import { ShieldHalf, KeyRound } from "lucide-react";
 
 /**
+ * Demo account: sign-in routes it to the normal Eterna dashboard like any
+ * client account; /staff stays reachable only by opening the URL directly.
+ */
+const DEMO_DASHBOARD_EMAIL = "hellosreehari@gmail.com";
+function routesToDashboard(email?: string | null): boolean {
+  return (email ?? "").toLowerCase() === DEMO_DASHBOARD_EMAIL;
+}
+
+/**
  * True when the account holds the `staff` role (own-row read under RLS). Only
  * decides where to navigate; the /staff route and every staff server function
  * re-check the role server-side.
@@ -125,7 +134,10 @@ function AuthPage() {
         return;
       }
       // Staff accounts open the Staff Intelligence Scan (role-based, server-checked there).
-      if (await holdsStaffRole(data.session.user.id)) {
+      if (
+        !routesToDashboard(data.session.user.email) &&
+        (await holdsStaffRole(data.session.user.id))
+      ) {
         navigate({ to: "/staff" });
         return;
       }
@@ -185,7 +197,10 @@ function AuthPage() {
           return;
         }
         await finishAssessment();
-        if (await holdsStaffRole(data.user.id)) {
+        if (
+          !routesToDashboard(data.user.email) &&
+          (await holdsStaffRole(data.user.id))
+        ) {
           redirected.current = true;
           navigate({ to: "/staff" });
           return;
