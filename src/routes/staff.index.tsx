@@ -31,6 +31,8 @@ import { isFinished } from "@/components/staff/staff-model";
 const LOGO = "/eterna-icon-512.png";
 const BOOT_KEY = "eterna-staff-booted";
 const CITADEL_INTRO_VERSION = 2;
+/** Demo account: the Citadel intro is turned off for this email. */
+const DEMO_INTRO_SKIP_EMAIL = "hellosreehari@gmail.com";
 
 function staffFirstName(metadata: Record<string, unknown>, email?: string): string {
   const savedName = [metadata.full_name, metadata.name, metadata.display_name].find(
@@ -242,6 +244,11 @@ function StaffHome() {
       const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
       const name = staffFirstName(meta, data.user?.email);
       const seen = Number(meta.citadel_intro_version ?? 0) >= CITADEL_INTRO_VERSION;
+      // Demo account: skip the Citadel intro entirely.
+      if (data.user?.email?.toLowerCase() === DEMO_INTRO_SKIP_EMAIL) {
+        setBooted(true);
+        return;
+      }
       setIntro({ name, returning: seen });
     });
   };
