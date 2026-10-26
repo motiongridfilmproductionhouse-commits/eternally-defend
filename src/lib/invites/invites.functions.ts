@@ -78,11 +78,14 @@ export const signUpWithInvite = createServerFn({ method: "POST" })
       await releaseInvite(claim.inviteId);
       await recordInviteAttempt(key, data.email, false);
       const message = e instanceof Error ? e.message : "Account creation failed";
+      console.error("[signUpWithInvite] createUser failed:", message);
       return {
         ok: false as const,
         error: /already|registered|exists/i.test(message)
           ? "An account with this email already exists. Sign in instead."
-          : "Could not create the account. Please try again.",
+          : /weak|pwned|leak|guess|password/i.test(message)
+            ? "This password has appeared in public data breaches or is too easy to guess. Please choose a different, stronger password (for example, a mix of words, numbers and symbols)."
+            : "Could not create the account. Please try again.",
       };
     }
   });
