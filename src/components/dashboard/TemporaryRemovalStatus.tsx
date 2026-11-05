@@ -54,7 +54,6 @@ export function TemporaryRemovalStatus() {
           ))}
         </ol>
         <div className="border-t border-border pt-4">
-          <p className="mb-4 text-xs leading-relaxed text-muted-foreground">Removal is not yet confirmed. Final timing depends on the platform’s review.</p>
           <Button className="w-full" onClick={() => onOpenChange(false)}>Continue to dashboard</Button>
         </div>
       </DialogContent>
