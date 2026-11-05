@@ -49,3 +49,9 @@ An assessment requires review when no official profile was supplied. Supply it i
 - Browser/device interaction and real provider/staging execution were not verified: the sandbox denied starting a listening preview server, and production credentials/migrations were not exercised. No production migration, membership update, scan or pricing activation was performed.
 
 Run `npm run test:agent`, `npx tsc --noEmit` and `npm run build` in the usual development environment. Use npm/package-lock for the new development test dependency; the pre-existing Bun lock was not regenerated.
+
+## Direct agent credentials
+
+Agent Access is a sign-in-only view: email username and password, without client invitation-code or signup controls. Even an invite query parameter is ignored in agent mode. Client login and signup retain the existing invitation requirement.
+
+Administrators can create a new agent in `/agent-admin` using an email and password, with no invitation code. Provisioning uses the existing Supabase Auth admin API, then enables the new user through the audited membership RPC. Existing accounts are never reset or upgraded through the create action. If membership setup fails, the response reports the newly created user ID for recovery through the existing enable control. Passwords are not returned or included in audit records.
