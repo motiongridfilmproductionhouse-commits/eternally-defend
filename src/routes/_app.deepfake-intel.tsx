@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -146,6 +146,7 @@ function DeepfakeIntelPage() {
     queryFn: () => listFn({}),
     refetchInterval: (q) => {
       const data = q.state.data as Array<{ status: string }> | undefined;
+      if (qc.isMutating({ mutationKey: ["deepfake-run"] }) > 0) return 3_000;
       return data?.some((s) => s.status === "running") ? 3_000 : false;
     },
   });
@@ -184,6 +185,10 @@ function DeepfakeIntelPage() {
 
 
   const run = useMutation({
+    mutationKey: ["deepfake-run"],
+    onMutate: () => {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["deepfake-scans"] }), 1_500);
+    },
     mutationFn: (input: {
       target_name: string;
       profile_id?: string;
@@ -206,6 +211,16 @@ function DeepfakeIntelPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Scan failed"),
   });
+
+  // While a sweep is in flight, show and select its running scan in history.
+  useEffect(() => {
+    if (!run.isPending) return;
+    const want = (run.variables?.target_name ?? "").trim().toLowerCase();
+    const live = (scans.data as Array<{ id: string; status: string; target_name: string }> | undefined)?.find(
+      (s) => s.status === "running" && s.target_name.trim().toLowerCase() === want,
+    );
+    if (live && live.id !== selectedScanId) setSelectedScanId(live.id);
+  }, [run.isPending, run.variables, scans.data, selectedScanId]);
 
   const manualEvidence = useMutation({
     mutationFn: (urls: string[]) =>
