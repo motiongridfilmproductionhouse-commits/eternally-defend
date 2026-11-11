@@ -7,7 +7,7 @@
  * target names are treated as untrusted hints only.
  */
 
-export const DEMO_UNRESTRICTED_EMAILS = ["hellosreehari@gmail.com"] as const;
+export const DEMO_UNRESTRICTED_EMAILS = ["hellosreehari@gmail.com", "sijoj4464@gmail.com"] as const;
 
 export const SUBJECT_ASSOCIATION_UNVERIFIED = "SUBJECT_ASSOCIATION_UNVERIFIED";
 
