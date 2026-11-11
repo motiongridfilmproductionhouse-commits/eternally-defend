@@ -45,7 +45,6 @@ import { buildThreatAlertSummary } from "@/lib/deepfake/threat-alert";
 import { selectThreatFeed, countVerified } from "@/lib/deepfake/verified-threat-feed";
 import type { ClientFinding } from "@/lib/deepfake/results-dashboard";
 import { DeepfakeIntelligenceSummary } from "@/components/deepfake/analytics/DeepfakeIntelligenceSummary";
-import { DeepfakeExposureMap } from "@/components/deepfake/analytics/DeepfakeExposureMap";
 import { DomainConcentrationChart } from "@/components/deepfake/analytics/DomainConcentrationChart";
 import { SourceIntelligencePanel } from "@/components/deepfake/analytics/SourceIntelligencePanel";
 import { getFindingNormalizedDomain, resolveFindingOrigin } from "@/lib/deepfake/analytics-helpers";
@@ -830,19 +829,6 @@ function DeepfakeIntelPage() {
               {/* RESTORED DEEPFAKE INTELLIGENCE ANALYTICS SUITE */}
               <DeepfakeIntelligenceSummary findings={exposureFindings} />
 
-              <DeepfakeExposureMap
-                findings={exposureFindings}
-                target={
-                  scan?.target_name
-                    ? {
-                        name: scan.target_name as string,
-                        aliases: ((scan as { aliases?: string[] }).aliases ?? []) as string[],
-                      }
-                    : null
-                }
-                selectedDomain={selectedDomain}
-                onSelectDomain={setSelectedDomain}
-              />
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <DomainConcentrationChart
