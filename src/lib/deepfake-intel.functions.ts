@@ -68,7 +68,7 @@ const RunDeepfakeScanInput = z.object({
   handles: z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
   google_images_url: z.string().trim().max(5000).optional(),
   max_queries: z.number().int().min(1).max(100).optional(),
-  per_query_limit: z.number().int().min(1).max(10).optional(),
+  per_query_limit: z.number().int().min(1).max(20).optional(),
 });
 
 export type RunDeepfakeScanInput = z.infer<typeof RunDeepfakeScanInput>;
@@ -289,9 +289,9 @@ export async function runDeepfakeScanCore(
           scanId: scan.id,
           userId,
           supabase,
-          perQueryLimit: data.per_query_limit ?? 10,
+          perQueryLimit: data.per_query_limit ?? 20,
           deadlineAt: discoveryDeadlineAt,
-          concurrency: 4,
+          concurrency: 8,
           onProgress: async (p) => {
             executedQueriesCount++;
             if (/\bsite:(?:desifakes|imgfy)\b/i.test(p.query)) {

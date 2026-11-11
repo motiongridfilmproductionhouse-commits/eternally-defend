@@ -1097,6 +1097,35 @@ function DeepfakeIntelPage() {
               )}
 
 
+              {discoveries.length > 0 && (
+                <details open className="card-surface p-4 rounded-xl border border-border/60 group">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase flex items-center justify-between">
+                    <span>All discovered links ({discoveries.length}) · unverified leads</span>
+                    <span className="text-[10px] text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Every public page found mentioning this target. These are not counted as threats until verified.
+                  </p>
+                  <ol className="mt-3 max-h-[520px] overflow-y-auto space-y-1.5 text-xs divide-y divide-border/40">
+                    {Array.from(
+                      new Map(discoveries.map((d: any) => [d.page_url, d])).values(),
+                    ).map((d: any, i: number) => {
+                      let host = "";
+                      try { host = new URL(d.page_url).hostname.replace(/^www\./, ""); } catch { host = ""; }
+                      return (
+                        <li key={d.id} className="pt-1.5 flex items-center gap-3">
+                          <span className="w-7 shrink-0 text-right text-muted-foreground tabular-nums">{i + 1}</span>
+                          <a href={d.page_url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-primary hover:underline">
+                            {d.page_title || d.page_url}
+                          </a>
+                          <span className="shrink-0 text-[10px] text-muted-foreground">{host}</span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </details>
+              )}
+
               {/* Collapsed Secondary Accordions: Raw Candidates */}
               {discoveries.length > 0 && (
                 <div className="space-y-3">
