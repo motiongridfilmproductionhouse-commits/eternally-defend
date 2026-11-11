@@ -1,0 +1,12 @@
+{
+  "eterna_feed_version": 1,
+  "note": "SYNTHETIC TEST DATA for the Eterna monitoring pilot. Not a real person, post or endorsement.",
+  "items": [
+    {
+      "post_url": "https://protectbyeterna.com/eterna-pilot-test/eterna-synthetic-test-copy.jpg",
+      "image": "eterna-synthetic-test-copy.jpg",
+      "account": "protectbyeterna.com (Eterna-controlled test path)",
+      "caption": "SYNTHETIC TEST: approved test copy of the pilot's synthetic portrait"
+    }
+  ]
+}
