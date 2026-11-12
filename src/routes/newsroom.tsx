@@ -7,7 +7,9 @@ import {
   Layers,
   Megaphone,
   Radar,
+  Scale,
   ScanFace,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
@@ -125,6 +127,47 @@ const guides = [
     image: undefined,
     imageAlt: undefined,
   },
+  {
+    icon: Scale,
+    to: "/newsroom/take-it-down-act-guide" as const,
+    title: "The Take It Down Act: How to Get Intimate Images Removed",
+    summary: "How the US notice-and-removal process works and what a request should include.",
+    image: undefined,
+    imageAlt: undefined,
+  },
+  {
+    icon: ShieldCheck,
+    to: "/newsroom/deepfake-protection-vs-detection" as const,
+    title: "Deepfake Protection vs Deepfake Detection",
+    summary: "How a detection tool differs from managed protection, and when each fits.",
+    image: undefined,
+    imageAlt: undefined,
+  },
+  {
+    icon: ClipboardCheck,
+    to: "/newsroom/how-to-choose-a-deepfake-protection-service" as const,
+    title: "How to Choose a Deepfake Protection Service",
+    summary: "A neutral buyer's checklist covering verification, evidence, authorization and limits.",
+    image: undefined,
+    imageAlt: undefined,
+  },
+  {
+    icon: Layers,
+    to: "/newsroom/image-cloaking-tools-compared" as const,
+    title: "Image Cloaking and Immunization Explained",
+    summary: "How photo protection against AI works, the research tools and their limits.",
+    image: undefined,
+    imageAlt: undefined,
+  },
+] as const;
+
+const platformGuides = [
+  { to: "/newsroom/report-impersonation-account-instagram" as const, platform: "Instagram", title: "How to Report an Impersonation Account on Instagram" },
+  { to: "/newsroom/report-impersonation-account-tiktok" as const, platform: "TikTok", title: "How to Report an Impersonation Account on TikTok" },
+  { to: "/newsroom/report-impersonation-account-facebook" as const, platform: "Facebook", title: "How to Report a Fake Facebook Profile Impersonating You" },
+  { to: "/newsroom/report-impersonation-account-linkedin" as const, platform: "LinkedIn", title: "How to Report a Fake LinkedIn Profile Using Your Name" },
+  { to: "/newsroom/report-impersonation-account-x" as const, platform: "X (Twitter)", title: "How to Report an Impersonation Account on X (Twitter)" },
+  { to: "/newsroom/report-impersonation-youtube" as const, platform: "YouTube", title: "How to Report a YouTube Channel Impersonating You" },
 ] as const;
 
 function NewsroomPage() {
@@ -171,6 +214,28 @@ function NewsroomPage() {
                     Read the guide <ArrowRight className="size-3.5" />
                   </span>
                 </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-landing-line py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <p className="landing-kicker">Platform guides</p>
+          <h2 className="mt-4 text-3xl font-medium md:text-4xl">Report impersonation by platform</h2>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-landing-muted">
+            Step-by-step guides to documenting and reporting a fake account on each major platform. If reports stall, see our{" "}
+            <Link to="/fake-account-removal" className="landing-link text-landing-ink">fake account removal service</Link>.
+          </p>
+          <div className="mt-10 grid gap-px overflow-hidden border border-landing-line bg-landing-line md:grid-cols-3">
+            {platformGuides.map(({ to, platform, title }) => (
+              <Link key={to} to={to} className="group flex flex-col bg-landing p-8 transition-colors hover:bg-landing-soft">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-landing-muted">{platform}</p>
+                <h3 className="mt-3 text-base font-semibold">{title}</h3>
+                <span className="mt-6 inline-flex items-center gap-1 text-xs font-semibold text-landing-ink">
+                  Read the guide <ArrowRight className="size-3.5" />
+                </span>
               </Link>
             ))}
           </div>

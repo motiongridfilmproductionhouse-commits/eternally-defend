@@ -24,6 +24,7 @@ import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as DeepfakeProtectionRouteImport } from './routes/deepfake-protection'
 import { Route as EnterpriseProtectionRouteImport } from './routes/enterprise-protection'
 import { Route as EternaAiRouteImport } from './routes/eterna-ai'
+import { Route as FakeAccountRemovalRouteImport } from './routes/fake-account-removal'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as IdentityResponseObservatoryRouteImport } from './routes/identity-response-observatory'
 import { Route as ImageImmunizationRouteImport } from './routes/image-immunization'
@@ -76,6 +77,7 @@ import { Route as NewsroomAiImpersonationReputationDamageRouteImport } from './r
 import { Route as NewsroomBrandReputationRiskBusinessRiskRouteImport } from './routes/newsroom_.brand-reputation-risk-business-risk'
 import { Route as NewsroomCollegeStudentDeepfakesRouteImport } from './routes/newsroom_.college-student-deepfakes'
 import { Route as NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRouteImport } from './routes/newsroom_.content-removal-vs-search-suppression-vs-reputation-recovery'
+import { Route as NewsroomDeepfakeProtectionVsDetectionRouteImport } from './routes/newsroom_.deepfake-protection-vs-detection'
 import { Route as NewsroomDeepfakeReuploadsAfterRemovalRouteImport } from './routes/newsroom_.deepfake-reuploads-after-removal'
 import { Route as NewsroomDeepfakeVerificationGuideRouteImport } from './routes/newsroom_.deepfake-verification-guide'
 import { Route as NewsroomDetectionIsNotPreventionRouteImport } from './routes/newsroom_.detection-is-not-prevention'
@@ -86,13 +88,22 @@ import { Route as NewsroomFalseAllegationsOnlineWhatToDoRouteImport } from './ro
 import { Route as NewsroomFirst24HoursOnlineReputationCrisisRouteImport } from './routes/newsroom_.first-24-hours-online-reputation-crisis'
 import { Route as NewsroomHowCollegesRespondToDeepfakeAbuseRouteImport } from './routes/newsroom_.how-colleges-respond-to-deepfake-abuse'
 import { Route as NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport } from './routes/newsroom_.how-eterna-validates-image-immunization-responsibly'
+import { Route as NewsroomHowToChooseADeepfakeProtectionServiceRouteImport } from './routes/newsroom_.how-to-choose-a-deepfake-protection-service'
 import { Route as NewsroomHowToPreserveDeepfakeEvidenceRouteImport } from './routes/newsroom_.how-to-preserve-deepfake-evidence'
+import { Route as NewsroomImageCloakingToolsComparedRouteImport } from './routes/newsroom_.image-cloaking-tools-compared'
 import { Route as NewsroomImpersonationResponseGuideRouteImport } from './routes/newsroom_.impersonation-response-guide'
 import { Route as NewsroomInsideEternaImageImmunizationRouteImport } from './routes/newsroom_.inside-eterna-image-immunization'
 import { Route as NewsroomNegativeSearchResultsBrandReputationRouteImport } from './routes/newsroom_.negative-search-results-brand-reputation'
 import { Route as NewsroomOnlineReputationProblemsBusinessGrowthRouteImport } from './routes/newsroom_.online-reputation-problems-business-growth'
 import { Route as NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport } from './routes/newsroom_.private-video-leak-online-blackmail-first-steps'
+import { Route as NewsroomReportImpersonationAccountFacebookRouteImport } from './routes/newsroom_.report-impersonation-account-facebook'
+import { Route as NewsroomReportImpersonationAccountInstagramRouteImport } from './routes/newsroom_.report-impersonation-account-instagram'
+import { Route as NewsroomReportImpersonationAccountLinkedinRouteImport } from './routes/newsroom_.report-impersonation-account-linkedin'
+import { Route as NewsroomReportImpersonationAccountTiktokRouteImport } from './routes/newsroom_.report-impersonation-account-tiktok'
+import { Route as NewsroomReportImpersonationAccountXRouteImport } from './routes/newsroom_.report-impersonation-account-x'
+import { Route as NewsroomReportImpersonationYoutubeRouteImport } from './routes/newsroom_.report-impersonation-youtube'
 import { Route as NewsroomSomeoneMadeADeepfakeOfMeRouteImport } from './routes/newsroom_.someone-made-a-deepfake-of-me'
+import { Route as NewsroomTakeItDownActGuideRouteImport } from './routes/newsroom_.take-it-down-act-guide'
 import { Route as NewsroomThreatenedToPublishPrivateImagesWhatToDoRouteImport } from './routes/newsroom_.threatened-to-publish-private-images-what-to-do'
 import { Route as NewsroomWhatIsADeepfakeRouteImport } from './routes/newsroom_.what-is-a-deepfake'
 import { Route as NewsroomWhatIsImageImmunizationRouteImport } from './routes/newsroom_.what-is-image-immunization'
@@ -224,6 +235,11 @@ const EnterpriseProtectionRoute = EnterpriseProtectionRouteImport.update({
 const EternaAiRoute = EternaAiRouteImport.update({
   id: '/eterna-ai',
   path: '/eterna-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FakeAccountRemovalRoute = FakeAccountRemovalRouteImport.update({
+  id: '/fake-account-removal',
+  path: '/fake-account-removal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HowItWorksRoute = HowItWorksRouteImport.update({
@@ -496,6 +512,12 @@ const NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute =
       getParentRoute: () => rootRouteImport,
     } as any,
   )
+const NewsroomDeepfakeProtectionVsDetectionRoute =
+  NewsroomDeepfakeProtectionVsDetectionRouteImport.update({
+    id: '/newsroom_/deepfake-protection-vs-detection',
+    path: '/newsroom/deepfake-protection-vs-detection',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const NewsroomDeepfakeReuploadsAfterRemovalRoute =
   NewsroomDeepfakeReuploadsAfterRemovalRouteImport.update({
     id: '/newsroom_/deepfake-reuploads-after-removal',
@@ -556,10 +578,22 @@ const NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute =
     path: '/newsroom/how-eterna-validates-image-immunization-responsibly',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NewsroomHowToChooseADeepfakeProtectionServiceRoute =
+  NewsroomHowToChooseADeepfakeProtectionServiceRouteImport.update({
+    id: '/newsroom_/how-to-choose-a-deepfake-protection-service',
+    path: '/newsroom/how-to-choose-a-deepfake-protection-service',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const NewsroomHowToPreserveDeepfakeEvidenceRoute =
   NewsroomHowToPreserveDeepfakeEvidenceRouteImport.update({
     id: '/newsroom_/how-to-preserve-deepfake-evidence',
     path: '/newsroom/how-to-preserve-deepfake-evidence',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomImageCloakingToolsComparedRoute =
+  NewsroomImageCloakingToolsComparedRouteImport.update({
+    id: '/newsroom_/image-cloaking-tools-compared',
+    path: '/newsroom/image-cloaking-tools-compared',
     getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomImpersonationResponseGuideRoute =
@@ -592,10 +626,52 @@ const NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute =
     path: '/newsroom/private-video-leak-online-blackmail-first-steps',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NewsroomReportImpersonationAccountFacebookRoute =
+  NewsroomReportImpersonationAccountFacebookRouteImport.update({
+    id: '/newsroom_/report-impersonation-account-facebook',
+    path: '/newsroom/report-impersonation-account-facebook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomReportImpersonationAccountInstagramRoute =
+  NewsroomReportImpersonationAccountInstagramRouteImport.update({
+    id: '/newsroom_/report-impersonation-account-instagram',
+    path: '/newsroom/report-impersonation-account-instagram',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomReportImpersonationAccountLinkedinRoute =
+  NewsroomReportImpersonationAccountLinkedinRouteImport.update({
+    id: '/newsroom_/report-impersonation-account-linkedin',
+    path: '/newsroom/report-impersonation-account-linkedin',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomReportImpersonationAccountTiktokRoute =
+  NewsroomReportImpersonationAccountTiktokRouteImport.update({
+    id: '/newsroom_/report-impersonation-account-tiktok',
+    path: '/newsroom/report-impersonation-account-tiktok',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomReportImpersonationAccountXRoute =
+  NewsroomReportImpersonationAccountXRouteImport.update({
+    id: '/newsroom_/report-impersonation-account-x',
+    path: '/newsroom/report-impersonation-account-x',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomReportImpersonationYoutubeRoute =
+  NewsroomReportImpersonationYoutubeRouteImport.update({
+    id: '/newsroom_/report-impersonation-youtube',
+    path: '/newsroom/report-impersonation-youtube',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const NewsroomSomeoneMadeADeepfakeOfMeRoute =
   NewsroomSomeoneMadeADeepfakeOfMeRouteImport.update({
     id: '/newsroom_/someone-made-a-deepfake-of-me',
     path: '/newsroom/someone-made-a-deepfake-of-me',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NewsroomTakeItDownActGuideRoute =
+  NewsroomTakeItDownActGuideRouteImport.update({
+    id: '/newsroom_/take-it-down-act-guide',
+    path: '/newsroom/take-it-down-act-guide',
     getParentRoute: () => rootRouteImport,
   } as any)
 const NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute =
@@ -946,6 +1022,7 @@ export interface FileRoutesByFullPath {
   '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/enterprise-protection': typeof EnterpriseProtectionRoute
   '/eterna-ai': typeof EternaAiRoute
+  '/fake-account-removal': typeof FakeAccountRemovalRoute
   '/how-it-works': typeof HowItWorksRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
@@ -998,6 +1075,7 @@ export interface FileRoutesByFullPath {
   '/newsroom/brand-reputation-risk-business-risk': typeof NewsroomBrandReputationRiskBusinessRiskRoute
   '/newsroom/college-student-deepfakes': typeof NewsroomCollegeStudentDeepfakesRoute
   '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery': typeof NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute
+  '/newsroom/deepfake-protection-vs-detection': typeof NewsroomDeepfakeProtectionVsDetectionRoute
   '/newsroom/deepfake-reuploads-after-removal': typeof NewsroomDeepfakeReuploadsAfterRemovalRoute
   '/newsroom/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
   '/newsroom/detection-is-not-prevention': typeof NewsroomDetectionIsNotPreventionRoute
@@ -1008,13 +1086,22 @@ export interface FileRoutesByFullPath {
   '/newsroom/first-24-hours-online-reputation-crisis': typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
   '/newsroom/how-colleges-respond-to-deepfake-abuse': typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  '/newsroom/how-to-choose-a-deepfake-protection-service': typeof NewsroomHowToChooseADeepfakeProtectionServiceRoute
   '/newsroom/how-to-preserve-deepfake-evidence': typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
+  '/newsroom/image-cloaking-tools-compared': typeof NewsroomImageCloakingToolsComparedRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
   '/newsroom/negative-search-results-brand-reputation': typeof NewsroomNegativeSearchResultsBrandReputationRoute
   '/newsroom/online-reputation-problems-business-growth': typeof NewsroomOnlineReputationProblemsBusinessGrowthRoute
   '/newsroom/private-video-leak-online-blackmail-first-steps': typeof NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute
+  '/newsroom/report-impersonation-account-facebook': typeof NewsroomReportImpersonationAccountFacebookRoute
+  '/newsroom/report-impersonation-account-instagram': typeof NewsroomReportImpersonationAccountInstagramRoute
+  '/newsroom/report-impersonation-account-linkedin': typeof NewsroomReportImpersonationAccountLinkedinRoute
+  '/newsroom/report-impersonation-account-tiktok': typeof NewsroomReportImpersonationAccountTiktokRoute
+  '/newsroom/report-impersonation-account-x': typeof NewsroomReportImpersonationAccountXRoute
+  '/newsroom/report-impersonation-youtube': typeof NewsroomReportImpersonationYoutubeRoute
   '/newsroom/someone-made-a-deepfake-of-me': typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
+  '/newsroom/take-it-down-act-guide': typeof NewsroomTakeItDownActGuideRoute
   '/newsroom/threatened-to-publish-private-images-what-to-do': typeof NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute
   '/newsroom/what-is-a-deepfake': typeof NewsroomWhatIsADeepfakeRoute
   '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
@@ -1089,6 +1176,7 @@ export interface FileRoutesByTo {
   '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/enterprise-protection': typeof EnterpriseProtectionRoute
   '/eterna-ai': typeof EternaAiRoute
+  '/fake-account-removal': typeof FakeAccountRemovalRoute
   '/how-it-works': typeof HowItWorksRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
@@ -1139,6 +1227,7 @@ export interface FileRoutesByTo {
   '/newsroom/brand-reputation-risk-business-risk': typeof NewsroomBrandReputationRiskBusinessRiskRoute
   '/newsroom/college-student-deepfakes': typeof NewsroomCollegeStudentDeepfakesRoute
   '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery': typeof NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute
+  '/newsroom/deepfake-protection-vs-detection': typeof NewsroomDeepfakeProtectionVsDetectionRoute
   '/newsroom/deepfake-reuploads-after-removal': typeof NewsroomDeepfakeReuploadsAfterRemovalRoute
   '/newsroom/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
   '/newsroom/detection-is-not-prevention': typeof NewsroomDetectionIsNotPreventionRoute
@@ -1149,13 +1238,22 @@ export interface FileRoutesByTo {
   '/newsroom/first-24-hours-online-reputation-crisis': typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
   '/newsroom/how-colleges-respond-to-deepfake-abuse': typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   '/newsroom/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  '/newsroom/how-to-choose-a-deepfake-protection-service': typeof NewsroomHowToChooseADeepfakeProtectionServiceRoute
   '/newsroom/how-to-preserve-deepfake-evidence': typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
+  '/newsroom/image-cloaking-tools-compared': typeof NewsroomImageCloakingToolsComparedRoute
   '/newsroom/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
   '/newsroom/negative-search-results-brand-reputation': typeof NewsroomNegativeSearchResultsBrandReputationRoute
   '/newsroom/online-reputation-problems-business-growth': typeof NewsroomOnlineReputationProblemsBusinessGrowthRoute
   '/newsroom/private-video-leak-online-blackmail-first-steps': typeof NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute
+  '/newsroom/report-impersonation-account-facebook': typeof NewsroomReportImpersonationAccountFacebookRoute
+  '/newsroom/report-impersonation-account-instagram': typeof NewsroomReportImpersonationAccountInstagramRoute
+  '/newsroom/report-impersonation-account-linkedin': typeof NewsroomReportImpersonationAccountLinkedinRoute
+  '/newsroom/report-impersonation-account-tiktok': typeof NewsroomReportImpersonationAccountTiktokRoute
+  '/newsroom/report-impersonation-account-x': typeof NewsroomReportImpersonationAccountXRoute
+  '/newsroom/report-impersonation-youtube': typeof NewsroomReportImpersonationYoutubeRoute
   '/newsroom/someone-made-a-deepfake-of-me': typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
+  '/newsroom/take-it-down-act-guide': typeof NewsroomTakeItDownActGuideRoute
   '/newsroom/threatened-to-publish-private-images-what-to-do': typeof NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute
   '/newsroom/what-is-a-deepfake': typeof NewsroomWhatIsADeepfakeRoute
   '/newsroom/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
@@ -1233,6 +1331,7 @@ export interface FileRoutesById {
   '/deepfake-protection': typeof DeepfakeProtectionRoute
   '/enterprise-protection': typeof EnterpriseProtectionRoute
   '/eterna-ai': typeof EternaAiRoute
+  '/fake-account-removal': typeof FakeAccountRemovalRoute
   '/how-it-works': typeof HowItWorksRoute
   '/identity-response-observatory': typeof IdentityResponseObservatoryRoute
   '/image-immunization': typeof ImageImmunizationRoute
@@ -1285,6 +1384,7 @@ export interface FileRoutesById {
   '/newsroom_/brand-reputation-risk-business-risk': typeof NewsroomBrandReputationRiskBusinessRiskRoute
   '/newsroom_/college-student-deepfakes': typeof NewsroomCollegeStudentDeepfakesRoute
   '/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery': typeof NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute
+  '/newsroom_/deepfake-protection-vs-detection': typeof NewsroomDeepfakeProtectionVsDetectionRoute
   '/newsroom_/deepfake-reuploads-after-removal': typeof NewsroomDeepfakeReuploadsAfterRemovalRoute
   '/newsroom_/deepfake-verification-guide': typeof NewsroomDeepfakeVerificationGuideRoute
   '/newsroom_/detection-is-not-prevention': typeof NewsroomDetectionIsNotPreventionRoute
@@ -1295,13 +1395,22 @@ export interface FileRoutesById {
   '/newsroom_/first-24-hours-online-reputation-crisis': typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
   '/newsroom_/how-colleges-respond-to-deepfake-abuse': typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   '/newsroom_/how-eterna-validates-image-immunization-responsibly': typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  '/newsroom_/how-to-choose-a-deepfake-protection-service': typeof NewsroomHowToChooseADeepfakeProtectionServiceRoute
   '/newsroom_/how-to-preserve-deepfake-evidence': typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
+  '/newsroom_/image-cloaking-tools-compared': typeof NewsroomImageCloakingToolsComparedRoute
   '/newsroom_/impersonation-response-guide': typeof NewsroomImpersonationResponseGuideRoute
   '/newsroom_/inside-eterna-image-immunization': typeof NewsroomInsideEternaImageImmunizationRoute
   '/newsroom_/negative-search-results-brand-reputation': typeof NewsroomNegativeSearchResultsBrandReputationRoute
   '/newsroom_/online-reputation-problems-business-growth': typeof NewsroomOnlineReputationProblemsBusinessGrowthRoute
   '/newsroom_/private-video-leak-online-blackmail-first-steps': typeof NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute
+  '/newsroom_/report-impersonation-account-facebook': typeof NewsroomReportImpersonationAccountFacebookRoute
+  '/newsroom_/report-impersonation-account-instagram': typeof NewsroomReportImpersonationAccountInstagramRoute
+  '/newsroom_/report-impersonation-account-linkedin': typeof NewsroomReportImpersonationAccountLinkedinRoute
+  '/newsroom_/report-impersonation-account-tiktok': typeof NewsroomReportImpersonationAccountTiktokRoute
+  '/newsroom_/report-impersonation-account-x': typeof NewsroomReportImpersonationAccountXRoute
+  '/newsroom_/report-impersonation-youtube': typeof NewsroomReportImpersonationYoutubeRoute
   '/newsroom_/someone-made-a-deepfake-of-me': typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
+  '/newsroom_/take-it-down-act-guide': typeof NewsroomTakeItDownActGuideRoute
   '/newsroom_/threatened-to-publish-private-images-what-to-do': typeof NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute
   '/newsroom_/what-is-a-deepfake': typeof NewsroomWhatIsADeepfakeRoute
   '/newsroom_/what-is-image-immunization': typeof NewsroomWhatIsImageImmunizationRoute
@@ -1378,6 +1487,7 @@ export interface FileRouteTypes {
     | '/deepfake-protection'
     | '/enterprise-protection'
     | '/eterna-ai'
+    | '/fake-account-removal'
     | '/how-it-works'
     | '/identity-response-observatory'
     | '/image-immunization'
@@ -1430,6 +1540,7 @@ export interface FileRouteTypes {
     | '/newsroom/brand-reputation-risk-business-risk'
     | '/newsroom/college-student-deepfakes'
     | '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery'
+    | '/newsroom/deepfake-protection-vs-detection'
     | '/newsroom/deepfake-reuploads-after-removal'
     | '/newsroom/deepfake-verification-guide'
     | '/newsroom/detection-is-not-prevention'
@@ -1440,13 +1551,22 @@ export interface FileRouteTypes {
     | '/newsroom/first-24-hours-online-reputation-crisis'
     | '/newsroom/how-colleges-respond-to-deepfake-abuse'
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
+    | '/newsroom/how-to-choose-a-deepfake-protection-service'
     | '/newsroom/how-to-preserve-deepfake-evidence'
+    | '/newsroom/image-cloaking-tools-compared'
     | '/newsroom/impersonation-response-guide'
     | '/newsroom/inside-eterna-image-immunization'
     | '/newsroom/negative-search-results-brand-reputation'
     | '/newsroom/online-reputation-problems-business-growth'
     | '/newsroom/private-video-leak-online-blackmail-first-steps'
+    | '/newsroom/report-impersonation-account-facebook'
+    | '/newsroom/report-impersonation-account-instagram'
+    | '/newsroom/report-impersonation-account-linkedin'
+    | '/newsroom/report-impersonation-account-tiktok'
+    | '/newsroom/report-impersonation-account-x'
+    | '/newsroom/report-impersonation-youtube'
     | '/newsroom/someone-made-a-deepfake-of-me'
+    | '/newsroom/take-it-down-act-guide'
     | '/newsroom/threatened-to-publish-private-images-what-to-do'
     | '/newsroom/what-is-a-deepfake'
     | '/newsroom/what-is-image-immunization'
@@ -1521,6 +1641,7 @@ export interface FileRouteTypes {
     | '/deepfake-protection'
     | '/enterprise-protection'
     | '/eterna-ai'
+    | '/fake-account-removal'
     | '/how-it-works'
     | '/identity-response-observatory'
     | '/image-immunization'
@@ -1571,6 +1692,7 @@ export interface FileRouteTypes {
     | '/newsroom/brand-reputation-risk-business-risk'
     | '/newsroom/college-student-deepfakes'
     | '/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery'
+    | '/newsroom/deepfake-protection-vs-detection'
     | '/newsroom/deepfake-reuploads-after-removal'
     | '/newsroom/deepfake-verification-guide'
     | '/newsroom/detection-is-not-prevention'
@@ -1581,13 +1703,22 @@ export interface FileRouteTypes {
     | '/newsroom/first-24-hours-online-reputation-crisis'
     | '/newsroom/how-colleges-respond-to-deepfake-abuse'
     | '/newsroom/how-eterna-validates-image-immunization-responsibly'
+    | '/newsroom/how-to-choose-a-deepfake-protection-service'
     | '/newsroom/how-to-preserve-deepfake-evidence'
+    | '/newsroom/image-cloaking-tools-compared'
     | '/newsroom/impersonation-response-guide'
     | '/newsroom/inside-eterna-image-immunization'
     | '/newsroom/negative-search-results-brand-reputation'
     | '/newsroom/online-reputation-problems-business-growth'
     | '/newsroom/private-video-leak-online-blackmail-first-steps'
+    | '/newsroom/report-impersonation-account-facebook'
+    | '/newsroom/report-impersonation-account-instagram'
+    | '/newsroom/report-impersonation-account-linkedin'
+    | '/newsroom/report-impersonation-account-tiktok'
+    | '/newsroom/report-impersonation-account-x'
+    | '/newsroom/report-impersonation-youtube'
     | '/newsroom/someone-made-a-deepfake-of-me'
+    | '/newsroom/take-it-down-act-guide'
     | '/newsroom/threatened-to-publish-private-images-what-to-do'
     | '/newsroom/what-is-a-deepfake'
     | '/newsroom/what-is-image-immunization'
@@ -1664,6 +1795,7 @@ export interface FileRouteTypes {
     | '/deepfake-protection'
     | '/enterprise-protection'
     | '/eterna-ai'
+    | '/fake-account-removal'
     | '/how-it-works'
     | '/identity-response-observatory'
     | '/image-immunization'
@@ -1716,6 +1848,7 @@ export interface FileRouteTypes {
     | '/newsroom_/brand-reputation-risk-business-risk'
     | '/newsroom_/college-student-deepfakes'
     | '/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery'
+    | '/newsroom_/deepfake-protection-vs-detection'
     | '/newsroom_/deepfake-reuploads-after-removal'
     | '/newsroom_/deepfake-verification-guide'
     | '/newsroom_/detection-is-not-prevention'
@@ -1726,13 +1859,22 @@ export interface FileRouteTypes {
     | '/newsroom_/first-24-hours-online-reputation-crisis'
     | '/newsroom_/how-colleges-respond-to-deepfake-abuse'
     | '/newsroom_/how-eterna-validates-image-immunization-responsibly'
+    | '/newsroom_/how-to-choose-a-deepfake-protection-service'
     | '/newsroom_/how-to-preserve-deepfake-evidence'
+    | '/newsroom_/image-cloaking-tools-compared'
     | '/newsroom_/impersonation-response-guide'
     | '/newsroom_/inside-eterna-image-immunization'
     | '/newsroom_/negative-search-results-brand-reputation'
     | '/newsroom_/online-reputation-problems-business-growth'
     | '/newsroom_/private-video-leak-online-blackmail-first-steps'
+    | '/newsroom_/report-impersonation-account-facebook'
+    | '/newsroom_/report-impersonation-account-instagram'
+    | '/newsroom_/report-impersonation-account-linkedin'
+    | '/newsroom_/report-impersonation-account-tiktok'
+    | '/newsroom_/report-impersonation-account-x'
+    | '/newsroom_/report-impersonation-youtube'
     | '/newsroom_/someone-made-a-deepfake-of-me'
+    | '/newsroom_/take-it-down-act-guide'
     | '/newsroom_/threatened-to-publish-private-images-what-to-do'
     | '/newsroom_/what-is-a-deepfake'
     | '/newsroom_/what-is-image-immunization'
@@ -1810,6 +1952,7 @@ export interface RootRouteChildren {
   DeepfakeProtectionRoute: typeof DeepfakeProtectionRoute
   EnterpriseProtectionRoute: typeof EnterpriseProtectionRoute
   EternaAiRoute: typeof EternaAiRoute
+  FakeAccountRemovalRoute: typeof FakeAccountRemovalRoute
   HowItWorksRoute: typeof HowItWorksRoute
   IdentityResponseObservatoryRoute: typeof IdentityResponseObservatoryRoute
   ImageImmunizationRoute: typeof ImageImmunizationRoute
@@ -1840,6 +1983,7 @@ export interface RootRouteChildren {
   NewsroomBrandReputationRiskBusinessRiskRoute: typeof NewsroomBrandReputationRiskBusinessRiskRoute
   NewsroomCollegeStudentDeepfakesRoute: typeof NewsroomCollegeStudentDeepfakesRoute
   NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute: typeof NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute
+  NewsroomDeepfakeProtectionVsDetectionRoute: typeof NewsroomDeepfakeProtectionVsDetectionRoute
   NewsroomDeepfakeReuploadsAfterRemovalRoute: typeof NewsroomDeepfakeReuploadsAfterRemovalRoute
   NewsroomDeepfakeVerificationGuideRoute: typeof NewsroomDeepfakeVerificationGuideRoute
   NewsroomDetectionIsNotPreventionRoute: typeof NewsroomDetectionIsNotPreventionRoute
@@ -1850,13 +1994,22 @@ export interface RootRouteChildren {
   NewsroomFirst24HoursOnlineReputationCrisisRoute: typeof NewsroomFirst24HoursOnlineReputationCrisisRoute
   NewsroomHowCollegesRespondToDeepfakeAbuseRoute: typeof NewsroomHowCollegesRespondToDeepfakeAbuseRoute
   NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute
+  NewsroomHowToChooseADeepfakeProtectionServiceRoute: typeof NewsroomHowToChooseADeepfakeProtectionServiceRoute
   NewsroomHowToPreserveDeepfakeEvidenceRoute: typeof NewsroomHowToPreserveDeepfakeEvidenceRoute
+  NewsroomImageCloakingToolsComparedRoute: typeof NewsroomImageCloakingToolsComparedRoute
   NewsroomImpersonationResponseGuideRoute: typeof NewsroomImpersonationResponseGuideRoute
   NewsroomInsideEternaImageImmunizationRoute: typeof NewsroomInsideEternaImageImmunizationRoute
   NewsroomNegativeSearchResultsBrandReputationRoute: typeof NewsroomNegativeSearchResultsBrandReputationRoute
   NewsroomOnlineReputationProblemsBusinessGrowthRoute: typeof NewsroomOnlineReputationProblemsBusinessGrowthRoute
   NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute: typeof NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute
+  NewsroomReportImpersonationAccountFacebookRoute: typeof NewsroomReportImpersonationAccountFacebookRoute
+  NewsroomReportImpersonationAccountInstagramRoute: typeof NewsroomReportImpersonationAccountInstagramRoute
+  NewsroomReportImpersonationAccountLinkedinRoute: typeof NewsroomReportImpersonationAccountLinkedinRoute
+  NewsroomReportImpersonationAccountTiktokRoute: typeof NewsroomReportImpersonationAccountTiktokRoute
+  NewsroomReportImpersonationAccountXRoute: typeof NewsroomReportImpersonationAccountXRoute
+  NewsroomReportImpersonationYoutubeRoute: typeof NewsroomReportImpersonationYoutubeRoute
   NewsroomSomeoneMadeADeepfakeOfMeRoute: typeof NewsroomSomeoneMadeADeepfakeOfMeRoute
+  NewsroomTakeItDownActGuideRoute: typeof NewsroomTakeItDownActGuideRoute
   NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute: typeof NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute
   NewsroomWhatIsADeepfakeRoute: typeof NewsroomWhatIsADeepfakeRoute
   NewsroomWhatIsImageImmunizationRoute: typeof NewsroomWhatIsImageImmunizationRoute
@@ -1994,6 +2147,13 @@ declare module '@tanstack/react-router' {
       path: '/eterna-ai'
       fullPath: '/eterna-ai'
       preLoaderRoute: typeof EternaAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fake-account-removal': {
+      id: '/fake-account-removal'
+      path: '/fake-account-removal'
+      fullPath: '/fake-account-removal'
+      preLoaderRoute: typeof FakeAccountRemovalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/how-it-works': {
@@ -2360,6 +2520,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsroom_/deepfake-protection-vs-detection': {
+      id: '/newsroom_/deepfake-protection-vs-detection'
+      path: '/newsroom/deepfake-protection-vs-detection'
+      fullPath: '/newsroom/deepfake-protection-vs-detection'
+      preLoaderRoute: typeof NewsroomDeepfakeProtectionVsDetectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/newsroom_/deepfake-reuploads-after-removal': {
       id: '/newsroom_/deepfake-reuploads-after-removal'
       path: '/newsroom/deepfake-reuploads-after-removal'
@@ -2430,11 +2597,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsroomHowEternaValidatesImageImmunizationResponsiblyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsroom_/how-to-choose-a-deepfake-protection-service': {
+      id: '/newsroom_/how-to-choose-a-deepfake-protection-service'
+      path: '/newsroom/how-to-choose-a-deepfake-protection-service'
+      fullPath: '/newsroom/how-to-choose-a-deepfake-protection-service'
+      preLoaderRoute: typeof NewsroomHowToChooseADeepfakeProtectionServiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/newsroom_/how-to-preserve-deepfake-evidence': {
       id: '/newsroom_/how-to-preserve-deepfake-evidence'
       path: '/newsroom/how-to-preserve-deepfake-evidence'
       fullPath: '/newsroom/how-to-preserve-deepfake-evidence'
       preLoaderRoute: typeof NewsroomHowToPreserveDeepfakeEvidenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/image-cloaking-tools-compared': {
+      id: '/newsroom_/image-cloaking-tools-compared'
+      path: '/newsroom/image-cloaking-tools-compared'
+      fullPath: '/newsroom/image-cloaking-tools-compared'
+      preLoaderRoute: typeof NewsroomImageCloakingToolsComparedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/newsroom_/impersonation-response-guide': {
@@ -2472,11 +2653,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsroom_/report-impersonation-account-facebook': {
+      id: '/newsroom_/report-impersonation-account-facebook'
+      path: '/newsroom/report-impersonation-account-facebook'
+      fullPath: '/newsroom/report-impersonation-account-facebook'
+      preLoaderRoute: typeof NewsroomReportImpersonationAccountFacebookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/report-impersonation-account-instagram': {
+      id: '/newsroom_/report-impersonation-account-instagram'
+      path: '/newsroom/report-impersonation-account-instagram'
+      fullPath: '/newsroom/report-impersonation-account-instagram'
+      preLoaderRoute: typeof NewsroomReportImpersonationAccountInstagramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/report-impersonation-account-linkedin': {
+      id: '/newsroom_/report-impersonation-account-linkedin'
+      path: '/newsroom/report-impersonation-account-linkedin'
+      fullPath: '/newsroom/report-impersonation-account-linkedin'
+      preLoaderRoute: typeof NewsroomReportImpersonationAccountLinkedinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/report-impersonation-account-tiktok': {
+      id: '/newsroom_/report-impersonation-account-tiktok'
+      path: '/newsroom/report-impersonation-account-tiktok'
+      fullPath: '/newsroom/report-impersonation-account-tiktok'
+      preLoaderRoute: typeof NewsroomReportImpersonationAccountTiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/report-impersonation-account-x': {
+      id: '/newsroom_/report-impersonation-account-x'
+      path: '/newsroom/report-impersonation-account-x'
+      fullPath: '/newsroom/report-impersonation-account-x'
+      preLoaderRoute: typeof NewsroomReportImpersonationAccountXRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/report-impersonation-youtube': {
+      id: '/newsroom_/report-impersonation-youtube'
+      path: '/newsroom/report-impersonation-youtube'
+      fullPath: '/newsroom/report-impersonation-youtube'
+      preLoaderRoute: typeof NewsroomReportImpersonationYoutubeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/newsroom_/someone-made-a-deepfake-of-me': {
       id: '/newsroom_/someone-made-a-deepfake-of-me'
       path: '/newsroom/someone-made-a-deepfake-of-me'
       fullPath: '/newsroom/someone-made-a-deepfake-of-me'
       preLoaderRoute: typeof NewsroomSomeoneMadeADeepfakeOfMeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsroom_/take-it-down-act-guide': {
+      id: '/newsroom_/take-it-down-act-guide'
+      path: '/newsroom/take-it-down-act-guide'
+      fullPath: '/newsroom/take-it-down-act-guide'
+      preLoaderRoute: typeof NewsroomTakeItDownActGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/newsroom_/threatened-to-publish-private-images-what-to-do': {
@@ -3060,6 +3290,7 @@ const rootRouteChildren: RootRouteChildren = {
   DeepfakeProtectionRoute: DeepfakeProtectionRoute,
   EnterpriseProtectionRoute: EnterpriseProtectionRoute,
   EternaAiRoute: EternaAiRoute,
+  FakeAccountRemovalRoute: FakeAccountRemovalRoute,
   HowItWorksRoute: HowItWorksRoute,
   IdentityResponseObservatoryRoute: IdentityResponseObservatoryRoute,
   ImageImmunizationRoute: ImageImmunizationRoute,
@@ -3094,6 +3325,8 @@ const rootRouteChildren: RootRouteChildren = {
   NewsroomCollegeStudentDeepfakesRoute: NewsroomCollegeStudentDeepfakesRoute,
   NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute:
     NewsroomContentRemovalVsSearchSuppressionVsReputationRecoveryRoute,
+  NewsroomDeepfakeProtectionVsDetectionRoute:
+    NewsroomDeepfakeProtectionVsDetectionRoute,
   NewsroomDeepfakeReuploadsAfterRemovalRoute:
     NewsroomDeepfakeReuploadsAfterRemovalRoute,
   NewsroomDeepfakeVerificationGuideRoute:
@@ -3113,8 +3346,12 @@ const rootRouteChildren: RootRouteChildren = {
     NewsroomHowCollegesRespondToDeepfakeAbuseRoute,
   NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute:
     NewsroomHowEternaValidatesImageImmunizationResponsiblyRoute,
+  NewsroomHowToChooseADeepfakeProtectionServiceRoute:
+    NewsroomHowToChooseADeepfakeProtectionServiceRoute,
   NewsroomHowToPreserveDeepfakeEvidenceRoute:
     NewsroomHowToPreserveDeepfakeEvidenceRoute,
+  NewsroomImageCloakingToolsComparedRoute:
+    NewsroomImageCloakingToolsComparedRoute,
   NewsroomImpersonationResponseGuideRoute:
     NewsroomImpersonationResponseGuideRoute,
   NewsroomInsideEternaImageImmunizationRoute:
@@ -3125,7 +3362,20 @@ const rootRouteChildren: RootRouteChildren = {
     NewsroomOnlineReputationProblemsBusinessGrowthRoute,
   NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute:
     NewsroomPrivateVideoLeakOnlineBlackmailFirstStepsRoute,
+  NewsroomReportImpersonationAccountFacebookRoute:
+    NewsroomReportImpersonationAccountFacebookRoute,
+  NewsroomReportImpersonationAccountInstagramRoute:
+    NewsroomReportImpersonationAccountInstagramRoute,
+  NewsroomReportImpersonationAccountLinkedinRoute:
+    NewsroomReportImpersonationAccountLinkedinRoute,
+  NewsroomReportImpersonationAccountTiktokRoute:
+    NewsroomReportImpersonationAccountTiktokRoute,
+  NewsroomReportImpersonationAccountXRoute:
+    NewsroomReportImpersonationAccountXRoute,
+  NewsroomReportImpersonationYoutubeRoute:
+    NewsroomReportImpersonationYoutubeRoute,
   NewsroomSomeoneMadeADeepfakeOfMeRoute: NewsroomSomeoneMadeADeepfakeOfMeRoute,
+  NewsroomTakeItDownActGuideRoute: NewsroomTakeItDownActGuideRoute,
   NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute:
     NewsroomThreatenedToPublishPrivateImagesWhatToDoRoute,
   NewsroomWhatIsADeepfakeRoute: NewsroomWhatIsADeepfakeRoute,
@@ -3174,3 +3424,4 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+

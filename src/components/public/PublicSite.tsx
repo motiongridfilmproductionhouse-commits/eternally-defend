@@ -86,6 +86,7 @@ const navigationCategories: NavCategory[] = [
     items: [
       { label: "Deepfake Protection", to: "/deepfake-protection" as const, description: "Detection, verification and response." },
       { label: "Impersonation Protection", to: "/ai-impersonation" as const, description: "Fake accounts, cloned voices and scams." },
+      { label: "Fake Account Removal", to: "/fake-account-removal" as const, description: "Verified escalation of impersonation accounts." },
       { label: "Online Reputation Protection", to: "/online-reputation-protection" as const, description: "Evidence-led response to defamatory content." },
       { label: "Public Figure Protection", to: "/public-figure-protection" as const, description: "Public figures, executives and creators." },
       { label: "Enterprise Protection", to: "/enterprise-protection" as const, description: "Executives, brands and institutions." },
@@ -641,6 +642,7 @@ export function PublicFooter() {
       links: [
         { label: "Deepfake Protection", to: "/deepfake-protection" as const },
         { label: "Impersonation Protection", to: "/ai-impersonation" as const },
+        { label: "Fake Account Removal", to: "/fake-account-removal" as const },
         { label: "Reputation Protection", to: "/online-reputation-protection" as const },
         { label: "Public Figure Protection", to: "/public-figure-protection" as const },
         { label: "Enterprise Protection", to: "/enterprise-protection" as const },

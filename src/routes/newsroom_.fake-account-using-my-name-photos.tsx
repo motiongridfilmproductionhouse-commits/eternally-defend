@@ -225,7 +225,9 @@ function FakeAccountPage() {
             >
               Impersonation Response Guide
             </Link>{" "}
-            covers that broader pattern in more depth.
+            covers that broader pattern in more depth. When reports keep stalling, Eterna's{" "}
+            <Link to="/fake-account-removal" className="landing-link text-landing-ink">fake account removal service</Link>{" "}
+            verifies the account, preserves evidence and escalates it for you.
           </p>
 
           <div className="border-t border-landing-line pt-8">

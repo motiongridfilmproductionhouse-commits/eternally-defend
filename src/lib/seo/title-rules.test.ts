@@ -18,10 +18,21 @@ function pageTitle(src: string) {
   return m?.[1] === "TITLE" ? constTitle : m?.[1]?.slice(1, -1);
 }
 
+// Data-driven newsroom guides keep their head title next to their slug in a content module.
+const contentSrc = ["src/lib/content/platform-guides.ts", "src/lib/content/topic-guides.ts"]
+  .map((f) => readFileSync(f, "utf8"))
+  .join("\n");
+function contentTitle(path: string) {
+  const slug = path.split("/").pop()!;
+  const i = contentSrc.search(new RegExp(`(slug: |path: "/newsroom/)"?${slug}"`));
+  if (i < 0) return undefined;
+  return contentSrc.slice(i).match(/headTitle: "([^"]+)"/)?.[1];
+}
+
 describe("public page titles", () => {
   for (const path of paths) {
     it(`${path} follows the title pattern`, () => {
-      const title = pageTitle(readFileSync(routeFile(path), "utf8"));
+      const title = pageTitle(readFileSync(routeFile(path), "utf8")) ?? contentTitle(path);
       expect(title, path).toBeDefined();
       expect(title!.length).toBeLessThanOrEqual(60);
       // About and Contact lead with the brand by request.

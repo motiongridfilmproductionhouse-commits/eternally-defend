@@ -366,6 +366,11 @@ function AiImpersonationPage() {
               </Link>
             </li>
             <li>
+              <Link to="/fake-account-removal" className="landing-link text-landing-ink">
+                Fake Account Removal Service
+              </Link>
+            </li>
+            <li>
               <Link
                 to="/newsroom/fake-account-using-my-name-photos"
                 className="landing-link text-landing-ink"
