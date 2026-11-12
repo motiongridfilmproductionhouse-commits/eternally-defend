@@ -5,12 +5,127 @@ import { PublicPage } from "@/components/public/PublicSite";
 import { DEFAULT_OG_IMAGE } from "@/lib/seo/og-image";
 import { PUBLISHER, serviceNode } from "@/lib/seo/structured-data";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export const SITE = "https://protectbyeterna.com";
 
 type To = ComponentProps<typeof Link>["to"];
 
-export type ServiceSection = { kicker: string; heading: string; body: string[] };
+export type ServiceSection = {
+  kicker: string;
+  heading: string;
+  body: string[];
+  /** Optional bullet list shown after the paragraphs. */
+  bullets?: string[];
+  /** Optional contextual links (e.g. newsroom guides) shown after the body. */
+  links?: { label: string; to: To }[];
+};
+export type ServiceFaq = { q: string; a: string };
+
+export function faqPageSchema(faqs: ServiceFaq[]) {
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  });
+}
+
+/** FAQ accordion + FAQPage JSON-LD, styled like the other public pages. */
+export function ServiceFaqSection({ heading, faqs }: { heading: string; faqs: ServiceFaq[] }) {
+  return (
+    <section className="border-t border-landing-line py-20 md:py-24">
+      <div className="mx-auto max-w-3xl px-6">
+        <p className="landing-kicker">Frequently asked questions</p>
+        <h2 className="mt-4 text-3xl font-medium md:text-4xl">{heading}</h2>
+        <Accordion type="multiple" className="mt-8">
+          {faqs.map(({ q, a }) => (
+            <AccordionItem key={q} value={q}>
+              <AccordionTrigger className="text-left text-sm font-semibold text-landing-ink">
+                {q}
+              </AccordionTrigger>
+              <AccordionContent forceMount className="text-sm leading-6 text-landing-muted data-[state=closed]:hidden">
+                {a}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqPageSchema(faqs) }} />
+    </section>
+  );
+}
+
+/** Alternating two-column content sections used on service pages. */
+export function ServiceSectionList({ sections }: { sections: ServiceSection[] }) {
+  return (
+    <>
+      {sections.map((s, i) => (
+        <section
+          key={s.heading}
+          className={`border-t border-landing-line py-20 md:py-24 ${i % 2 ? "bg-landing-soft" : ""}`}
+        >
+          <div className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-2">
+            <div>
+              <p className="landing-kicker">{s.kicker}</p>
+              <h2 className="mt-4 text-3xl font-medium md:text-4xl">{s.heading}</h2>
+            </div>
+            <div className="space-y-5 text-sm leading-7 text-landing-muted">
+              {s.body.map((p) => (
+                <p key={p}>{p}</p>
+              ))}
+              {s.bullets?.length ? (
+                <ul className="list-disc space-y-2 pl-5">
+                  {s.bullets.map((b) => (
+                    <li key={b}>{b}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {s.links?.length ? (
+                <p className="flex flex-wrap gap-x-6 gap-y-2">
+                  {s.links.map((l) => (
+                    <Link key={l.label} to={l.to} className="landing-link font-semibold text-landing-ink">
+                      {l.label}
+                    </Link>
+                  ))}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ))}
+
+    </>
+  );
+}
+
+/** Links to existing newsroom guides plus the request page. */
+export function ServiceGuidesSection({ guides }: { guides: RelatedLink[] }) {
+  return (
+    <section className="border-t border-landing-line py-16">
+      <div className="mx-auto max-w-6xl px-6">
+        <h2 className="text-xl font-medium">Related guides</h2>
+        <ul className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
+          {guides.map((g) => (
+            <li key={g.label}>
+              <Link to={g.to} className="landing-link">
+                {g.label}
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link to="/request-protection" className="landing-link font-semibold text-landing-ink">
+              Request digital identity protection
+            </Link>
+          </li>
+        </ul>
+      </div>
+    </section>
+  );
+}
 export type ServiceCard = { title: string; body: string };
 export type RelatedLink = { label: string; to: To };
 
@@ -74,6 +189,9 @@ export function ServiceLanding({
   cards,
   cardsHeading,
   related,
+  faqs,
+  faqHeading,
+  guides,
   children,
 }: {
   eyebrow: string;
@@ -87,6 +205,9 @@ export function ServiceLanding({
   cards?: ServiceCard[];
   cardsHeading?: string;
   related: RelatedLink[];
+  faqs?: ServiceFaq[];
+  faqHeading?: string;
+  guides?: RelatedLink[];
   children?: ReactNode;
 }) {
   return (
@@ -109,24 +230,7 @@ export function ServiceLanding({
         </div>
       </section>
 
-      {sections.map((s, i) => (
-        <section
-          key={s.heading}
-          className={`border-t border-landing-line py-20 md:py-24 ${i % 2 ? "bg-landing-soft" : ""}`}
-        >
-          <div className="mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-2">
-            <div>
-              <p className="landing-kicker">{s.kicker}</p>
-              <h2 className="mt-4 text-3xl font-medium md:text-4xl">{s.heading}</h2>
-            </div>
-            <div className="space-y-5 text-sm leading-7 text-landing-muted">
-              {s.body.map((p) => (
-                <p key={p}>{p}</p>
-              ))}
-            </div>
-          </div>
-        </section>
-      ))}
+      <ServiceSectionList sections={sections} />
 
       {cards && cards.length > 0 ? (
         <section className="border-t border-landing-line py-20 md:py-24">
@@ -145,6 +249,10 @@ export function ServiceLanding({
       ) : null}
 
       {children}
+
+      {faqs?.length ? <ServiceFaqSection heading={faqHeading ?? "Common questions"} faqs={faqs} /> : null}
+
+      {guides?.length ? <ServiceGuidesSection guides={guides} /> : null}
 
       <section className="border-t border-landing-line bg-landing-soft py-16">
         <div className="mx-auto max-w-6xl px-6">
