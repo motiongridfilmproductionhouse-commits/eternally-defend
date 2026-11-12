@@ -18,3 +18,6 @@
 - Submitted removal requests (enforcement_requests Sent/Approved/Rejected) auto-create one linked case via a DB trigger keyed on cases.metadata.enforcement_request_id — why: removals must never exist without a case.
 - Pay-per-link removals: customer reads go only through caseId+email server fns returning customer-safe fields; staff ops via has_role-checked server fns; every change appends to removal_order_events — why: internal notes, evidence paths and history must never leak or be overwritten.
 - Temporary account notices use the authenticated dashboard context and session-scoped dismissal without changing enforcement records — why: owner-provided progress updates must remain account-specific and separate from confirmed removal outcomes.
+- Share tags (og/twitter title, description, image, alt) are completed per route by src/components/SeoHeadContent.tsx + src/lib/seo/head-defaults.ts; routes set their own title/description and may override og:image; __root holds no page-specific share copy — why: no stale sitewide fallback text on any page.
+- public/sitemap.xml is static with per-page lastmod; src/lib/seo/sitemap-coverage.test.ts fails when a public route is missing — why: new public pages must always be listed.
+- Canonical 301 redirects (www -> apex, trailing slash) live in requestMiddleware in src/start.ts — why: permanent redirects for SEO.

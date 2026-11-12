@@ -5,12 +5,13 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
-  HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { SeoHeadContent } from "@/components/SeoHeadContent";
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE } from "@/lib/seo/head-defaults";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -85,31 +86,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Eterna Sentinel: Digital Protection" },
-      {
-        name: "description",
-        content:
-          "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
-      },
+      { title: DEFAULT_TITLE },
+      { name: "description", content: DEFAULT_DESCRIPTION },
       { name: "theme-color", content: "#f7f6f1" },
       { name: "application-name", content: "Eterna Sentinel" },
-      // Open Graph
+      // Open Graph / Twitter: og:title, og:description, twitter:* and the
+      // default og:image are derived per route by SeoHeadContent from each
+      // route's own title/description, so no stale sitewide copy leaks.
       { property: "og:site_name", content: "Eterna Sentinel" },
-      { property: "og:title", content: "Eterna Sentinel: Digital Protection" },
-      {
-        property: "og:description",
-        content:
-          "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
-      },
       { property: "og:type", content: "website" },
-      // Twitter / X
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Eterna Sentinel: Digital Protection" },
-      {
-        name: "twitter:description",
-        content:
-          "Own it. Protect it. Defend it. AI-powered digital protection, reputation monitoring, and automated enforcement for creators, brands and public figures.",
-      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -124,7 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,500;1,500&family=Sora:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,500;1,500&display=swap",
       },
     ],
   }),
@@ -138,7 +123,7 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <HeadContent />
+        <SeoHeadContent />
       </head>
       <body>
         {children}

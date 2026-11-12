@@ -11,8 +11,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import eternaLogo from "@/assets/eterna-logo.png.asset.json";
-import eternaLogoWhite from "@/assets/eterna-logo-white.png.asset.json";
+import eternaLogo from "@/assets/eterna-logo-256.webp.asset.json";
+import eternaLogoWhite from "@/assets/eterna-logo-white-256.webp.asset.json";
 import {
   EnquiryModalProvider,
   useEnquiryModal,
@@ -32,7 +32,17 @@ export function EternaLogo({
   const src = inverse ? eternaLogoWhite.url : eternaLogo.url;
   return (
     <span className={`landing-logo ${className}`}>
-      <img src={src} alt={alt} className="h-full w-auto" width={1712} height={480} />
+      {/* Only the default (dark-on-light) logo is eagerly loaded/preloaded;
+          the inverse variant is lazy so React does not preload it. */}
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-auto"
+        width={256}
+        height={72}
+        loading={inverse ? "lazy" : undefined}
+        decoding="async"
+      />
       <span
         aria-hidden="true"
         className="landing-logo-shine"
@@ -185,7 +195,7 @@ function MegaFeatureCard({ feature }: { feature: MegaFeature }) {
     <div className="eterna-nav-emphasis eterna-nav-feature flex h-full flex-col justify-between rounded-xl border p-6">
       <div>
         <MegaEyebrow>{feature.eyebrow}</MegaEyebrow>
-        <h3 className="mt-2 text-lg font-semibold text-landing-ink">{feature.title}</h3>
+        <p className="mt-2 text-lg font-semibold text-landing-ink">{feature.title}</p>
         <p className="mt-3 text-sm leading-6 text-landing-muted">{feature.body}</p>
       </div>
       <NavigationMenuPrimitive.Link asChild>
@@ -248,9 +258,9 @@ function SolutionsMegaContent() {
       <div className="eterna-nav-emphasis eterna-nav-feature flex h-full flex-col justify-between rounded-xl border p-6">
         <div>
           <MegaEyebrow>Who this is for</MegaEyebrow>
-          <h3 className="mt-2 text-lg font-semibold text-landing-ink">
+          <p className="mt-2 text-lg font-semibold text-landing-ink">
             Protection for high-exposure identities
-          </h3>
+          </p>
           <p className="mt-3 text-sm leading-6 text-landing-muted">
             Digital identity protection for people and organizations in the public eye — deepfakes,
             impersonation and reputation threats, addressed together.
@@ -334,9 +344,9 @@ function CompanyMegaContent() {
       <div className="eterna-nav-emphasis eterna-nav-feature flex h-full flex-col justify-between rounded-xl border p-6">
         <div>
           <MegaEyebrow>How we operate</MegaEyebrow>
-          <h3 className="mt-2 text-lg font-semibold text-landing-ink">
+          <p className="mt-2 text-lg font-semibold text-landing-ink">
             Built on authorization, evidence and human judgment
-          </h3>
+          </p>
           <p className="mt-3 text-sm leading-6 text-landing-muted">
             Eterna combines technical controls with human review so protection work stays
             authorized, traceable and proportionate.
@@ -681,7 +691,7 @@ export function PublicFooter() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
           {groups.map((group) => (
             <div key={group.title}>
-              <h2 className="text-xs font-semibold uppercase text-landing-ink">{group.title}</h2>
+              <p className="text-xs font-semibold uppercase text-landing-ink">{group.title}</p>
               <ul className="mt-4 space-y-3 text-xs text-landing-muted">
                 {group.links.map((link) => (
                   <li key={link.label}>

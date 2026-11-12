@@ -1,0 +1,55 @@
+# Eterna Sentinel
+
+> Digital identity protection, deepfake defense, impersonation monitoring and reputation protection for individuals, public figures and organizations.
+
+Eterna Sentinel is a digital identity protection and deepfake defense company. It detects impersonation, synthetic media, unauthorized content and emerging reputation threats; its team preserves evidence, assesses each case with human review and coordinates appropriate platform and enforcement action. Eterna Image Immunization (EIP) is Eterna's product for preparing images before they are published.
+
+## Services
+
+- [Home](https://protectbyeterna.com/): Digital Identity Protection for the AI Era.
+- [How it works](https://protectbyeterna.com/how-it-works): How Eterna monitors, verifies and responds.
+- [Deepfake protection](https://protectbyeterna.com/deepfake-protection): Identify, verify, preserve evidence around and respond to manipulated media.
+- [AI impersonation protection](https://protectbyeterna.com/ai-impersonation): Fake profiles, cloned voices, fake endorsements and fraud attempts.
+- [Online reputation protection](https://protectbyeterna.com/online-reputation-protection): Monitor, verify and respond to identity misuse and reputation threats.
+- [Monitoring](https://protectbyeterna.com/monitoring): Ongoing monitoring of identity exposure.
+- [Public figure protection](https://protectbyeterna.com/public-figure-protection): Protection for high-exposure identities.
+- [Enterprise protection](https://protectbyeterna.com/enterprise-protection): Identity and reputation protection for organizations.
+- [Incident response](https://protectbyeterna.com/incident-response): Evidence-led response to active identity incidents.
+- [Student digital safety](https://protectbyeterna.com/student-digital-safety): How generative AI has changed student digital safety, and the response steps.
+- [Remove content](https://protectbyeterna.com/remove-content): Submit a link for a pay-per-link removal request.
+- [Request protection](https://protectbyeterna.com/request-protection): Ask Eterna to review an identity for protection.
+
+## Image Immunization
+
+- [Eterna Image Immunization](https://protectbyeterna.com/image-immunization): Preparing images before they are published.
+- [Eterna AI](https://protectbyeterna.com/eterna-ai): Eterna's AI products and how they relate to Eterna Sentinel.
+- [What is image immunization](https://protectbyeterna.com/newsroom/what-is-image-immunization): Plain-language explainer.
+- [How Eterna validates Image Immunization responsibly](https://protectbyeterna.com/newsroom/how-eterna-validates-image-immunization-responsibly): Validation approach.
+
+## Methodology and research
+
+- [Methodology](https://protectbyeterna.com/methodology): How Eterna decides what counts as verified.
+- [Research](https://protectbyeterna.com/research): How Eterna researches, validates and documents its approach to identity protection.
+- [Identity Response Observatory](https://protectbyeterna.com/identity-response-observatory): A public record of digital-identity incidents, built on Eterna's four-part verification standard.
+- [Security](https://protectbyeterna.com/security): Evidence preservation, access control and human review of consequential actions.
+
+## Newsroom guides
+
+- [Newsroom](https://protectbyeterna.com/newsroom): Eterna-owned guides on verification, response and executive readiness.
+- [Deepfake verification guide](https://protectbyeterna.com/newsroom/deepfake-verification-guide): The verification standard behind a confirmed call.
+- [Impersonation response guide](https://protectbyeterna.com/newsroom/impersonation-response-guide): Evidence preservation, account security, reporting and escalation.
+- [Executive first-hour playbook](https://protectbyeterna.com/newsroom/executive-first-hour-playbook): Five decisions to get right in the first hour.
+- [How to preserve deepfake evidence](https://protectbyeterna.com/newsroom/how-to-preserve-deepfake-evidence): What to save when you discover a deepfake.
+- [What is a deepfake](https://protectbyeterna.com/newsroom/what-is-a-deepfake): How deepfakes are made and why they matter.
+
+## Company
+
+- [About](https://protectbyeterna.com/about): How Eterna combines technology, evidence and human review.
+- [Contact](https://protectbyeterna.com/contact): Channels for protection requests, business enquiries, media and partnerships.
+- [Partner Programme](https://protectbyeterna.com/partner-apply): Apply to join the Eterna Partner Programme.
+
+## Contact
+
+- Relations: relations@protectbyeterna.com
+- Press: press@protectbyeterna.com
+- Partnerships: partnerships@protectbyeterna.com

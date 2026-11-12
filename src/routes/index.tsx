@@ -36,8 +36,6 @@ import {
   EnquiryModalProvider,
   useEnquiryModal,
 } from "@/components/public/enquiry/enquiry-modal-context";
-import heroVideo from "@/assets/eterna-hero.mp4.asset.json";
-import heroVideoWebm from "@/assets/eterna-hero.webm.asset.json";
 import newHeroVideo from "@/assets/eterna-hero-new.mp4.asset.json";
 import newHeroVideoWebm from "@/assets/eterna-hero-new.webm.asset.json";
 import newHeroPoster from "@/assets/eterna-hero-new-poster.jpg.asset.json";
@@ -323,6 +321,39 @@ function LandingPage() {
   );
 }
 
+function useDeferredVideo() {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const connection = (
+      navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
+    ).connection;
+    if (connection?.saveData) return;
+    if (connection?.effectiveType && /^(slow-2g|2g|3g)$/.test(connection.effectiveType)) return;
+    let cancelled = false;
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+    const start = () => {
+      if (cancelled) return;
+      const w = window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      };
+      if (w.requestIdleCallback) idleId = w.requestIdleCallback(() => !cancelled && setEnabled(true), { timeout: 4000 });
+      else timeoutId = window.setTimeout(() => !cancelled && setEnabled(true), 2000);
+    };
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", start);
+      const w = window as Window & { cancelIdleCallback?: (id: number) => void };
+      if (idleId !== undefined) w.cancelIdleCallback?.(idleId);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
+  }, []);
+  return enabled;
+}
+
 function LandingPageContent() {
   const { openEnquiryModal } = useEnquiryModal();
   const navigate = useNavigate();
@@ -356,12 +387,17 @@ function LandingPageContent() {
       replace: true,
     });
   }, [navigate, openEnquiryModal]);
+  // Hero video is attached only after window load + idle, and skipped
+  // entirely for reduced motion, Save-Data or slow (2g/3g) connections.
+  // The poster <img> is the LCP element.
+  const videoEnabled = useDeferredVideo();
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !videoEnabled) return;
     video.muted = true;
+    video.load();
     void video.play().catch(() => undefined);
-  }, []);
+  }, [videoEnabled]);
   useEffect(() => {
     const elements = Array.from(document.querySelectorAll<HTMLElement>("[data-landing-reveal]"));
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -408,20 +444,31 @@ function LandingPageContent() {
             className="landing-hero relative min-h-[650px] overflow-hidden rounded-lg md:min-h-[750px]"
             onPointerMove={moveHeroLight}
           >
-            <video
-              ref={videoRef}
-              className="landing-hero-video absolute inset-0 size-full object-cover"
-              poster={newHeroPoster.url}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
+            <img
+              src={newHeroPoster.url}
+              alt=""
               aria-hidden="true"
-            >
-              <source src={newHeroVideoWebm.url} type="video/webm" />
-              <source src={newHeroVideo.url} type="video/mp4" />
-            </video>
+              width={1280}
+              height={720}
+              fetchPriority="high"
+              decoding="async"
+              className="landing-hero-poster absolute inset-0 size-full object-cover"
+            />
+            {videoEnabled ? (
+              <video
+                ref={videoRef}
+                className="landing-hero-video absolute inset-0 size-full object-cover"
+                poster={newHeroPoster.url}
+                muted
+                loop
+                playsInline
+                preload="none"
+                aria-hidden="true"
+              >
+                <source src={newHeroVideoWebm.url} type="video/webm" />
+                <source src={newHeroVideo.url} type="video/mp4" />
+              </video>
+            ) : null}
             <div className="landing-hero-overlay absolute inset-0" />
             <div className="landing-hero-light absolute inset-0 z-[1]" aria-hidden="true" />
             <div className="landing-hero-content relative z-10 flex min-h-[650px] flex-col items-center justify-end px-5 pb-24 pt-20 text-center text-landing-on-media md:min-h-[750px]">
@@ -868,18 +915,31 @@ function LandingPageContent() {
             data-landing-reveal
             className="landing-final-cta relative min-h-[460px] overflow-hidden rounded-lg"
           >
-            <video
-              className="absolute inset-0 size-full object-cover"
-              muted
-              loop
-              autoPlay
-              playsInline
-              preload="none"
+            <img
+              src={newHeroPoster.url}
+              alt=""
               aria-hidden="true"
-            >
-              <source src={heroVideoWebm.url} type="video/webm" />
-              <source src={heroVideo.url} type="video/mp4" />
-            </video>
+              width={1280}
+              height={720}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 size-full object-cover"
+            />
+            {videoEnabled ? (
+              <video
+                className="absolute inset-0 size-full object-cover"
+                poster={newHeroPoster.url}
+                muted
+                loop
+                autoPlay
+                playsInline
+                preload="none"
+                aria-hidden="true"
+              >
+                <source src={newHeroVideoWebm.url} type="video/webm" />
+                <source src={newHeroVideo.url} type="video/mp4" />
+              </video>
+            ) : null}
             <div className="landing-cta-overlay absolute inset-0" />
             <div className="relative z-10 flex min-h-[460px] flex-col items-center justify-center px-6 text-center text-landing-on-media">
               <EternaLogo inverse className="h-5 opacity-90 md:h-7" alt="" />

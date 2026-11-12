@@ -16,7 +16,6 @@ import { getPartnerUploadUrl } from "@/lib/partners/dashboard.functions";
 import { ShieldCheck, Building2, FileSignature } from "lucide-react";
 
 export const Route = createFileRoute("/partner-apply")({
-  ssr: false,
   head: () => ({
     meta: [
       { title: "Become an Eterna Partner | Eterna Sentinel" },
@@ -218,10 +217,6 @@ function PartnerApplyPage() {
     }
   };
 
-  if (checking) {
-    return <div className="min-h-screen grid place-items-center text-slate-500">Loading…</div>;
-  }
-
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <header className="border-b border-slate-200">
@@ -249,6 +244,9 @@ function PartnerApplyPage() {
           </p>
         </div>
 
+        {checking ? (
+          <p className="text-slate-500">Loading…</p>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-8">
           <Section icon={Building2} title="Company Information">
             <Grid>
@@ -448,6 +446,7 @@ function PartnerApplyPage() {
             </Button>
           </div>
         </form>
+        )}
       </main>
     </div>
   );

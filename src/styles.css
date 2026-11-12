@@ -64,12 +64,12 @@
   --color-landing-on-dark-line: var(--landing-on-dark-line);
   --color-landing-on-dark-muted: var(--landing-on-dark-muted);
   --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-enforcement-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-enforcement-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-landing-serif: "Playfair Display", Georgia, serif;
-  --font-contact-display: "Instrument Serif", Georgia, serif;
-  --font-contact-body: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-contact-display: "Playfair Display", Georgia, serif;
+  --font-contact-body: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 @keyframes removal-signal-scan {
@@ -2077,6 +2077,12 @@ textarea::placeholder {
   transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.landing-hero-poster {
+  transform: scale(1.025);
+  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-hero:hover .landing-hero-poster,
 .landing-hero:hover .landing-hero-video {
   transform: scale(1.055);
 }
@@ -3876,7 +3882,7 @@ textarea::placeholder {
   display: grid;
   gap: 1.25rem;
   color: var(--eip-ink);
-  font-family: "DM Sans", var(--font-sans);
+  font-family: var(--font-sans);
 }
 
 .eip-dashboard::before {
@@ -3895,7 +3901,7 @@ textarea::placeholder {
 .eip-dashboard h2,
 .eip-dashboard h3,
 .eip-dashboard strong {
-  font-family: "Space Grotesk", var(--font-display);
+  font-family: var(--font-display);
   letter-spacing: 0;
 }
 
@@ -4190,7 +4196,7 @@ textarea::placeholder {
 
 .eip-floating-note span {
   color: var(--eip-ink);
-  font-family: "Space Grotesk", var(--font-display);
+  font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 500;
   line-height: 1;
@@ -4381,7 +4387,7 @@ textarea::placeholder {
 
 .eip-signal-readout span {
   color: var(--primary-foreground);
-  font-family: "Space Grotesk", var(--font-display);
+  font-family: var(--font-display);
   font-size: 1.6rem;
   line-height: 1;
 }
