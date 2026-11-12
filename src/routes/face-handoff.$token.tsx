@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, ShieldCheck, ScanFace, AlertTriangle, Lock } from "lucide-react";
-import "@aws-amplify/ui-react-liveness/styles.css";
+import { LivenessStyles } from "@/components/onboarding/LivenessStyles";
 import {
   getFaceHandoffSession,
   handoffRecordConsent,
@@ -61,6 +61,15 @@ export const Route = createFileRoute("/face-handoff/$token")({
 type Phase = "loading" | "invalid" | "consent" | "ready" | "scanning" | "saving" | "done";
 
 function FaceHandoffPage() {
+  return (
+    <>
+      <LivenessStyles />
+      <FaceHandoffPageInner />
+    </>
+  );
+}
+
+function FaceHandoffPageInner() {
   const { token } = Route.useParams();
   const resolve = useServerFn(getFaceHandoffSession);
   const consentFn = useServerFn(handoffRecordConsent);

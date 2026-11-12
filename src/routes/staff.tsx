@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getStaffAccess } from "@/lib/prospect/scan.functions";
-import "@/components/staff/staff.css";
+import { StaffStyles } from "@/components/staff/StaffStyles";
 
 /**
  * Staff Pre-Enrollment Intelligence — access boundary.
@@ -28,6 +28,15 @@ export const Route = createFileRoute("/staff")({
 });
 
 function StaffLayout() {
+  return (
+    <>
+      <StaffStyles />
+      <StaffLayoutInner />
+    </>
+  );
+}
+
+function StaffLayoutInner() {
   const access = useServerFn(getStaffAccess);
   const { user } = Route.useRouteContext();
   // Key by user so a cached staff result never carries over to another account.

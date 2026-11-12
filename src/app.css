@@ -1,0 +1,10 @@
+/*
+ * Utilities for the signed-in app (dashboard, staff, partner, onboarding).
+ * styles.css only scans public-page sources to keep first paint light; this
+ * sheet scans all of src/ and is linked from __root.tsx on non-public paths.
+ * It loads after styles.css into the same cascade layers, so app screens get
+ * exactly the utilities they had before.
+ */
+@reference "./styles.css";
+@import "tailwindcss/utilities" layer(utilities) source(none);
+@source "../src";

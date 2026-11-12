@@ -63,6 +63,26 @@ export default defineConfig({
     build: {
       sourcemap: false,
     },
+    environments: {
+      client: {
+        build: {
+          rollupOptions: {
+            output: {
+              // Collapse many tiny shared chunks (one per lucide icon, router
+              // internals) into a few vendor chunks so public pages emit far
+              // fewer modulepreload tags.
+              manualChunks(id: string) {
+                if (!id.includes("node_modules")) return undefined;
+                if (id.includes("/lucide-react/")) return "icons";
+                if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "react";
+                if (id.includes("/@tanstack/")) return "tanstack";
+                return undefined;
+              },
+            },
+          },
+        },
+      },
+    },
     resolve: {
       alias: [
         // pdf-lib's default entry is CJS and pulls tslib through an interop shim that

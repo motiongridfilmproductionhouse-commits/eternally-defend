@@ -76,7 +76,7 @@ function applySecurityHeaders(response: Response): Response {
     // can render inline from a same-origin blob URL.
     // style-src/font-src allow Google Fonts (stylesheet host + font file host) — the
     // only third-party subresource the app loads.
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss://*.amazonaws.com; frame-src 'self' blob:; object-src 'self' blob:; frame-ancestors 'none';",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss://*.amazonaws.com; frame-src 'self' blob:; object-src 'self' blob:; frame-ancestors 'none';",
   );
 
 

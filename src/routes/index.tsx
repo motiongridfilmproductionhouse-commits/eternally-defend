@@ -304,6 +304,8 @@ function useDeferredVideo() {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Phones keep the poster image only; the video is never fetched.
+    if (window.matchMedia("(max-width: 767px)").matches) return;
     const connection = (
       navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
     ).connection;
@@ -331,6 +333,29 @@ function useDeferredVideo() {
     };
   }, []);
   return enabled;
+}
+
+/** True once the element comes within 200px of the viewport (sticky). */
+function useNearViewport<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    if (typeof IntersectionObserver === "undefined") return setNear(true);
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  return [ref, near] as const;
 }
 
 function LandingPageContent() {
@@ -370,6 +395,7 @@ function LandingPageContent() {
   // entirely for reduced motion, Save-Data or slow (2g/3g) connections.
   // The poster <img> is the LCP element.
   const videoEnabled = useDeferredVideo();
+  const [ctaRef, ctaNear] = useNearViewport<HTMLDivElement>();
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !videoEnabled) return;
@@ -896,6 +922,7 @@ function LandingPageContent() {
 
         <section className="mx-auto max-w-[1380px] px-4 pb-4 md:px-8 md:pb-8">
           <div
+            ref={ctaRef}
             data-landing-reveal
             className="landing-final-cta relative min-h-[460px] overflow-hidden rounded-lg"
           >
@@ -909,7 +936,7 @@ function LandingPageContent() {
               decoding="async"
               className="absolute inset-0 size-full object-cover"
             />
-            {videoEnabled ? (
+            {videoEnabled && ctaNear ? (
               <video
                 className="absolute inset-0 size-full object-cover"
                 poster={newHeroPoster.url}

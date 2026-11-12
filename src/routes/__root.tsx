@@ -6,6 +6,7 @@ import {
   createRootRouteWithContext,
   useRouter,
   Scripts,
+  useLocation,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -13,6 +14,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { SeoHeadContent } from "@/components/SeoHeadContent";
 import { DEFAULT_DESCRIPTION, DEFAULT_TITLE } from "@/lib/seo/head-defaults";
 import appCss from "../styles.css?url";
+import appUtilitiesCss from "../app.css?url";
+import { isPublicPath } from "@/lib/seo/public-paths";
 
 function NotFoundComponent() {
   return (
@@ -104,12 +107,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/eterna-icon-16.png?v=3", type: "image/png", sizes: "16x16" },
       { rel: "apple-touch-icon", href: "/eterna-icon-180.png?v=3", sizes: "180x180" },
       { rel: "manifest", href: "/site.webmanifest" },
-      // Fonts
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      // Self-hosted Latin variable fonts (declared in styles.css); only the
+      // body face is preloaded so first paint isn't blocked on other weights.
       {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,500;1,500&display=swap",
+        rel: "preload",
+        href: "/fonts/inter-latin.woff2",
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
       },
     ],
   }),
@@ -135,9 +140,16 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useLocation({ select: (l) => l.pathname });
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* Signed-in app screens need the full utility set; public pages skip it
+          so their only render-blocking stylesheet stays small. React hoists
+          this into <head> after styles.css (same precedence group). */}
+      {isPublicPath(pathname) ? null : (
+        <link rel="stylesheet" href={appUtilitiesCss} precedence="default" />
+      )}
       <Outlet />
       {/* Single global toast layer — without it every toast.success/error is silent. */}
       <Toaster position="top-right" richColors closeButton />
