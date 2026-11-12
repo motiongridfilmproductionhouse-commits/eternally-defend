@@ -21,3 +21,4 @@
 - Share tags (og/twitter title, description, image, alt) are completed per route by src/components/SeoHeadContent.tsx + src/lib/seo/head-defaults.ts; routes set their own title/description and may override og:image; __root holds no page-specific share copy — why: no stale sitewide fallback text on any page.
 - public/sitemap.xml is static with per-page lastmod; src/lib/seo/sitemap-coverage.test.ts fails when a public route is missing — why: new public pages must always be listed.
 - Canonical 301 redirects (www -> apex, trailing slash) live in requestMiddleware in src/start.ts — why: permanent redirects for SEO.
+- JSON-LD reuses src/lib/seo/structured-data.ts (single Organization @id, PUBLISHER with logo, articleCommon for Article author/image, serviceNode for Service); public titles are checked by src/lib/seo/title-rules.test.ts — why: no conflicting Organization nodes and consistent title pattern.

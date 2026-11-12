@@ -4,17 +4,18 @@ import { PublicPage } from "@/components/public/PublicSite";
 import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/negative-search-results-brand-reputation";
 const PUBLISHED = "2026-09-19";
 const TITLE = "What Happens When Negative Search Results Start Defining Your Brand?";
 const DESCRIPTION =
-  "The results for your company's own name aren't neutral, and negative content can dominate them long after the original story fades. Here's why, and what to do.";
+  "Negative search results can dominate your company name long after a story fades. Why it happens, how it shapes your brand, and what to do. Read the guide.";
 
 export const Route = createFileRoute("/newsroom_/negative-search-results-brand-reputation")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "When Negative Search Results Define Your Brand | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "When Your Own Search Results Stop Reflecting Your Brand" },
       {
@@ -39,11 +40,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",
@@ -257,7 +256,9 @@ function NegativeSearchResultsPage() {
                 </span>{" "}
                 Sometimes, if it violates a platform's own policies, there may be grounds for
                 removal at the source. Content that's simply negative but not policy-violating is
-                harder to remove outright and often calls for a different approach.
+                harder to remove outright and often calls for a different approach. To have a
+                specific result assessed,{" "}
+                <Link to="/remove-content" className="landing-link text-landing-ink">submit a link for content removal</Link>.
               </p>
               <p>
                 <span className="font-semibold text-landing-ink">

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/accordion";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { ORG_ID } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/online-reputation-protection";
 
@@ -27,12 +28,12 @@ export const Route = createFileRoute("/online-reputation-protection")({
     meta: [
       {
         title:
-          "Online Reputation Protection: Monitoring, Verification & Response | Eterna Sentinel",
+          "Online Reputation Protection Service | Eterna Sentinel",
       },
       {
         name: "description",
         content:
-          "Eterna's online reputation protection monitors, verifies and responds to identity misuse, false claims and coordinated attacks across the surfaces that carry real risk, for individuals and organizations.",
+          "False claims and coordinated attacks spread fast. Eterna's online reputation protection monitors, verifies and responds for people and brands. Get started.",
       },
       { name: "robots", content: "index, follow" },
       {
@@ -60,14 +61,10 @@ function schema() {
     serviceType: "Online reputation protection",
     name: "Eterna Online Reputation Protection",
     description:
-      "Monitoring, verification and coordinated response for identity misuse, false claims and reputation attacks across high-risk digital surfaces.",
-    provider: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
-      url: "https://protectbyeterna.com/",
-    },
+      "False claims and coordinated attacks spread fast. Eterna's online reputation protection monitors, verifies and responds for people and brands. Get started.",
+    provider: { "@id": ORG_ID },
     areaServed: "Worldwide",
+    url: CANONICAL,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -205,7 +202,9 @@ function OnlineReputationProtectionPage() {
               <Link to="/eterna-ai" className="landing-link text-landing-ink">
                 Eterna AI
               </Link>{" "}
-              as one part of a single identity-protection capability.
+              as one part of a single identity-protection capability. When a specific post needs
+              assessment, you can{" "}
+              <Link to="/remove-content" className="landing-link text-landing-ink">submit a link for content removal</Link>.
             </p>
             <p>
               Every case begins with verification, not visibility tactics. Eterna determines whether
@@ -312,7 +311,9 @@ function OnlineReputationProtectionPage() {
                 AI impersonation protection
               </Link>{" "}
               capabilities are reviewed alongside reputation cases when identity misuse is
-              suspected, rather than treated as separate, unrelated problems.
+              suspected, rather than treated as separate, unrelated problems. For individuals in the
+              public eye, see{" "}
+              <Link to="/public-figure-protection" className="landing-link text-landing-ink">protection for public figures and executives</Link>.
             </p>
           </div>
         </div>

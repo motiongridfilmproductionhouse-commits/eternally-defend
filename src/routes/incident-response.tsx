@@ -3,13 +3,13 @@ import { ServiceLanding, landingHead, serviceSchema } from "@/components/public/
 
 const PATH = "/incident-response";
 const DESCRIPTION =
-  "Digital identity incident response from Eterna Sentinel: rapid verification, evidence preservation and coordinated response for deepfakes, impersonation, leaks and reputation crises.";
+  "A deepfake, leak or impersonation is live. Eterna's incident response verifies, preserves evidence and coordinates action. Request a confidential assessment.";
 
 export const Route = createFileRoute("/incident-response")({
   head: () =>
     landingHead({
       path: PATH,
-      title: "Incident Response for Deepfakes & Impersonation | Eterna Sentinel",
+      title: "Deepfake & Impersonation Incident Response | Eterna",
       description: DESCRIPTION,
     }),
   component: Page,

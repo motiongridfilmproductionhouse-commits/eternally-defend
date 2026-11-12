@@ -5,18 +5,19 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL =
   "https://protectbyeterna.com/newsroom/private-video-leak-online-blackmail-first-steps";
 const PUBLISHED = "2026-09-19";
 const TITLE = "Private Video Leaks and Online Blackmail: What to Do First";
 const DESCRIPTION =
-  "If a private video has been leaked and someone is using it to threaten you, here's what actually helps first, and why paying rarely makes it stop.";
+  "A private video leaked and someone is threatening you? What helps first with a private video leak or online blackmail, and why paying rarely works. Read on.";
 
 export const Route = createFileRoute("/newsroom_/private-video-leak-online-blackmail-first-steps")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Private Video Leaks & Blackmail: What to Do First | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "A Private Video Was Leaked, Here's What Helps First" },
       {
@@ -41,11 +42,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

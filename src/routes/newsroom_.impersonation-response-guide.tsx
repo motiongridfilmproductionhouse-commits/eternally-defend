@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/impersonation-response-guide";
 const PUBLISHED = "2026-09-16";
@@ -8,13 +9,13 @@ const PUBLISHED = "2026-09-16";
 export const Route = createFileRoute("/newsroom_/impersonation-response-guide")({
   head: () => ({
     meta: [
-      { title: "The Impersonation Response Guide: Eterna Sentinel" },
+      { title: "The Impersonation Response Guide | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "What actually happens, step by step, when you respond to a deepfake or impersonation account, and why the order matters.",
+          "Found an impersonation account or deepfake? This impersonation response guide covers evidence, security, reporting and escalation in order. Learn the steps.",
       },
-      { property: "og:title", content: "The Impersonation Response Guide: Eterna Sentinel" },
+      { property: "og:title", content: "The Impersonation Response Guide | Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -35,11 +36,9 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: "The Impersonation Response Guide",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
     datePublished: PUBLISHED,
     dateModified: PUBLISHED,
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 

@@ -1,23 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/what-is-image-immunization";
 
 export const Route = createFileRoute("/newsroom_/what-is-image-immunization")({
   head: () => ({
     meta: [
-      { title: "What Is Image Immunization?, Eterna Sentinel" },
+      { title: "What Is Image Immunization? | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "A plain-language introduction to what Image Immunization is and how it's designed to work.",
+          "Worried about how AI reuses your photos? A plain-language introduction to what image immunization is and how it is designed to work. Read the explainer.",
       },
-      { property: "og:title", content: "What Is Image Immunization?, Eterna Sentinel" },
+      { property: "og:title", content: "What Is Image Immunization? | Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "A plain-language introduction to what Image Immunization is and how it's designed to work.",
+          "Worried about how AI reuses your photos? A plain-language introduction to what image immunization is and how it is designed to work. Read the explainer.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -33,9 +34,7 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: "What Is Image Immunization?",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 

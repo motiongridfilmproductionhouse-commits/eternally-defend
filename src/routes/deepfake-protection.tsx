@@ -20,17 +20,18 @@ import {
 } from "@/components/ui/accordion";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { ORG_ID } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/deepfake-protection";
 
 export const Route = createFileRoute("/deepfake-protection")({
   head: () => ({
     meta: [
-      { title: "Deepfake Protection: Detection, Verification & Response | Eterna Sentinel" },
+      { title: "Deepfake Protection & Removal Service | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Eterna's deepfake protection identifies, verifies, preserves evidence around and responds to manipulated video, imagery, audio and identity misuse for public figures, executives and organizations.",
+          "Manipulated video, images or audio of you online? Eterna's deepfake protection verifies, preserves evidence and responds. Request a confidential assessment.",
       },
       { name: "robots", content: "index, follow" },
       {
@@ -58,14 +59,10 @@ function schema() {
     serviceType: "Deepfake protection",
     name: "Eterna Deepfake Protection",
     description:
-      "Identification, verification, evidence preservation and response for manipulated video, imagery, audio and identity misuse.",
-    provider: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
-      url: "https://protectbyeterna.com/",
-    },
+      "Manipulated video, images or audio of you online? Eterna's deepfake protection verifies, preserves evidence and responds. Request a confidential assessment.",
+    provider: { "@id": ORG_ID },
     areaServed: "Worldwide",
+    url: CANONICAL,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -349,7 +346,8 @@ function DeepfakeProtectionPage() {
               Immunization (EIP) is a different, preventative capability, developed through Eterna's
               internal research and currently under validation, applied to an authorized image
               before it's published, designed to reduce the risk of it being used to create a
-              deepfake in the first place.
+              deepfake in the first place. For people whose likeness is widely seen, see{" "}
+              <Link to="/public-figure-protection" className="landing-link text-landing-ink">public figure protection</Link>.
             </p>
             <p>
               <Link

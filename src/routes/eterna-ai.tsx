@@ -17,27 +17,28 @@ import {
 } from "@/components/ui/accordion";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/eterna-ai";
 
 export const Route = createFileRoute("/eterna-ai")({
   head: () => ({
     meta: [
-      { title: "Eterna AI | AI Identity Protection, Deepfake Defense & Image Immunization" },
+      { title: "Eterna AI: Identity Protection & Deepfake Defense | Eterna" },
       {
         name: "description",
         content:
-          "Eterna AI is the AI protection and research capability of Eterna Sentinel, focused on digital identity protection, deepfake defense, AI impersonation response and Eterna Image Immunization.",
+          "Generative AI creates new identity risks. Eterna AI is Eterna Sentinel's AI protection and research capability for deepfake defense. Learn about Eterna AI.",
       },
       { name: "robots", content: "index, follow" },
       {
         property: "og:title",
-        content: "Eterna AI | AI Identity Protection, Deepfake Defense & Image Immunization",
+        content: "Eterna AI: Identity Protection & Deepfake Defense | Eterna",
       },
       {
         property: "og:description",
         content:
-          "Eterna AI is the AI protection and research capability of Eterna Sentinel, focused on digital identity protection, deepfake defense, AI impersonation response and Eterna Image Immunization.",
+          "Generative AI creates new identity risks. Eterna AI is Eterna Sentinel's AI protection and research capability for deepfake defense. Learn about Eterna AI.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -54,18 +55,9 @@ function schema() {
     "@type": "WebPage",
     name: "Eterna AI: Protecting Digital Identity in the Age of Generative AI",
     description:
-      "Eterna AI is the AI protection and research capability of Eterna Sentinel, focused on digital identity protection, deepfake defense, AI impersonation response and Eterna Image Immunization.",
-    publisher: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
-      url: "https://protectbyeterna.com/",
-    },
-    about: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
-    },
+      "Generative AI creates new identity risks. Eterna AI is Eterna Sentinel's AI protection and research capability for deepfake defense. Learn about Eterna AI.",
+    publisher: PUBLISHER,
+    about: PUBLISHER,
     mainEntityOfPage: CANONICAL,
   });
 }

@@ -4,17 +4,18 @@ import { PublicPage } from "@/components/public/PublicSite";
 import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/first-24-hours-online-reputation-crisis";
 const PUBLISHED = "2026-09-19";
 const TITLE = "The First 24 Hours of an Online Reputation Crisis";
 const DESCRIPTION =
-  "A step-by-step guide to the first 24 hours after an online reputation crisis, what to verify, document, decide, and act on, hour by hour.";
+  "An online reputation crisis just started. What to verify, document, decide and act on in the first 24 hours, hour by hour, before it spreads. Learn the steps.";
 
 export const Route = createFileRoute("/newsroom_/first-24-hours-online-reputation-crisis")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "The First 24 Hours of a Reputation Crisis | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "The First 24 Hours: A Response Guide" },
       {
@@ -39,11 +40,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

@@ -1,23 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/inside-eterna-image-immunization";
 
 export const Route = createFileRoute("/newsroom_/inside-eterna-image-immunization")({
   head: () => ({
     meta: [
-      { title: "Inside Eterna Image Immunization, Eterna Sentinel" },
+      { title: "Inside Eterna Image Immunization | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "A technically grounded, public-safe look at how Image Immunization approaches pre-publication protection.",
+          "Can image privacy be designed before misuse happens? A technically grounded, public-safe look at how Eterna Image Immunization works. Read the deep dive.",
       },
-      { property: "og:title", content: "Inside Eterna Image Immunization, Eterna Sentinel" },
+      { property: "og:title", content: "Inside Eterna Image Immunization | Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "A technically grounded, public-safe look at how Image Immunization approaches pre-publication protection.",
+          "Can image privacy be designed before misuse happens? A technically grounded, public-safe look at how Eterna Image Immunization works. Read the deep dive.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -34,9 +35,7 @@ function schema() {
     "@type": "Article",
     headline:
       "Inside Eterna Image Immunization: How Image Privacy Can Be Designed Before Misuse Happens",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 

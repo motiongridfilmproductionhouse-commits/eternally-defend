@@ -4,17 +4,18 @@ import { PublicPage } from "@/components/public/PublicSite";
 import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/why-companies-need-reputation-monitoring";
 const PUBLISHED = "2026-09-19";
 const TITLE = "Why Companies Need Digital Reputation Monitoring Before a Crisis Happens";
 const DESCRIPTION =
-  "Reactive reputation management starts too late. Here's why ongoing monitoring, not crisis response alone, protects companies and their leaders.";
+  "Reactive reputation management starts too late. Why companies need digital reputation monitoring before a crisis, to protect business and leaders. Read more.";
 
 export const Route = createFileRoute("/newsroom_/why-companies-need-reputation-monitoring")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Why Companies Need Reputation Monitoring | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Reactive Reputation Management Starts Too Late" },
       {
@@ -39,11 +40,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

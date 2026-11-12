@@ -4,17 +4,18 @@ import { PublicPage } from "@/components/public/PublicSite";
 import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/deepfake-reuploads-after-removal";
 const PUBLISHED = "2026-09-19";
 const TITLE = "Deepfake Reuploads: Why Harmful Content Can Return After Removal";
 const DESCRIPTION =
-  "A removed deepfake can reappear, altered just enough to slip past automatic detection. Here's why that happens, and why it isn't a sign the takedown failed.";
+  "A removed deepfake can reappear, altered just enough to slip past detection. Why deepfake reuploads happen, and how to plan for them. Learn the steps.";
 
 export const Route = createFileRoute("/newsroom_/deepfake-reuploads-after-removal")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Deepfake Reuploads: Why Content Returns | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Why Deepfakes Come Back After Removal" },
       {
@@ -39,11 +40,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

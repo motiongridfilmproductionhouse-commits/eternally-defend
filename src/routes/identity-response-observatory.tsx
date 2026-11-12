@@ -3,19 +3,20 @@ import { ArrowRight, BookOpen, Radar, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/identity-response-observatory";
 
 export const Route = createFileRoute("/identity-response-observatory")({
   head: () => ({
     meta: [
-      { title: "Eterna Identity Response Observatory" },
+      { title: "Identity Response Observatory | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Eterna's initiative to build a sourced, methodology-transparent public record of digital-identity incidents: verified, reported or disputed, and shown that way.",
+          "Identity incidents are often cited without sources. The Identity Response Observatory is a sourced, methodology-transparent public record. Explore it.",
       },
-      { property: "og:title", content: "Eterna Identity Response Observatory" },
+      { property: "og:title", content: "Identity Response Observatory | Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -34,14 +35,10 @@ function schema() {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Eterna Identity Response Observatory",
+    name: "Identity Response Observatory | Eterna Sentinel",
     description:
-      "Eterna's initiative to build a sourced, methodology-transparent public record of digital-identity incidents: verified, reported or disputed, and shown that way.",
-    publisher: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      url: "https://protectbyeterna.com/",
-    },
+      "Identity incidents are often cited without sources. The Identity Response Observatory is a sourced, methodology-transparent public record. Explore it.",
+    publisher: PUBLISHER,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -50,6 +47,7 @@ function ObservatoryPage() {
   return (
     <PublicPage
       eyebrow="Eterna Identity Response Observatory"
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Research", to: "/research" as const }, { label: "Identity Response Observatory" }]}
       title="A public record of digital-identity incidents, built to be checked, not just cited."
       intro="Deepfake and impersonation statistics circulate widely. Few sources show how a single incident is actually confirmed before it's counted. The Observatory is Eterna's initiative to change that, starting with the same verification standard Eterna applies to its own case review."
     >

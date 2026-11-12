@@ -5,20 +5,21 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL =
   "https://protectbyeterna.com/newsroom/content-removal-vs-search-suppression-vs-reputation-recovery";
 const PUBLISHED = "2026-09-19";
 const TITLE = "Content Removal vs Search Suppression vs Reputation Recovery";
 const DESCRIPTION =
-  '"Can you just get it taken down?" is really three different questions. Here\'s the difference between removal, suppression and recovery, and which applies when.';
+  "\"Can you just take it down?\" is three questions. Content removal vs search suppression vs reputation recovery, and which applies when. Learn the difference.";
 
 export const Route = createFileRoute(
   "/newsroom_/content-removal-vs-search-suppression-vs-reputation-recovery",
 )({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Content Removal vs Search Suppression vs Recovery | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Removal, Suppression, Recovery: Three Different Things" },
       {
@@ -43,11 +44,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",
@@ -246,7 +245,8 @@ function RemovalSuppressionRecoveryPage() {
             genuinely available, invest in accurate and substantive content where suppression and
             recovery are the more honest goals, and monitor on an ongoing basis so you know which
             category new developments fall into as they happen, rather than treating each new
-            incident as a fresh surprise.
+            incident as a fresh surprise. If a specific post or page clearly qualifies, you can{" "}
+            <Link to="/remove-content" className="landing-link text-landing-ink">submit a link for content removal</Link> for individual assessment.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">

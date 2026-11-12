@@ -4,19 +4,20 @@ import { Button } from "@/components/ui/button";
 import { ContactForm } from "@/components/public/ContactForm";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/contact";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact Eterna Sentinel" },
+      { title: "Contact Eterna Sentinel | Digital Identity Protection" },
       {
         name: "description",
         content:
-          "Reach Eterna Sentinel for protection requests, business enquiries, media, partnerships or client support.",
+          "Need help with a deepfake, impersonation or reputation issue? Contact Eterna Sentinel for protection requests, media, partnerships or support. Get in touch.",
       },
-      { property: "og:title", content: "Contact Eterna Sentinel" },
+      { property: "og:title", content: "Contact Eterna Sentinel | Digital Identity Protection" },
       {
         property: "og:description",
         content:
@@ -35,14 +36,10 @@ function schema() {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "ContactPage",
-    name: "Contact Eterna Sentinel",
+    name: "Contact Eterna Sentinel | Digital Identity Protection",
     description:
-      "Reach Eterna Sentinel for protection requests, business enquiries, media, partnerships or client support.",
-    publisher: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      url: "https://protectbyeterna.com/",
-    },
+      "Need help with a deepfake, impersonation or reputation issue? Contact Eterna Sentinel for protection requests, media, partnerships or support. Get in touch.",
+    publisher: PUBLISHER,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -51,7 +48,9 @@ function ContactPage() {
   return (
     <PublicPage
       eyebrow="Contact"
-      title="Reach the right team the first time."
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "Contact" }]}
+      title="Contact Eterna Sentinel"
+      tagline="Reach the right team the first time."
       intro="Protection requests, business enquiries, media, partnerships and support go through different channels so they reach the right people faster."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

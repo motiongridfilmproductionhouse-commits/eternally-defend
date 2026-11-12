@@ -11,26 +11,27 @@ import {
   EipImageLifecycleSection,
 } from "@/components/public/EipInteractiveSections";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/image-immunization";
 
 export const Route = createFileRoute("/image-immunization")({
   head: () => ({
     meta: [
-      { title: "Eterna Image Immunization: Protect the Image Before Misuse Begins" },
+      { title: "Image Immunization: Protect Photos From AI | Eterna" },
       {
         name: "description",
         content:
-          "Eterna Image Immunization (EIP), Eterna's proprietary pre-publication image protection technology. Developed through internal R&D, currently under validation.",
+          "Photos can be reused by AI once published. Eterna Image Immunization (EIP) is pre-publication image protection, under validation. Learn how it is designed.",
       },
       {
         property: "og:title",
-        content: "Eterna Image Immunization: Protect the Image Before Misuse Begins",
+        content: "Image Immunization: Protect Photos From AI | Eterna",
       },
       {
         property: "og:description",
         content:
-          "Eterna Image Immunization (EIP), Eterna's proprietary pre-publication image protection technology. Developed through internal R&D, currently under validation.",
+          "Photos can be reused by AI once published. Eterna Image Immunization (EIP) is pre-publication image protection, under validation. Learn how it is designed.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -46,7 +47,7 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: "Eterna Image Immunization",
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
+    publisher: PUBLISHER,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -63,7 +64,8 @@ function ImageImmunizationPage() {
     <PublicPage
       eyebrow="Eterna Image Immunization"
       breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Platform" }, { label: "Image Immunization" }]}
-      title="Protect the Image Before Misuse Begins."
+      title="Image Immunization: Protect Your Photos From AI Misuse"
+      tagline="Protect the Image Before Misuse Begins."
       intro="EIP, Eterna Image Immunization, is Eterna's proprietary pre-publication image protection technology: developed through Eterna's internal research and development, and currently under validation. EIP is designed to help reduce the risk of deepfake creation, AI identity replication and unauthorized likeness reuse, while preserving the image's natural appearance for people."
       image={{
         src: "/images/newsroom/image-immunization-hero.png",

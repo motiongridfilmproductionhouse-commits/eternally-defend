@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/deepfake-verification-guide";
 const PUBLISHED = "2026-09-16";
@@ -8,13 +9,13 @@ const PUBLISHED = "2026-09-16";
 export const Route = createFileRoute("/newsroom_/deepfake-verification-guide")({
   head: () => ({
     meta: [
-      { title: "The Deepfake Verification Guide: Eterna Sentinel" },
+      { title: "The Deepfake Verification Guide | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "What actually counts as a verified deepfake incident, and the four-part test Eterna applies before calling one confirmed.",
+          "Is that deepfake incident really confirmed? This deepfake verification guide explains the four-part test Eterna applies before calling one. Learn the steps.",
       },
-      { property: "og:title", content: "The Deepfake Verification Guide: Eterna Sentinel" },
+      { property: "og:title", content: "The Deepfake Verification Guide | Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -35,11 +36,9 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: "The Deepfake Verification Guide",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
     datePublished: PUBLISHED,
     dateModified: PUBLISHED,
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 

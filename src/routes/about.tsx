@@ -2,15 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BrainCircuit, Scale, ShieldCheck, Users } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About Eterna Sentinel: Digital Protection" },
+      { title: "About Eterna Sentinel | Digital Identity Protection" },
       {
         name: "description",
         content:
-          "Meet Eterna Sentinel, a managed digital identity, reputation and content protection operation built around evidence and human judgment.",
+          "Eterna Sentinel is a managed digital identity protection operation built on evidence and human judgment for visible people and organizations. Learn about us.",
       },
       { property: "og:title", content: "About Eterna Sentinel" },
       {
@@ -34,11 +35,7 @@ function schema() {
     name: "About Eterna Sentinel",
     description:
       "Eterna Sentinel is a managed digital protection operation and technology platform for public figures, executives, organizations and their authorized representatives.",
-    publisher: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      url: "https://protectbyeterna.com/",
-    },
+    publisher: PUBLISHER,
     mainEntityOfPage: "https://protectbyeterna.com/about",
   });
 }
@@ -70,7 +67,8 @@ function AboutPage() {
     <PublicPage
       eyebrow="Company"
       breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "About" }]}
-      title="Protection built for the realities of public identity."
+      title="About Eterna Sentinel: Digital Identity Protection"
+      tagline="Protection built for the realities of public identity."
       intro="Eterna Sentinel is a managed digital protection operation and technology platform for public figures, executives, organizations and their authorized representatives."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

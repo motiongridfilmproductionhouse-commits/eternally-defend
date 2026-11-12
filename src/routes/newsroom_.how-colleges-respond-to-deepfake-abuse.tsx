@@ -4,17 +4,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { ArticleCta } from "@/components/public/ArticleCta";
 import { PublicPage } from "@/components/public/PublicSite";
 import { RelatedReading } from "@/components/public/RelatedReading";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/how-colleges-respond-to-deepfake-abuse";
 const PUBLISHED = "2026-09-20";
 const TITLE = "How Colleges Can Respond to Deepfake and Synthetic Media Abuse";
 const DESCRIPTION =
-  "A practical institutional framework for colleges responding to deepfake abuse: prevention, reporting, evidence, support, review and follow-through.";
+  "Is your campus ready for deepfake abuse? A practical framework for how colleges respond: prevention, reporting, evidence, support and review. Read it.";
 
 export const Route = createFileRoute("/newsroom_/how-colleges-respond-to-deepfake-abuse")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "How Colleges Can Respond to Deepfake Abuse | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
@@ -35,11 +36,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

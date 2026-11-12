@@ -1,23 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/eterna-introduces-image-immunization";
 
 export const Route = createFileRoute("/newsroom_/eterna-introduces-image-immunization")({
   head: () => ({
     meta: [
-      { title: "Eterna Introduces Image Immunization, Eterna Sentinel" },
+      { title: "Eterna Introduces Image Immunization | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Eterna Sentinel introduces Image Immunization, a proprietary pre-publication image protection technology.",
+          "Published photos can be misused by AI. Eterna Sentinel introduces Image Immunization, a proprietary pre-publication image protection technology. Read more.",
       },
-      { property: "og:title", content: "Eterna Introduces Image Immunization, Eterna Sentinel" },
+      { property: "og:title", content: "Eterna Introduces Image Immunization | Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "Eterna Sentinel introduces Image Immunization, a proprietary pre-publication image protection technology.",
+          "Published photos can be misused by AI. Eterna Sentinel introduces Image Immunization, a proprietary pre-publication image protection technology. Read more.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -33,9 +34,7 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: "Eterna Introduces Image Immunization for a New Era of Digital Identity Protection",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 

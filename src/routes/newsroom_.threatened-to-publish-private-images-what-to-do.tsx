@@ -5,18 +5,19 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL =
   "https://protectbyeterna.com/newsroom/threatened-to-publish-private-images-what-to-do";
 const PUBLISHED = "2026-09-19";
 const TITLE = "What to Do if Someone Threatens to Publish Your Private Images or Videos";
 const DESCRIPTION =
-  "If someone is threatening to publish private images or videos of you, here's what actually helps, before anything is posted, and why you shouldn't pay.";
+  "Someone is threatening to publish private images or videos of you? What actually helps before anything is posted, and why not to pay. Learn the steps.";
 
 export const Route = createFileRoute("/newsroom_/threatened-to-publish-private-images-what-to-do")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Threatened With Private Images? What to Do | Eterna" },
       { name: "description", content: DESCRIPTION },
       {
         property: "og:title",
@@ -44,11 +45,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

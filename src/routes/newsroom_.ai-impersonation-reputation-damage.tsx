@@ -5,17 +5,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/ai-impersonation-reputation-damage";
 const PUBLISHED = "2026-09-19";
 const TITLE = "How AI Impersonation Can Damage Personal and Business Reputation";
 const DESCRIPTION =
-  "A cloned face and voice were enough to move $25.6 million in one real case. Here's how AI impersonation damages both individuals and organizations, and what actually helps.";
+  "A cloned face and voice can be enough. How AI impersonation damages personal and business reputation, and what helps people and companies. Learn the steps.";
 
 export const Route = createFileRoute("/newsroom_/ai-impersonation-reputation-damage")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "How AI Impersonation Damages Reputation | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "When a Cloned Face and Voice Are All It Takes" },
       {
@@ -40,11 +41,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",
@@ -139,7 +138,9 @@ function AiImpersonationDamagePage() {
             become common enough that it's no longer a hypothetical. Public figures, executives and
             creators have all had their likeness used this way, and the damage doesn't stop with the
             people who were defrauded. It extends to everyone who now associates that person's face
-            with a scam they had nothing to do with.
+            with a scam they had nothing to do with. This is why{" "}
+            <Link to="/public-figure-protection" className="landing-link text-landing-ink">protection for public figures and executives</Link>{" "}
+            starts with monitoring for misuse of their likeness.
           </p>
 
           <h2 className="pt-4 text-xl font-semibold text-landing-ink">

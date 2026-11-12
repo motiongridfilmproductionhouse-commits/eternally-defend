@@ -3,13 +3,13 @@ import { ServiceLanding, landingHead, webPageSchema } from "@/components/public/
 
 const PATH = "/how-it-works";
 const DESCRIPTION =
-  "How Eterna Sentinel works: verify, monitor, investigate, preserve evidence, enforce and monitor again. A continuous, human-governed digital identity protection cycle.";
+  "How digital identity protection works at Eterna: verify, monitor, investigate, preserve evidence and respond under human review. Learn how the cycle works.";
 
 export const Route = createFileRoute("/how-it-works")({
   head: () =>
     landingHead({
       path: PATH,
-      title: "How Eterna Sentinel Works | Digital Identity Protection Process",
+      title: "How Digital Identity Protection Works | Eterna Sentinel",
       description: DESCRIPTION,
     }),
   component: Page,

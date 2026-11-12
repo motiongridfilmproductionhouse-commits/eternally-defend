@@ -11,8 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { submitRequestedInfo, trackRemovalCase } from "@/lib/removal-orders.functions";
 import { REMOVED_CUSTOMER_TEXT, caseLabel, paymentLabel } from "@/lib/removal-orders/status";
 
-const TITLE = "Track Your Removal Case | Eterna Sentinel";
-const DESC = "Check the status of your Eterna pay-per-link removal request with your case ID and email.";
+const TITLE = "Track Your Content Removal Case | Eterna Sentinel";
+const DESC = "Submitted a link for removal? Track your content removal case with your case ID and the email you used, and see each update from our team. Look up your case.";
 
 export const Route = createFileRoute("/track-case")({
   validateSearch: z.object({ case: z.string().optional() }),
@@ -106,7 +106,7 @@ function Page() {
       <main className="px-4 pb-20 pt-28 sm:pt-32">
       <div className="mx-auto max-w-3xl rounded-3xl border bg-card p-6 shadow-sm sm:p-10">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-primary">Case tracking</p>
-        <h1 className="mt-2 text-center text-3xl font-semibold tracking-tight sm:text-4xl">Tracking</h1>
+        <h1 className="mt-2 text-center text-3xl font-semibold tracking-tight sm:text-4xl">Track Your Content Removal Case</h1>
         <p className="mt-2 text-center text-sm text-muted-foreground">Enter your case ID and the email you used when submitting.</p>
         <form onSubmit={(e) => { e.preventDefault(); load(); }} className="mt-8 grid gap-4 sm:grid-cols-2">
           <label className="space-y-1.5">

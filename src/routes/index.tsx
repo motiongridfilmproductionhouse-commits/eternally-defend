@@ -39,32 +39,33 @@ import {
 import newHeroVideo from "@/assets/eterna-hero-new.mp4.asset.json";
 import newHeroVideoWebm from "@/assets/eterna-hero-new.webm.asset.json";
 import newHeroPoster from "@/assets/eterna-hero-new-poster.jpg.asset.json";
+import { organizationNode } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Eterna Sentinel | Digital Identity Protection & Deepfake Defense" },
+      { title: "Digital Identity & Deepfake Protection | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Protect your digital identity with Eterna Sentinel. Deepfake defense, impersonation monitoring, reputation protection, incident response and Eterna Image Immunization for individuals, public figures and organizations.",
+          "Deepfakes, impersonation or reputation threats? Eterna Sentinel provides digital identity protection with evidence and human review. Request an assessment.",
       },
       { name: "robots", content: "index, follow" },
-      { property: "og:title", content: "Eterna Sentinel | Digital Identity Protection & Deepfake Defense" },
+      { property: "og:title", content: "Digital Identity & Deepfake Protection | Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "Protect your digital identity with Eterna Sentinel. Deepfake defense, impersonation monitoring, reputation protection, incident response and Eterna Image Immunization for individuals, public figures and organizations.",
+          "Deepfakes, impersonation or reputation threats? Eterna Sentinel provides digital identity protection with evidence and human review. Request an assessment.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Eterna Sentinel | Digital Identity Protection & Deepfake Defense" },
+      { name: "twitter:title", content: "Digital Identity & Deepfake Protection | Eterna Sentinel" },
       {
         name: "twitter:description",
         content:
-          "Protect your digital identity with Eterna Sentinel. Deepfake defense, impersonation monitoring, reputation protection, incident response and Eterna Image Immunization for individuals, public figures and organizations.",
+          "Deepfakes, impersonation or reputation threats? Eterna Sentinel provides digital identity protection with evidence and human review. Request an assessment.",
       },
       { property: "og:url", content: CANONICAL },
     ],
@@ -76,29 +77,7 @@ export const Route = createFileRoute("/")({
 const organizationSchema = JSON.stringify({
   "@context": "https://schema.org",
   "@graph": [
-    {
-      "@type": "Organization",
-      "@id": "https://protectbyeterna.com/#organization",
-      name: "Eterna Sentinel",
-      alternateName: ["Eterna", "Protect by Eterna"],
-      url: "https://protectbyeterna.com/",
-      logo: "https://protectbyeterna.com/eterna-icon-180.png",
-      description:
-        "Digital identity protection, deepfake defense, impersonation monitoring and reputation protection.",
-      areaServed: "Worldwide",
-      knowsAbout: [
-        "Deepfake protection",
-        "Impersonation protection",
-        "Online reputation protection",
-        "Digital identity incident response",
-        "Image Immunization",
-      ],
-      contactPoint: [
-        { "@type": "ContactPoint", contactType: "customer support", email: "relations@protectbyeterna.com" },
-        { "@type": "ContactPoint", contactType: "media", email: "press@protectbyeterna.com" },
-        { "@type": "ContactPoint", contactType: "partnerships", email: "partnerships@protectbyeterna.com" },
-      ],
-    },
+    organizationNode(),
     {
       "@type": "WebSite",
       "@id": "https://protectbyeterna.com/#website",
@@ -746,6 +725,11 @@ function LandingPageContent() {
               <h2 className="mt-4 max-w-3xl text-4xl font-medium md:text-6xl">
                 Protection built around exposure.
               </h2>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-landing-muted">
+                Programs are matched to how visible a person or organization is, from individuals
+                to dedicated{" "}
+                <Link to="/public-figure-protection" className="landing-link text-landing-ink">protection for public figures and executives</Link>.
+              </p>
             </div>
             <div
               data-landing-reveal

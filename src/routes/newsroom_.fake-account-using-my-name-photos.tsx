@@ -4,17 +4,18 @@ import { PublicPage } from "@/components/public/PublicSite";
 import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/fake-account-using-my-name-photos";
 const PUBLISHED = "2026-09-19";
 const TITLE = "What to Do When Someone Creates a Fake Account Using Your Name or Photos";
 const DESCRIPTION =
-  "Found a fake account using your name or photos? Here's how to tell what kind you're dealing with, document it, and report it the right way.";
+  "Someone made a fake account using your name or photos? How to tell what kind it is, document it and report it the right way to the platform. Learn the steps.";
 
 export const Route = createFileRoute("/newsroom_/fake-account-using-my-name-photos")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Fake Account Using Your Name or Photos? | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Someone's Impersonating You Online, Here's What Helps" },
       {
@@ -39,11 +40,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",
@@ -217,7 +216,9 @@ function FakeAccountPage() {
             help becomes more relevant when multiple accounts appear across several platforms at
             once, when the account is being used in an active scam targeting your actual contacts,
             or when it's connected to a broader pattern of impersonation or harassment that a single
-            report doesn't fully address. The{" "}
+            report doesn't fully address. For people with a public profile, dedicated{" "}
+            <Link to="/public-figure-protection" className="landing-link text-landing-ink">public figure protection</Link>{" "}
+            covers this kind of repeat impersonation. The{" "}
             <Link
               to="/newsroom/impersonation-response-guide"
               className="landing-link text-landing-ink"

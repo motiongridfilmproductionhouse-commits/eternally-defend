@@ -5,17 +5,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/student-digital-safety";
 const PUBLISHED = "2026-09-19";
 const TITLE = "A Digital Safety Guide for Students in the Age of Generative AI";
 const DESCRIPTION =
-  "Generative AI has changed how images, video and rumors can be used against students. A clear guide to the landscape, and where to go for your specific situation.";
+  "Generative AI has changed how images, video and rumors are used against students. This student digital safety guide maps the landscape. Find the right help.";
 
 export const Route = createFileRoute("/student-digital-safety")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Student Digital Safety Guide for Generative AI | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Student Digital Safety in the Age of Generative AI" },
       {
@@ -40,11 +41,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

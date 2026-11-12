@@ -2,19 +2,20 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, FileSearch, Link2, ShieldCheck, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/methodology";
 
 export const Route = createFileRoute("/methodology")({
   head: () => ({
     meta: [
-      { title: "Verification Methodology: Eterna Sentinel" },
+      { title: "Deepfake Verification Methodology | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "The four-part standard Eterna Sentinel applies before any impersonation, deepfake or content-misuse finding is treated as verified.",
+          "Not every suspected deepfake is confirmed. Our deepfake verification methodology sets a four-part standard before a finding is verified. Read the standard.",
       },
-      { property: "og:title", content: "Verification Methodology: Eterna Sentinel" },
+      { property: "og:title", content: "Deepfake Verification Methodology | Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -33,14 +34,10 @@ function schema() {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Verification Methodology: Eterna Sentinel",
+    name: "Deepfake Verification Methodology | Eterna Sentinel",
     description:
-      "The four-part standard Eterna Sentinel applies before any impersonation, deepfake or content-misuse finding is treated as verified.",
-    publisher: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      url: "https://protectbyeterna.com/",
-    },
+      "Not every suspected deepfake is confirmed. Our deepfake verification methodology sets a four-part standard before a finding is verified. Read the standard.",
+    publisher: PUBLISHER,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -77,7 +74,8 @@ function MethodologyPage() {
     <PublicPage
       eyebrow="Methodology"
       breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "Verification Methodology" }]}
-      title="What counts as verified, and why it matters."
+      title="Deepfake and Impersonation Verification Methodology"
+      tagline="What counts as verified, and why it matters."
       intro="Detection technology can flag something as suspicious. It doesn't tell you whether a platform, a court or a newsroom will act on it. That gap is a documentation and verification question: this is the standard Eterna applies to close it."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

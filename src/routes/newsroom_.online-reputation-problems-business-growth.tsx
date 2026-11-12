@@ -5,17 +5,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/online-reputation-problems-business-growth";
 const PUBLISHED = "2026-09-19";
 const TITLE = "How Online Reputation Problems Can Affect Business Growth";
 const DESCRIPTION =
-  "Online reputation issues rarely stay contained to one post. Here's how they move through sales, hiring, partnerships and investor trust, and what actually helps.";
+  "Online reputation problems rarely stay in one post. How they affect sales, hiring, partnerships and investor trust, and what actually helps. Read the guide.";
 
 export const Route = createFileRoute("/newsroom_/online-reputation-problems-business-growth")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "How Reputation Problems Affect Business Growth | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Why Online Reputation Problems Don't Stay Contained" },
       {
@@ -40,11 +41,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

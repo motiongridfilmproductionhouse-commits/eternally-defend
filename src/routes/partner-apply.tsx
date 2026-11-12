@@ -21,12 +21,12 @@ export const Route = createFileRoute("/partner-apply")({
       { title: "Become an Eterna Partner | Eterna Sentinel" },
       {
         name: "description",
-        content: "Apply to join the Eterna Partner Programme and earn a 10% commission.",
+        content: "Refer qualifying paid clients to Eterna Sentinel and earn 10% commission through the Eterna Partner Programme for identity protection. Apply to partner.",
       },
       { property: "og:title", content: "Become an Eterna Partner" },
       {
         property: "og:description",
-        content: "Apply to join the Eterna Partner Programme and earn a 10% commission.",
+        content: "Refer qualifying paid clients to Eterna Sentinel and earn 10% commission through the Eterna Partner Programme for identity protection. Apply to partner.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

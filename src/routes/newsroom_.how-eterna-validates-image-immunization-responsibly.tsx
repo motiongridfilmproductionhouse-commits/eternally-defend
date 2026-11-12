@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL =
   "https://protectbyeterna.com/newsroom/how-eterna-validates-image-immunization-responsibly";
@@ -10,20 +11,20 @@ export const Route = createFileRoute(
 )({
   head: () => ({
     meta: [
-      { title: "How Eterna Validates Image Immunization Responsibly, Eterna Sentinel" },
+      { title: "How Eterna Validates Image Immunization | Eterna" },
       {
         name: "description",
         content:
-          "How Eterna validates Image Immunization responsibly, including what's still in progress.",
+          "New protection technology needs honest testing. See how Eterna validates Image Immunization responsibly, including what is still in progress. Read more.",
       },
       {
         property: "og:title",
-        content: "How Eterna Validates Image Immunization Responsibly, Eterna Sentinel",
+        content: "How Eterna Validates Image Immunization | Eterna",
       },
       {
         property: "og:description",
         content:
-          "How Eterna validates Image Immunization responsibly, including what's still in progress.",
+          "New protection technology needs honest testing. See how Eterna validates Image Immunization responsibly, including what is still in progress. Read more.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -39,9 +40,7 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: "How Eterna Validates Image Immunization Responsibly",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 

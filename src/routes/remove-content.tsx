@@ -3,10 +3,11 @@ import { PublicFooter, PublicHeader } from "@/components/public/PublicSite";
 import { EnquiryModalProvider } from "@/components/public/enquiry/enquiry-modal-context";
 import { RemovalFlow } from "@/components/public/removal/RemovalFlow";
 import { PASTEL_STYLE } from "@/components/public/removal/RemovalPortalModal";
+import { serviceNode } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/remove-content";
-const TITLE = "Online Content Removal — Submit a Link | Eterna Sentinel";
-const DESC = "Submit a harmful webpage, post, video, image, or review for individual assessment by Eterna Sentinel. Pay per link and track your removal case online.";
+const TITLE = "Internet Content Removal Service | Eterna Sentinel";
+const DESC = "Harmful post, video, image or review online? Our content removal service assesses each link individually, pay per link, with case tracking. Submit a link.";
 
 const BREADCRUMB_LD = JSON.stringify({
   "@context": "https://schema.org",
@@ -16,6 +17,10 @@ const BREADCRUMB_LD = JSON.stringify({
     { "@type": "ListItem", position: 2, name: "Remove Content", item: CANONICAL },
   ],
 });
+
+const SERVICE_LD = JSON.stringify(
+  serviceNode({ url: CANONICAL, name: "Eterna Content Removal", serviceType: "Internet content removal", description: DESC }),
+);
 
 export const Route = createFileRoute("/remove-content")({
   validateSearch: (s: Record<string, unknown>): { url?: string } =>
@@ -84,6 +89,7 @@ function Page() {
             </div>
           </section>
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: BREADCRUMB_LD }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: SERVICE_LD }} />
         </main>
         <PublicFooter />
       </div>

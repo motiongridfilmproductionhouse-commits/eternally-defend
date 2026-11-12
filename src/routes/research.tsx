@@ -3,6 +3,7 @@ import { ArrowRight, FileSearch, Fingerprint, Radar, ScrollText, ShieldCheck } f
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/research";
 
@@ -10,12 +11,12 @@ export const Route = createFileRoute("/research")({
   head: () => ({
     meta: [
       {
-        title: "Eterna Research: Identity Protection in the Synthetic Media Era | Eterna Sentinel",
+        title: "Synthetic Media & Identity Research | Eterna Sentinel",
       },
       {
         name: "description",
         content:
-          "Eterna Research develops and validates the verification methodology, initiatives and standards behind Eterna's identity-protection and digital-risk work, including Eterna Image Immunization.",
+          "Synthetic media is changing identity risk. Eterna Research develops the verification methods and standards behind our protection work. Explore the research.",
       },
       { name: "robots", content: "index, follow" },
       {
@@ -43,12 +44,7 @@ function schema() {
     name: "Eterna Research",
     description:
       "Research and validation behind Eterna's identity-protection methodology, initiatives and standards.",
-    isPartOf: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
-      url: "https://protectbyeterna.com/",
-    },
+    isPartOf: PUBLISHER,
     mainEntityOfPage: CANONICAL,
   });
 }

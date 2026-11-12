@@ -5,15 +5,15 @@ import { PolicySections } from "./terms";
 export const Route = createFileRoute("/cookies")({
   head: () => ({
     meta: [
-      { title: "Cookie Policy: Eterna Sentinel" },
+      { title: "Cookie Policy | Eterna Sentinel" },
       {
         name: "description",
-        content: "How Eterna Sentinel uses essential cookies and similar technologies.",
+        content: "Curious which cookies this site sets? The Eterna Sentinel cookie policy explains how we use essential cookies and similar technologies. Read the policy.",
       },
-      { property: "og:title", content: "Cookie Policy: Eterna Sentinel" },
+      { property: "og:title", content: "Cookie Policy | Eterna Sentinel" },
       {
         property: "og:description",
-        content: "How Eterna Sentinel uses essential cookies and similar technologies.",
+        content: "Curious which cookies this site sets? The Eterna Sentinel cookie policy explains how we use essential cookies and similar technologies. Read the policy.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

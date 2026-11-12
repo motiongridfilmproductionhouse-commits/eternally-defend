@@ -5,17 +5,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/false-allegations-online-what-to-do";
 const PUBLISHED = "2026-09-19";
 const TITLE = "False Allegations Online: What Individuals and Businesses Should Do";
 const DESCRIPTION =
-  "A false claim doesn't need to be proven to cause damage, it just needs to be visible. Here's how to assess and respond, as an individual or a business.";
+  "A false claim does not need proof to cause damage. What to do about false allegations online, as an individual or a business. Learn the steps to respond.";
 
 export const Route = createFileRoute("/newsroom_/false-allegations-online-what-to-do")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "False Allegations Online: What to Do | Eterna Sentinel" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "A False Claim Doesn't Need to Be Proven to Spread" },
       {
@@ -40,11 +41,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",
@@ -185,7 +184,8 @@ function FalseAllegationsPage() {
                 Many platforms prohibit harassment, targeted false claims, or coordinated
                 inauthentic behavior, and have a specific reporting category for it. This is often
                 faster than pursuing removal through any other channel, though it isn't guaranteed
-                to succeed, platforms make their own policy judgment calls.
+                to succeed, platforms make their own policy judgment calls. You can also{" "}
+                <Link to="/remove-content" className="landing-link text-landing-ink">submit a link for content removal</Link> for an individual assessment.
               </li>
               <li>
                 <span className="font-semibold text-landing-ink">

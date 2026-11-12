@@ -3,13 +3,13 @@ import { ServiceLanding, landingHead, serviceSchema } from "@/components/public/
 
 const PATH = "/enterprise-protection";
 const DESCRIPTION =
-  "Enterprise protection from Eterna Sentinel: monitoring, investigation and governed response for executive impersonation, brand misuse, deepfakes and reputation threats facing organizations.";
+  "Executive impersonation, brand misuse and deepfakes put companies at risk. Eterna's enterprise protection monitors and responds. Request an assessment.";
 
 export const Route = createFileRoute("/enterprise-protection")({
   head: () =>
     landingHead({
       path: PATH,
-      title: "Enterprise Protection | Executive & Brand Identity Defense | Eterna Sentinel",
+      title: "Executive & Enterprise Digital Protection | Eterna",
       description: DESCRIPTION,
     }),
   component: Page,

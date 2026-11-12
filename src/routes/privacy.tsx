@@ -7,7 +7,7 @@ export const Route = createFileRoute("/privacy")({
       {
         name: "description",
         content:
-          "Privacy Policy for Eterna Sentinel: digital protection, reputation intelligence, and YouTube API Services disclosure.",
+          "How is your data handled? The Eterna Sentinel privacy policy covers digital protection, reputation intelligence and YouTube API Services. Read the policy.",
       },
       { property: "og:title", content: "Privacy Policy | Eterna Sentinel" },
       {

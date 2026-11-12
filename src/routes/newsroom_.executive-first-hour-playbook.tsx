@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/executive-first-hour-playbook";
 const PUBLISHED = "2026-09-16";
@@ -8,15 +9,15 @@ const PUBLISHED = "2026-09-16";
 export const Route = createFileRoute("/newsroom_/executive-first-hour-playbook")({
   head: () => ({
     meta: [
-      { title: "The Executive First Hour Response Playbook: Eterna Sentinel" },
+      { title: "The Executive First Hour Response Playbook | Eterna" },
       {
         name: "description",
         content:
-          "A condensed playbook for executives and comms teams for the first hour after a deepfake or impersonation incident surfaces.",
+          "A deepfake or impersonation incident just surfaced. This executive first hour playbook covers five decisions for leaders and comms teams. Learn the steps.",
       },
       {
         property: "og:title",
-        content: "The Executive First Hour Response Playbook: Eterna Sentinel",
+        content: "The Executive First Hour Response Playbook | Eterna",
       },
       {
         property: "og:description",
@@ -38,11 +39,9 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: "The Executive First Hour Response Playbook",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
     datePublished: PUBLISHED,
     dateModified: PUBLISHED,
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 
@@ -145,6 +144,9 @@ function GuidePage() {
                 <Link to="/online-reputation-protection" className="landing-link text-landing-ink">
                   Online Reputation Protection
                 </Link>
+              </li>
+              <li>
+                <Link to="/public-figure-protection" className="landing-link text-landing-ink">Protection for public figures and executives</Link>
               </li>
             </ul>
           </div>

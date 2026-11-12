@@ -734,6 +734,7 @@ export function PublicPage({
   publishedDate,
   readTime,
   breadcrumbJsonLd,
+  tagline,
   children,
 }: {
   eyebrow: string;
@@ -750,6 +751,8 @@ export function PublicPage({
   readTime?: string;
   /** Emit BreadcrumbList JSON-LD (defaults to true except for newsroom pages, which declare their own). */
   breadcrumbJsonLd?: boolean;
+  /** Optional styled slogan shown under the H1 (keeps the brand line when the H1 is keyword-led). */
+  tagline?: string;
   children: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -787,6 +790,11 @@ export function PublicPage({
               <h1 className="mt-5 max-w-4xl text-balance text-5xl font-medium leading-[1.02] md:text-7xl">
                 {title}
               </h1>
+              {tagline ? (
+                <p className="mt-5 max-w-3xl text-balance text-2xl font-medium leading-tight text-landing-muted md:text-3xl">
+                  {tagline}
+                </p>
+              ) : null}
               <p className="mt-7 max-w-2xl text-base leading-7 text-landing-muted">{intro}</p>
               {(category || publishedDate || readTime) && (
                 <div className="mt-6 flex flex-wrap items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-landing-muted">

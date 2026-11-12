@@ -5,20 +5,21 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL =
   "https://protectbyeterna.com/newsroom/ai-generated-explicit-images-student-safety-guide";
 const PUBLISHED = "2026-09-19";
 const TITLE = "AI-Generated Explicit Images Without Consent: A Student Safety Guide";
 const DESCRIPTION =
-  "Found out an AI-generated explicit image of you or someone you know is circulating? Here's what actually helps, calmly, in order, without judgment.";
+  "An AI-generated explicit image of you or a friend is circulating? This student safety guide explains what helps, calmly and in order. Learn the steps.";
 
 export const Route = createFileRoute(
   "/newsroom_/ai-generated-explicit-images-student-safety-guide",
 )({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "AI Explicit Images Without Consent: Student Guide | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "You Are Not Alone in This, What to Do Next" },
       {
@@ -43,11 +44,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

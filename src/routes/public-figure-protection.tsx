@@ -3,13 +3,13 @@ import { ServiceLanding, landingHead, serviceSchema, webPageSchema } from "@/com
 
 const PATH = "/public-figure-protection";
 const DESCRIPTION =
-  "Digital identity protection for public figures, executives, creators and high-profile individuals facing impersonation, deepfakes and online reputation threats.";
+  "Public figures and executives face impersonation, deepfakes and reputation attacks. Eterna's public figure protection responds. Request an assessment.";
 
 export const Route = createFileRoute("/public-figure-protection")({
   head: () =>
     landingHead({
       path: PATH,
-      title: "Public Figure & Executive Digital Protection | Eterna Sentinel",
+      title: "Public Figure & VIP Digital Protection | Eterna Sentinel",
       description: DESCRIPTION,
     }),
   component: Page,

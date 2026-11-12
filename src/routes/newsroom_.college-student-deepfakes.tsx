@@ -5,17 +5,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/college-student-deepfakes";
 const PUBLISHED = "2026-09-19";
 const TITLE = "Deepfakes Are Becoming a New Digital Safety Problem for College Students";
 const DESCRIPTION =
-  "Video deepfakes are showing up in student social circles, not because every campus faces this, but because the tools and source material have both become more accessible. Here's what to know.";
+  "Video deepfakes are showing up in student social circles as tools get easier. What college students should know about deepfakes and safety. Learn the steps.";
 
 export const Route = createFileRoute("/newsroom_/college-student-deepfakes")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Deepfakes: A New Risk for College Students | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Video Deepfakes and Student Digital Safety" },
       {
@@ -40,11 +41,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

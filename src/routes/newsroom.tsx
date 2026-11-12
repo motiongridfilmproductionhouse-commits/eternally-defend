@@ -11,19 +11,20 @@ import {
   Users,
 } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom";
 
 export const Route = createFileRoute("/newsroom")({
   head: () => ({
     meta: [
-      { title: "Newsroom & Insights: Eterna Sentinel" },
+      { title: "Deepfake & Impersonation Guides | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Eterna Sentinel guidance on deepfake verification and impersonation response, written and published by Eterna.",
+          "Facing a deepfake, fake account or reputation crisis? Eterna's deepfake and impersonation guides cover verification, evidence and response. Browse the guides.",
       },
-      { property: "og:title", content: "Newsroom & Insights: Eterna Sentinel" },
+      { property: "og:title", content: "Deepfake & Impersonation Guides | Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -42,14 +43,10 @@ function schema() {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: "Newsroom & Insights: Eterna Sentinel",
+    name: "Deepfake & Impersonation Guides | Eterna Sentinel",
     description:
-      "Eterna Sentinel guidance on deepfake verification and impersonation response, written and published by Eterna.",
-    publisher: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      url: "https://protectbyeterna.com/",
-    },
+      "Facing a deepfake, fake account or reputation crisis? Eterna's deepfake and impersonation guides cover verification, evidence and response. Browse the guides.",
+    publisher: PUBLISHER,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -134,7 +131,9 @@ function NewsroomPage() {
   return (
     <PublicPage
       eyebrow="Newsroom"
-      title="Guidance Eterna publishes, written by Eterna."
+      breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Newsroom" }]}
+      title="Deepfake, Impersonation and Reputation Guides"
+      tagline="Guidance Eterna publishes, written by Eterna."
       intro="Practical, sourced guidance on verification and incident response. These are Eterna-owned educational guides, not independent journalism or third-party press coverage."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

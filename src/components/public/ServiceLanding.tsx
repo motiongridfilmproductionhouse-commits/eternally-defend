@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
 import { DEFAULT_OG_IMAGE } from "@/lib/seo/og-image";
+import { PUBLISHER, serviceNode } from "@/lib/seo/structured-data";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
 
 export const SITE = "https://protectbyeterna.com";
@@ -45,20 +46,9 @@ export function serviceSchema(opts: {
   serviceType: string;
   description: string;
 }) {
-  return JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "Service",
-    name: opts.name,
-    serviceType: opts.serviceType,
-    description: opts.description,
-    provider: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      url: `${SITE}/`,
-    },
-    areaServed: "Worldwide",
-    url: `${SITE}${opts.path}`,
-  });
+  return JSON.stringify(
+    serviceNode({ ...opts, url: `${SITE}${opts.path}` }),
+  );
 }
 
 export function webPageSchema(opts: { path: string; name: string; description: string }) {
@@ -69,7 +59,7 @@ export function webPageSchema(opts: { path: string; name: string; description: s
     description: opts.description,
     url: `${SITE}${opts.path}`,
     isPartOf: { "@type": "WebSite", name: "Eterna Sentinel", url: `${SITE}/` },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel", url: `${SITE}/` },
+    publisher: PUBLISHER,
   });
 }
 

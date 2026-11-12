@@ -5,17 +5,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/someone-made-a-deepfake-of-me";
 const PUBLISHED = "2026-09-19";
 const TITLE = "Someone Made a Deepfake of Me, What Should I Do?";
 const DESCRIPTION =
-  "Found a deepfake of yourself online? Here's what to do first, in order, before you report it, respond publicly, or assume the worst.";
+  "Found a deepfake of yourself online? What to do first, in order, before you report it, respond publicly or assume the worst about it. Learn the steps.";
 
 export const Route = createFileRoute("/newsroom_/someone-made-a-deepfake-of-me")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Someone Made a Deepfake of Me: What to Do | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Found a Deepfake of Yourself? Start Here." },
       {
@@ -40,11 +41,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

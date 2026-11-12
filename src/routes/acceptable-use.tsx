@@ -5,17 +5,17 @@ import { PolicySections } from "./terms";
 export const Route = createFileRoute("/acceptable-use")({
   head: () => ({
     meta: [
-      { title: "Acceptable Use: Eterna Sentinel" },
+      { title: "Acceptable Use Policy | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Responsible and authorized use requirements for Eterna Sentinel protection services.",
+          "Protection services must be used responsibly. The Eterna Sentinel acceptable use policy sets authorization and responsible use requirements. Read the policy.",
       },
-      { property: "og:title", content: "Acceptable Use: Eterna Sentinel" },
+      { property: "og:title", content: "Acceptable Use Policy | Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "Responsible and authorized use requirements for Eterna Sentinel protection services.",
+          "Protection services must be used responsibly. The Eterna Sentinel acceptable use policy sets authorization and responsible use requirements. Read the policy.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

@@ -19,17 +19,18 @@ import {
 } from "@/components/ui/accordion";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { ORG_ID } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/ai-impersonation";
 
 export const Route = createFileRoute("/ai-impersonation")({
   head: () => ({
     meta: [
-      { title: "AI Impersonation Protection: Fake Profiles & Cloned Voices | Eterna Sentinel" },
+      { title: "AI Impersonation & Fake Account Removal | Eterna" },
       {
         name: "description",
         content:
-          "Eterna's AI impersonation protection detects fake profiles, cloned voices, fake endorsements and identity misuse, then coordinates evidence-led, authorized response.",
+          "Fake profiles, cloned voices and fake endorsements damage trust. Eterna's AI impersonation protection detects and responds. Request a confidential assessment.",
       },
       { name: "robots", content: "index, follow" },
       {
@@ -57,14 +58,10 @@ function schema() {
     serviceType: "AI impersonation protection",
     name: "Eterna AI Impersonation Protection",
     description:
-      "Detection, verification, evidence preservation and response for fake profiles, cloned voices, fake endorsements and AI-driven identity misuse.",
-    provider: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      alternateName: ["Eterna", "Eterna AI", "Protect by Eterna"],
-      url: "https://protectbyeterna.com/",
-    },
+      "Fake profiles, cloned voices and fake endorsements damage trust. Eterna's AI impersonation protection detects and responds. Request a confidential assessment.",
+    provider: { "@id": ORG_ID },
     areaServed: "Worldwide",
+    url: CANONICAL,
     mainEntityOfPage: CANONICAL,
   });
 }
@@ -301,7 +298,8 @@ function AiImpersonationPage() {
               <Link to="/online-reputation-protection" className="landing-link text-landing-ink">
                 online reputation
               </Link>{" "}
-              concerns.
+              concerns. High-visibility identities are covered by dedicated{" "}
+              <Link to="/public-figure-protection" className="landing-link text-landing-ink">public figure protection</Link>.
             </p>
           </div>
         </div>

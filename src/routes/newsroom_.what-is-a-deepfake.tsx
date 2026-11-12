@@ -4,17 +4,18 @@ import { PublicPage } from "@/components/public/PublicSite";
 import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/what-is-a-deepfake";
 const PUBLISHED = "2026-09-19";
 const TITLE = "What Is a Deepfake and Why Is It Becoming a Reputation Problem?";
 const DESCRIPTION =
-  "A deepfake is AI-generated media depicting a real person doing or saying something they didn't. Here's how it works, and why it's become a reputation risk.";
+  "What is a deepfake? AI-generated media showing a real person doing or saying something they did not. How it works and why it harms reputation. Read more.";
 
 export const Route = createFileRoute("/newsroom_/what-is-a-deepfake")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "What Is a Deepfake and Why It Hurts Reputation | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "What Is a Deepfake, Actually?" },
       {
@@ -39,11 +40,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

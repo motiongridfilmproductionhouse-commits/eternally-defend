@@ -2,17 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Archive, Check, Fingerprint, KeyRound, Scale, ShieldAlert } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
 import { EnquiryButton } from "@/components/public/enquiry/enquiry-modal-context";
+import { PUBLISHER } from "@/lib/seo/structured-data";
 
 export const Route = createFileRoute("/security")({
   head: () => ({
     meta: [
-      { title: "Security & Governance: Eterna Sentinel" },
+      { title: "Security & Evidence Governance | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "How Eterna Sentinel governs authorization, identity verification, evidence, human review and sensitive information.",
+          "Sensitive cases need careful handling. See how Eterna Sentinel governs authorization, verification, evidence security and human review. Read our approach.",
       },
-      { property: "og:title", content: "Security & Governance: Eterna Sentinel" },
+      { property: "og:title", content: "Security & Evidence Governance | Eterna Sentinel" },
       {
         property: "og:description",
         content:
@@ -31,14 +32,10 @@ function schema() {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Security & Governance: Eterna Sentinel",
+    name: "Security & Evidence Governance | Eterna Sentinel",
     description:
-      "How Eterna Sentinel governs authorization, identity verification, evidence, human review and sensitive information.",
-    publisher: {
-      "@type": "Organization",
-      name: "Eterna Sentinel",
-      url: "https://protectbyeterna.com/",
-    },
+      "Sensitive cases need careful handling. See how Eterna Sentinel governs authorization, verification, evidence security and human review. Read our approach.",
+    publisher: PUBLISHER,
     mainEntityOfPage: "https://protectbyeterna.com/security",
   });
 }
@@ -80,7 +77,8 @@ function SecurityPage() {
     <PublicPage
       eyebrow="Security & governance"
       breadcrumb={[{ label: "Home", to: "/" as const }, { label: "Company" }, { label: "Security" }]}
-      title="Evidence preserved. Actions governed."
+      title="Security, Evidence Handling and Governance"
+      tagline="Evidence preserved. Actions governed."
       intro="Eterna combines technical controls with human review so protection work remains authorized, traceable and proportionate."
     >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema() }} />

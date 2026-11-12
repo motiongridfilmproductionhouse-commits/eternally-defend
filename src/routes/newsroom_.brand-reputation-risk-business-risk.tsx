@@ -5,17 +5,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { RelatedReading } from "@/components/public/RelatedReading";
 import { ArticleSources } from "@/components/public/ArticleSources";
 import { ArticleCta } from "@/components/public/ArticleCta";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/brand-reputation-risk-business-risk";
 const PUBLISHED = "2026-09-19";
 const TITLE = "Why Brand Reputation Risk Is Becoming a Business Risk";
 const DESCRIPTION =
-  "Reputation risk moves faster, spreads further and persists longer than it used to. Here's why more companies are managing it like any other core business risk.";
+  "Reputation risk now moves faster and lasts longer. Why brand reputation risk is becoming a business risk companies manage like any other. Read the guide.";
 
 export const Route = createFileRoute("/newsroom_/brand-reputation-risk-business-risk")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "Why Brand Reputation Risk Is a Business Risk | Eterna" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: "Reputation Risk Belongs on the Risk Register" },
       {
@@ -40,11 +41,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

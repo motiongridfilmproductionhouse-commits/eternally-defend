@@ -1,23 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PublicPage } from "@/components/public/PublicSite";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/detection-is-not-prevention";
 
 export const Route = createFileRoute("/newsroom_/detection-is-not-prevention")({
   head: () => ({
     meta: [
-      { title: "Detection Is Not Prevention, Eterna Sentinel" },
+      { title: "Detection Is Not Prevention | Eterna Sentinel" },
       {
         name: "description",
         content:
-          "Monitoring and takedown work after an image has already been misused. Why prevention has to start earlier, and how detection and prevention fit together.",
+          "Monitoring and takedowns act after an image is misused. Detection is not prevention: why protection must start earlier and how both fit. Read the essay.",
       },
-      { property: "og:title", content: "Detection Is Not Prevention, Eterna Sentinel" },
+      { property: "og:title", content: "Detection Is Not Prevention | Eterna Sentinel" },
       {
         property: "og:description",
         content:
-          "Monitoring and takedown work after an image has already been misused. Why prevention has to start earlier, and how detection and prevention fit together.",
+          "Monitoring and takedowns act after an image is misused. Detection is not prevention: why protection must start earlier and how both fit. Read the essay.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -33,9 +34,7 @@ function schema() {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: "Detection Is Not Prevention",
-    author: { "@type": "Organization", name: "Eterna Sentinel" },
-    publisher: { "@type": "Organization", name: "Eterna Sentinel" },
-    mainEntityOfPage: CANONICAL,
+    ...articleCommon({ url: CANONICAL }),
   });
 }
 

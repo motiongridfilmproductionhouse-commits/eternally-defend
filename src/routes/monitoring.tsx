@@ -3,13 +3,13 @@ import { ServiceLanding, landingHead, serviceSchema, webPageSchema } from "@/com
 
 const PATH = "/monitoring";
 const DESCRIPTION =
-  "Monitor impersonation, synthetic media, harmful content and emerging digital identity risks with Eterna Sentinel's continuous monitoring capabilities.";
+  "Impersonation and synthetic media can surface anywhere. Eterna's digital identity monitoring watches for emerging risks. Request a confidential assessment.";
 
 export const Route = createFileRoute("/monitoring")({
   head: () =>
     landingHead({
       path: PATH,
-      title: "Digital Identity Monitoring | Eterna Sentinel",
+      title: "Digital Identity Monitoring Service | Eterna Sentinel",
       description: DESCRIPTION,
     }),
   component: Page,

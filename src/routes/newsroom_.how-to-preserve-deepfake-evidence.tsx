@@ -4,17 +4,18 @@ import { ArticleCallout } from "@/components/public/ArticleCallout";
 import { ArticleCta } from "@/components/public/ArticleCta";
 import { PublicPage } from "@/components/public/PublicSite";
 import { RelatedReading } from "@/components/public/RelatedReading";
+import { articleCommon } from "@/lib/seo/structured-data";
 
 const CANONICAL = "https://protectbyeterna.com/newsroom/how-to-preserve-deepfake-evidence";
 const PUBLISHED = "2026-09-20";
 const TITLE = "How to Preserve Evidence When You Discover a Deepfake";
 const DESCRIPTION =
-  "The practical evidence-preservation steps to take when you find a deepfake, before the post disappears, spreads further, or you report it.";
+  "Just found a deepfake? Practical steps to preserve deepfake evidence before the post disappears, spreads further or you report it to the platform. Learn more.";
 
 export const Route = createFileRoute("/newsroom_/how-to-preserve-deepfake-evidence")({
   head: () => ({
     meta: [
-      { title: `${TITLE} | Eterna Sentinel` },
+      { title: "How to Preserve Deepfake Evidence | Eterna Sentinel" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
@@ -35,11 +36,9 @@ function schema() {
       "@type": "Article",
       headline: TITLE,
       description: DESCRIPTION,
-      author: { "@type": "Organization", name: "Eterna Sentinel" },
-      publisher: { "@type": "Organization", name: "Eterna Sentinel" },
       datePublished: PUBLISHED,
       dateModified: PUBLISHED,
-      mainEntityOfPage: CANONICAL,
+      ...articleCommon({ url: CANONICAL }),
     },
     {
       "@context": "https://schema.org",

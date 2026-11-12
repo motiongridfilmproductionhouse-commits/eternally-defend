@@ -3,13 +3,13 @@ import { ServiceLanding, landingHead, webPageSchema } from "@/components/public/
 
 const PATH = "/request-protection";
 const DESCRIPTION =
-  "Request digital identity protection from Eterna Sentinel. Tell us about deepfakes, impersonation or reputation threats and our team will review your enquiry confidentially.";
+  "Facing deepfakes, impersonation or reputation threats? Request digital identity protection and our team will review your enquiry confidentially. Start here.";
 
 export const Route = createFileRoute("/request-protection")({
   head: () =>
     landingHead({
       path: PATH,
-      title: "Request Protection | Eterna Sentinel",
+      title: "Request Digital Identity Protection | Eterna Sentinel",
       description: DESCRIPTION,
     }),
   component: Page,
