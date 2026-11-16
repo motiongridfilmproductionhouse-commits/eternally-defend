@@ -911,7 +911,10 @@ function LandingPageContent() {
                   <AccordionTrigger className="py-6 text-left hover:no-underline">
                     {question}
                   </AccordionTrigger>
-                  <AccordionContent className="max-w-xl pb-6 leading-6 text-landing-muted">
+                  <AccordionContent
+                    forceMount
+                    className="max-w-xl pb-6 leading-6 text-landing-muted"
+                  >
                     {answer}
                   </AccordionContent>
                 </AccordionItem>

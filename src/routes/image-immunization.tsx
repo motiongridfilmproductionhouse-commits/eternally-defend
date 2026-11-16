@@ -225,7 +225,7 @@ function ImageImmunizationPage() {
               <AccordionTrigger className="text-left text-sm font-semibold text-landing-ink">
                 What does EIP protect against?
               </AccordionTrigger>
-              <AccordionContent className="text-sm leading-6 text-landing-muted">
+              <AccordionContent forceMount className="text-sm leading-6 text-landing-muted">
                 EIP is designed to reduce the risk of deepfake creation, AI identity replication and
                 unauthorized likeness reuse from an authorized image.
               </AccordionContent>
@@ -234,7 +234,7 @@ function ImageImmunizationPage() {
               <AccordionTrigger className="text-left text-sm font-semibold text-landing-ink">
                 Does EIP change how my photo looks?
               </AccordionTrigger>
-              <AccordionContent className="text-sm leading-6 text-landing-muted">
+              <AccordionContent forceMount className="text-sm leading-6 text-landing-muted">
                 No. EIP is designed to preserve the image's natural, human-visible appearance.
               </AccordionContent>
             </AccordionItem>
@@ -242,7 +242,7 @@ function ImageImmunizationPage() {
               <AccordionTrigger className="text-left text-sm font-semibold text-landing-ink">
                 Is EIP guaranteed to stop misuse?
               </AccordionTrigger>
-              <AccordionContent className="text-sm leading-6 text-landing-muted">
+              <AccordionContent forceMount className="text-sm leading-6 text-landing-muted">
                 No. EIP is currently under validation, and protection effectiveness may vary across
                 systems, transformations and use cases.
               </AccordionContent>
@@ -251,7 +251,7 @@ function ImageImmunizationPage() {
               <AccordionTrigger className="text-left text-sm font-semibold text-landing-ink">
                 Does EIP replace Eterna's detection and response services?
               </AccordionTrigger>
-              <AccordionContent className="text-sm leading-6 text-landing-muted">
+              <AccordionContent forceMount className="text-sm leading-6 text-landing-muted">
                 No. EIP is an additional layer, applied before publication, alongside Eterna's
                 existing services.
               </AccordionContent>
