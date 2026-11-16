@@ -473,7 +473,7 @@ function EternaAiPage() {
                 <AccordionTrigger className="text-left text-sm font-semibold text-landing-ink">
                   {q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm leading-6 text-landing-muted">
+                <AccordionContent forceMount className="text-sm leading-6 text-landing-muted">
                   {a}
                 </AccordionContent>
               </AccordionItem>
