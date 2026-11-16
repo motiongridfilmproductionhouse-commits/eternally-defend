@@ -87,7 +87,7 @@ function AppShell() {
   return (
     <div className="min-h-screen flex bg-background">
       {!hidden && (
-        <div className="hidden lg:contents">
+        <div className="hidden lg:flex">
           <Sidebar />
         </div>
       )}
