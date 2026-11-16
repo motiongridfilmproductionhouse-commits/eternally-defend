@@ -127,6 +127,14 @@ const audiences = [
 
 const faqs = [
   {
+    q: "What should I prepare for an online reputation protection assessment?",
+    a: "Prepare the original page or profile URLs, a brief timeline, the identity affected, and any previous platform report references. Explain what appears false or misuses the identity, and whether you are acting for yourself or as an authorized representative. Keep sensitive evidence private; never send account passwords or recovery codes.",
+  },
+  {
+    q: "Does removing a Google result remove the original content?",
+    a: "No. Removing a result from Google Search is different from removing the page from the website that hosts it. The original content can remain accessible by direct link or through other services. Google's removal policies determine eligibility; a negative result alone does not establish that a request qualifies.",
+  },
+  {
     q: "Is Eterna a reputation management or SEO agency?",
     a: "No. Eterna is an identity-protection and digital-risk technology company. Online reputation protection is one part of a broader capability that also includes deepfake defense, AI impersonation response and Eterna Image Immunization, not a standalone content-suppression or search-ranking service.",
   },
@@ -357,6 +365,87 @@ function OnlineReputationProtectionPage() {
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="border-t border-landing-line py-16 md:py-20">
+        <div className="mx-auto max-w-3xl px-6">
+          <p className="landing-kicker">Prepare for an assessment</p>
+          <h2 className="mt-4 text-3xl font-medium md:text-4xl">
+            What to prepare for online reputation protection
+          </h2>
+          <p className="mt-6 text-sm leading-7 text-landing-muted">
+            A clear starting record helps separate an identity threat from criticism, an outdated
+            result or an unresolved factual dispute. Before requesting an assessment, organize what
+            you already know without amplifying the content or contacting a suspected impersonator.
+          </p>
+          <ol className="mt-6 list-decimal space-y-4 pl-5 text-sm leading-7 text-landing-muted">
+            <li>
+              <strong className="text-landing-ink">Record the original links.</strong> Keep the
+              exact URLs of the pages, posts or profiles involved. If you found them through search,
+              record the search query separately rather than supplying only a search-results link.
+            </li>
+            <li>
+              <strong className="text-landing-ink">Describe the identity and concern.</strong> State
+              whose identity is affected, what appears inaccurate or unauthorized, and what supports
+              that concern. Do not describe an allegation as proven when the facts remain uncertain.
+            </li>
+            <li>
+              <strong className="text-landing-ink">Build a short timeline.</strong> Note when you
+              first noticed the material, where else it appeared, and any platform report references
+              or responses you already received. Preserve context; avoid repeatedly reposting it.
+            </li>
+            <li>
+              <strong className="text-landing-ink">Clarify representation and scope.</strong> Explain
+              whether you are seeking help for yourself or representing someone else, and which
+              platforms or identities need assessment. Authorization is checked before enforcement.
+            </li>
+          </ol>
+          <p className="mt-6 text-sm leading-7 text-landing-muted">
+            Keep sensitive evidence private and share only what is needed through the appropriate
+            intake process. Never provide account passwords or recovery codes. For an account
+            pretending to be you, see the dedicated{" "}
+            <Link to="/fake-account-removal" className="landing-link text-landing-ink">
+              fake account removal service
+            </Link>
+            . For an active incident spreading across platforms, review{" "}
+            <Link to="/incident-response" className="landing-link text-landing-ink">
+              incident response
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      <section className="border-t border-landing-line bg-landing-soft py-16 md:py-20">
+        <div className="mx-auto max-w-3xl space-y-5 px-6 text-sm leading-7 text-landing-muted">
+          <h2 className="text-3xl font-medium text-landing-ink md:text-4xl">
+            Content removal and Google Search removal are different
+          </h2>
+          <p>
+            Removing a result from Google does not delete the page on the website that published it.
+            The source may still be reachable through a direct link, social media or another search
+            engine. Google explains this distinction in its{" "}
+            <a href="https://support.google.com/websearch/answer/9673730?hl=en" className="landing-link text-landing-ink">
+              personal information removal guidance
+            </a>
+            . A request must satisfy the relevant policy; an unwanted or negative result alone does
+            not establish eligibility.
+          </p>
+          <p>
+            If the concern is exposed personal contact information, Google's{" "}
+            <a href="https://support.google.com/websearch/answer/12719076?hl=en" className="landing-link text-landing-ink">
+              Results about you guidance
+            </a>{" "}
+            explains its self-service options and restrictions. If the source has already changed
+            but an old result remains, Google's guidance also describes requesting a refresh.
+          </p>
+          <p>
+            Eterna's assessment starts with the content, evidence and authorization, not a promise
+            to erase search results. The appropriate response may involve a platform report,
+            source-level review or continued monitoring. The platform or publisher makes its own
+            decision; no ranking position or removal outcome is guaranteed.
+          </p>
         </div>
       </section>
 
